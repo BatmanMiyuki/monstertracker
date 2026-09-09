@@ -341,7 +341,7 @@ function canCardHtml(can, btnsHtml) {
   const sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
   const cardBorder = can.is_limited ? 'border:2px solid #ff9600;border-bottom:3px solid #ff9600;' : 'border-bottom:3px solid ' + accent + ';';
   return '<div class="ccard" style="' + cardBorder + '">'
-    + '<div class="cthumb" style="background:' + accentBg(accent) + '">' + img + lim + owned + '</div>'
+    + '<div class="cthumb" style="background:' + (can.image_url ? '#000' : accentBg(accent)) + (can.image_url ? ';padding:0;' : '') + '">' + img + lim + owned + '</div>'
     + '<div class="cbody"><div class="cname">' + escapeHtml(can.name) + '</div><div class="csub">' + sub + '</div>' + price
     + (btnsHtml ? '<div class="cbtns">' + btnsHtml + '</div>' : '')
     + '</div></div>';
