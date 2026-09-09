@@ -115,7 +115,7 @@ window.goTab = function (s, btn) {
     home: loadHome, catalogue: loadCatalogue, collection: loadCollection,
     friends: loadFriends, updates: loadUpdates, settings: loadSettings,
     'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers,
-    'adm-col': loadAdmCol, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings,
+    'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings,
   };
   if (m[s]) m[s]();
 };
@@ -208,6 +208,7 @@ function _setupAppUI() {
   document.getElementById('user-tabs').style.display = isAdmin ? 'none' : 'flex';
   document.getElementById('admin-tabs').style.display = isAdmin ? 'flex' : 'none';
   document.getElementById('nav-name').textContent = isAdmin ? 'Admin' : (me.username || '');
+  var nnd = document.getElementById('nav-name-drop'); if (nnd) nnd.textContent = isAdmin ? 'Admin' : (me.username || '');
   document.getElementById('set-name').textContent = me.username || '';
   document.getElementById('set-user').value = me.username || '';
   document.getElementById('set-email').value = me.email || '';
@@ -743,6 +744,7 @@ window.saveProfile = function () {
   api('PATCH', '/api/me', { username: username }).then(function (r) {
     me = r.user;
     document.getElementById('nav-name').textContent = me.username;
+    var nnd2 = document.getElementById('nav-name-drop'); if (nnd2) nnd2.textContent = me.username;
     document.getElementById('set-name').textContent = me.username;
     setOk('set-ok', 'Profil mis à jour ✓');
   }).catch(function (e) { setErr('set-err', e.message); });
@@ -1061,30 +1063,6 @@ window.delUser = function (id) {
 };
 
 // ════════════════════════════════════════════════════════
-//  ADMIN — MA COLLECTION
-// ════════════════════════════════════════════════════════
-window.loadAdmCol = function () {
-  document.getElementById('adm-col-ct').innerHTML = lHtml();
-  Promise.all([api('GET', '/api/collection'), api('GET', '/api/admin/collection-stats')]).then(function (res) {
-    var d = res[0], stats = res[1];
-    document.getElementById('adm-c-owned').textContent = stats.owned;
-    document.getElementById('adm-c-total').textContent = stats.total;
-    document.getElementById('adm-c-value').textContent = stats.value > 0 ? stats.value.toFixed(2) + '€' : '—';
-    drawChart(stats.months, 'adm-chart-ct');
-    if (!d.items.length) { document.getElementById('adm-col-ct').innerHTML = eHtml('&#129371;', 'COLLECTION VIDE', 'Ajoute des canettes !'); return; }
-    var html = '<div class="cgrid">';
-    d.items.forEach(function (c) {
-      var rmBtn = '<button class="cbtn rm" onclick="removeAdmCol(' + c.can_id + ')">✕ Retirer</button>';
-      html += '<div>' + canCardHtml(c, rmBtn) + '</div>';
-    });
-    document.getElementById('adm-col-ct').innerHTML = html + '</div>';
-  }).catch(function (e) { document.getElementById('adm-col-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
-};
-window.removeAdmCol = function (canId) {
-  api('DELETE', '/api/collection/' + canId).then(function () { toast('Retirée ✓'); loadAdmCol(); }).catch(function (e) { toast(e.message, 'err'); });
-};
-
-// ════════════════════════════════════════════════════════
 //  ADMIN — RÉCEPTION
 // ════════════════════════════════════════════════════════
 window.loadAdmInbox = function () {
@@ -1270,3 +1248,13 @@ document.querySelectorAll('.moverlay').forEach(function (ov) {
     })
     .catch(function () { go('landing'); });
 })();
+
+// ════════════════════════════════════════════════════════════
+//  MENU MOBILE (BURGER)
+// ════════════════════════════════════════════════════════════
+window.toggleNavMenu = function () { var d = document.getElementById('nav-drop'); if (d) d.classList.toggle('open'); };
+window.closeNavMenu = function () { var d = document.getElementById('nav-drop'); if (d) d.classList.remove('open'); };
+document.addEventListener('click', function (e) {
+  var d = document.getElementById('nav-drop'), b = document.getElementById('nav-burger');
+  if (d && d.classList.contains('open') && b && !d.contains(e.target) && !b.contains(e.target)) d.classList.remove('open');
+});

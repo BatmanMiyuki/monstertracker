@@ -97,7 +97,7 @@ window.goTab = (s, btn) => {
   document.querySelectorAll('.ntab').forEach((x) => x.classList.remove('on'));
   document.getElementById('sec-' + s).classList.add('on');
   if (btn) btn.classList.add('on');
-  const m = { home: loadHome, catalogue: loadCatalogue, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-col': loadAdmCol, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings };
+  const m = { home: loadHome, catalogue: loadCatalogue, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings };
   if (m[s]) m[s]();
 };
 window.showForgot = () => { document.getElementById('forgot-panel').style.display = 'block'; };
@@ -209,7 +209,9 @@ function _setupAppUI() {
   document.getElementById('user-tabs').style.display = isAdmin ? 'none' : 'flex';
   document.getElementById('admin-tabs').style.display = isAdmin ? 'flex' : 'none';
   const sb = document.getElementById('support-btn'); if (sb) sb.style.display = isAdmin ? 'inline-block' : 'none';
+  const dsb = document.getElementById('drop-support'); if (dsb) dsb.style.display = isAdmin ? 'block' : 'none';
   document.getElementById('nav-name').textContent = isAdmin ? 'Admin' : (user.username || '');
+  const nnd = document.getElementById('nav-name-drop'); if (nnd) nnd.textContent = isAdmin ? 'Admin' : (user.username || '');
   if (!isAdmin) {
     document.getElementById('set-name').textContent = user.username || '';
     document.getElementById('set-user').value = user.username || '';
@@ -723,6 +725,7 @@ window.saveProfile = function () {
   updateDoc(doc(db, 'users', user.uid), { username }).then(() => {
     user.username = username;
     document.getElementById('nav-name').textContent = username;
+    const nnd2 = document.getElementById('nav-name-drop'); if (nnd2) nnd2.textContent = username;
     document.getElementById('set-name').textContent = username;
     setOk('set-ok', 'Profil mis à jour ✓');
   }).catch((e) => setErr('set-err', e.message));
@@ -999,28 +1002,6 @@ window.delUser = function (uid, name) {
     .then(() => { toast('Utilisateur supprimé ✓'); loadAdmUsers(); }).catch((e) => toast(e.message, 'err'));
 };
 
-// ════════════════════ ADMIN : MA COLLECTION ════════════════════
-window.loadAdmCol = function () {
-  getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((colSnap) => {
-    const cans = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
-    cans.sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0));
-    const totalValue = cans.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
-    getDocs(collection(db, 'cans')).then((s) => {
-      document.getElementById('adm-c-owned').textContent = cans.length;
-      document.getElementById('adm-c-total').textContent = s.size;
-      document.getElementById('adm-c-value').textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
-    });
-    const monthMap = {};
-    cans.forEach((c) => { const d = tsToDate(c.added_at); if (d) { const m = d.toISOString().substring(0, 7); monthMap[m] = (monthMap[m] || 0) + 1; } });
-    drawChart(Object.entries(monthMap).sort().slice(-12).map((e) => ({ month: e[0], count: e[1] })), 'adm-chart-ct');
-    if (!cans.length) { document.getElementById('adm-col-ct').innerHTML = eHtml('&#129371;', 'COLLECTION VIDE', 'Ajoute des canettes !'); return; }
-    let html = '<div class="cgrid">';
-    cans.forEach((c) => { html += '<div>' + canCardHtml(c, '<button class="cbtn rm" onclick="removeAdmCol(\'' + c.id + '\')">✕ Retirer</button>') + '</div>'; });
-    document.getElementById('adm-col-ct').innerHTML = html + '</div>';
-  }).catch((e) => console.error('loadAdmCol', e));
-};
-window.removeAdmCol = (docId) => deleteDoc(doc(db, 'collection', docId)).then(() => { toast('Retirée ✓'); loadAdmCol(); }).catch((e) => toast(e.message, 'err'));
-
 // ════════════════════ ADMIN : RÉCEPTION ════════════════════
 window.loadAdmInbox = function () {
   document.getElementById('inbox-ct').innerHTML = lHtml();
@@ -1129,3 +1110,11 @@ document.querySelectorAll('.moverlay').forEach((ov) => ov.addEventListener('clic
 
 // ── Démarrage : landing par défaut ──
 go('landing');
+
+// ════════════════════ MENU MOBILE (BURGER) ════════════════════
+window.toggleNavMenu = function () { const d = document.getElementById('nav-drop'); if (d) d.classList.toggle('open'); };
+window.closeNavMenu = function () { const d = document.getElementById('nav-drop'); if (d) d.classList.remove('open'); };
+document.addEventListener('click', function (e) {
+  const d = document.getElementById('nav-drop'), b = document.getElementById('nav-burger');
+  if (d && d.classList.contains('open') && b && !d.contains(e.target) && !b.contains(e.target)) d.classList.remove('open');
+});

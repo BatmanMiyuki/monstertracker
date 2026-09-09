@@ -33,7 +33,7 @@
 <section class="hero">
   <div class="hero-l">
     <div class="hero-badge">&#129371; COLLECTION TRACKER</div>
-    <h1 class="hero-h1">LIBÈRE<em>LA BÊTE</em></h1>
+    <h1 class="hero-h1">UNLEASH<em>THE BEAST</em></h1>
     <p class="hero-p">Suis ta collection de canettes Monster Energy. Catalogue complet, statistiques, wishlist et communauté de collectionneurs.</p>
     <div class="hero-btns">
       <button class="btn-g" onclick="go('register')">COMMENCER</button>
@@ -70,7 +70,6 @@
 <div class="split">
   <div class="svis"><img src="https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=900&q=80" alt="" onerror="this.style.display='none'"/><div class="svis-over"></div><div class="svis-grid"></div><div class="svis-scan"></div>
     <div class="svis-body">
-      <img src="icon.png" alt=""/>
       <div class="logo" onclick="go('landing')" style="justify-content:center;">
         <span class="logo-t">MONSTER<em>TRACKER</em></span>
       </div>
@@ -99,7 +98,6 @@
 <div class="split">
   <div class="svis"><img src="https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=900&q=80" alt="" onerror="this.style.display='none'"/><div class="svis-over"></div><div class="svis-grid"></div><div class="svis-scan"></div>
     <div class="svis-body">
-      <img src="icon.png" alt=""/>
       <div class="logo" onclick="go('landing')" style="justify-content:center;">
         <span class="logo-t">MONSTER<em>TRACKER</em></span>
       </div>
@@ -138,7 +136,6 @@
     <button class="ntab on" id="tab-adm-cans"     onclick="goTab('adm-cans',this)">Canettes</button>
     <button class="ntab"    id="tab-adm-updates"  onclick="goTab('adm-updates',this)">Annonces</button>
     <button class="ntab"    id="tab-adm-users"    onclick="goTab('adm-users',this)">Utilisateurs</button>
-    <button class="ntab"    id="tab-adm-col"      onclick="goTab('adm-col',this)">Ma Collection</button>
     <button class="ntab"    id="tab-adm-inbox"    onclick="goTab('adm-inbox',this)">&#128140; Réception<span class="badge" id="inbox-badge" style="display:none;"></span></button>
     <button class="ntab"    id="tab-adm-settings" onclick="goTab('adm-settings',this)">&#9881; Réglages</button>
   </div>
@@ -147,8 +144,15 @@
     <button id="support-btn" class="btn-rd" style="display:none;border-color:rgba(0,161,0,.4);color:var(--g);" onclick="location.href='support.html'">&#128272; SUPPORT</button>
     <button id="pwa-install-btn" onclick="doInstall()">&#11015; INSTALLER</button>
     <button class="btn-rd" onclick="doLogout()">Déconnexion</button>
+    <button class="nav-burger" id="nav-burger" onclick="toggleNavMenu()" aria-label="Menu">&#9776;</button>
   </div>
 </nav>
+<div class="nav-drop" id="nav-drop">
+  <div class="nd-who">Salut, <b id="nav-name-drop">-</b></div>
+  <button id="drop-support" style="display:none;" onclick="location.href='support.html'">&#128272; Support</button>
+  <button onclick="closeNavMenu();doInstall()">&#11015; Installer l'app</button>
+  <button class="nd-out" onclick="closeNavMenu();doLogout()">Déconnexion</button>
+</div>
 <div class="app-main">
 
 <!-- ACCUEIL -->
@@ -395,18 +399,6 @@
   <div class="adm-hdr"><div><h2>UTILISATEURS</h2><p>Gère les comptes</p></div></div>
   <input class="sinput" id="user-search" type="text" placeholder="Rechercher par pseudo ou email..." oninput="loadAdmUsers()"/>
   <div id="adm-users-ct"></div>
-</div>
-
-<!-- ADMIN : MA COLLECTION -->
-<div class="sec" id="sec-adm-col">
-  <div class="sec-hd"><h1>MA COLLECTION</h1><p>Suis ta collection (canettes publiées et brouillons)</p></div>
-  <div class="srow">
-    <div class="sbox"><div class="sval" id="adm-c-owned">-</div><div class="slbl2">Possédées</div></div>
-    <div class="sbox"><div class="sval" id="adm-c-total">-</div><div class="slbl2">Total</div></div>
-    <div class="sbox val"><div class="sval" id="adm-c-value">-</div><div class="slbl2">Valeur</div></div>
-  </div>
-  <div class="chart-wrap"><div class="chart-hd">Canettes ajoutées par mois</div><div id="adm-chart-ct"></div></div>
-  <div id="adm-col-ct"></div>
 </div>
 
 <!-- ADMIN : RÉCEPTION -->
