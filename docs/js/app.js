@@ -17,6 +17,9 @@ const app = initializeApp({
   appId: '1:714396226229:web:9fd3fc50d9396ca7a324fc',
 });
 const auth = getAuth(app);
+// URL du serveur Node (version pro : lien de réinitialisation vivant dans l'email type).
+// Vide = mode sans serveur : l'email officiel Firebase part en parallèle.
+window.MT_RESET_API = '';
 const db = getFirestore(app);
 const fst = () => serverTimestamp();
 const fbatch = () => writeBatch(db);
@@ -1103,11 +1106,41 @@ window.loadAdmInbox = function () {
   }).catch((e) => { document.getElementById('inbox-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
 window.setInboxFilter = (f) => { _inboxFilter = f; loadAdmInbox(); };
+function forgotEmailTemplate(m, link) {
+  const pseudo = (m.username && m.username !== 'Compte bloqué') ? m.username : '(pseudo du compte)';
+  const pwLine = link
+    ? 'Mot de passe : cliquez sur ce lien pour définir votre nouveau mot de passe :\n' + link
+    : 'Mot de passe : un lien sécurisé de réinitialisation vient de vous être envoyé dans un email séparé (objet : « Réinitialisation du mot de passe »). Cliquez sur ce lien pour définir votre nouveau mot de passe.';
+  return 'Bonjour,\n\nVous avez demandé la récupération de votre mot de passe pour votre compte sur notre application Monster Tracker.\n\nVoici vos informations de connexion :\n\nPseudo : ' + pseudo + '\nEmail : ' + (m.email || '') + '\n\n' + pwLine + '\n\nVous aurez toujours la possibilité de changer votre mot de passe directement sur l\'application.\n\nSi vous n\'êtes pas à l\'origine de cette demande, vous pouvez ignorer cet email.\n\nMerci d\'utiliser notre application.\n\nL\'équipe administrative.';
+}
+async function fetchResetLink(email) {
+  if (!window.MT_RESET_API) return null;
+  try {
+    const tok = await auth.currentUser.getIdToken();
+    const r = await fetch(window.MT_RESET_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: tok, email }) });
+    const j = await r.json();
+    return j.link || null;
+  } catch (e) { return null; }
+}
 window.copyForgotCode = function () {
   const c = window._forgotCode || '';
   if (!c) { toast('Code indisponible', 'err'); return; }
   if (navigator.clipboard) navigator.clipboard.writeText(c).then(() => toast('Code copié ✓ Colle-le dans le Support')).catch(() => toast('Copie impossible', 'err'));
   else toast('Copie impossible', 'err');
+};
+window.copyForgotEmail = async function (id) {
+  const m = _admMsgs.find((x) => x.id === id); if (!m) return;
+  let link = await fetchResetLink(m.email);
+  if (!link) sendPasswordResetEmail(auth, m.email).then(() => toast('Lien officiel envoyé à ' + m.email + ' ✓')).catch(() => {});
+  const txt = forgotEmailTemplate(m, link);
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast(link ? 'Email type copié AVEC le lien ✓' : 'Email type copié ✓ (joins le logo à l\'envoi)')).catch(() => toast('Copie impossible', 'err'));
+  else toast('Copie impossible', 'err');
+};
+window.mailtoForgot = async function (id) {
+  const m = _admMsgs.find((x) => x.id === id); if (!m) return;
+  let link = await fetchResetLink(m.email);
+  if (!link) sendPasswordResetEmail(auth, m.email).then(() => toast('Lien officiel envoyé à ' + m.email + ' ✓')).catch(() => {});
+  location.href = 'mailto:' + encodeURIComponent(m.email || '') + '?subject=' + encodeURIComponent('Récupération de votre mot de passe — Monster Tracker') + '&body=' + encodeURIComponent(forgotEmailTemplate(m, link));
 };
 window.viewMsg = function (id) {
   const m = _admMsgs.find((x) => x.id === id); if (!m) return;
@@ -1123,7 +1156,10 @@ window.viewMsg = function (id) {
       + '<div style="font-size:13px;margin-bottom:8px;">Email : <b>' + escapeHtml(m.email) + '</b></div>'
       + '<div style="font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">Code utilisateur : <code id="forgot-code-val" style="font-family:monospace;font-size:14px;letter-spacing:2px;color:var(--g);">…</code>'
       + '<button class="btn-ghost" style="padding:7px 12px;" onclick="copyForgotCode()">Copier</button></div>'
-      + '<div style="font-size:11px;color:var(--mu);margin-top:10px;line-height:1.6;">Copie ce code, ouvre la mini-app SUPPORT et colle-le dans la recherche : la fiche du compte s\'affiche avec le bouton d\'envoi du lien de réinitialisation.</div></div>';
+      + '<div style="font-size:11px;color:var(--mu);margin-top:10px;line-height:1.6;">Copie ce code, ouvre la mini-app SUPPORT et colle-le dans la recherche : la fiche du compte s\'affiche avec le bouton d\'envoi du lien de réinitialisation.</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'
+      + '<button class="btn-o" style="flex:1;min-width:150px;font-size:12px;padding:10px;" onclick="copyForgotEmail(\'' + m.id + '\')">COPIER L\'EMAIL TYPE</button>'
+      + '<button class="btn-ghost" style="flex:1;min-width:150px;padding:10px;" onclick="mailtoForgot(\'' + m.id + '\')">OUVRIR DANS MA MESSAGERIE</button></div></div>';
     getDocs(query(collection(db, 'users'), where('email', '==', m.email))).then((snap) => {
       const el = document.getElementById('forgot-code-val');
       if (!el) return;
