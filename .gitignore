@@ -1,0 +1,11 @@
+# Dépendances
+node_modules/
+
+# Données locales (base SQLite + images uploadées) — ne jamais committer
+data/
+uploads/
+
+# Divers
+.DS_Store
+*.log
+.env

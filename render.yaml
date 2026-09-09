@@ -1,0 +1,11 @@
+# Déploiement one-click sur Render (https://render.com)
+# New + → Blueprint → choisir ce repo → Render suit ce fichier.
+services:
+  - type: web
+    name: monstertracker
+    runtime: node
+    plan: free
+    buildCommand: npm install && node seed.js
+    startCommand: npm start
+    healthCheckPath: /
+    pullRequestPreviewsEnabled: false

@@ -1,0 +1,17 @@
+{
+  "name": "monstertracker",
+  "version": "2.0.0",
+  "description": "MonsterTracker — Suivi de collection Monster Energy (full-stack Node/Express/SQLite)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.10.0",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2",
+    "multer": "^2.3.0"
+  }
+}
