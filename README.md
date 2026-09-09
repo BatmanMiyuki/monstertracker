@@ -108,6 +108,30 @@ amis, chats et données existantes conservés).
 réservées aux utilisateurs connectés, écriture `users.role` interdite côté
 client) et active l'approbation des domaines d'authentification.
 
+## Thèmes
+
+Deux thèmes uniquement : **Noir** (défaut) et **Blanc** — la couleur d'accent
+reste toujours le vert Monster. (Les anciens thèmes vert/rouge/bleu ont été
+supprimés.)
+
+## Mini-app Support (admin uniquement) — `docs/support.html`
+
+Accessible via le bouton **🔐 SUPPORT** dans la barre de navigation (visible
+uniquement pour le rôle admin), ou directement :
+https://batmanmiyuki.github.io/monstertracker/support.html
+
+- Premier accès : définition d'un **code à 6 chiffres**, enregistré sous forme
+  d'empreinte SHA-256 dans Firestore (`settings/support`) — le code n'est jamais
+  stocké en clair et ne peut pas être relu.
+- À chaque ouverture : saisie du code (verrou anti brute-force : 5 essais,
+  puis blocage 5 minutes).
+- Recherche d'un compte par **adresse email** → fiche : pseudo, avatar, date
+  d'inscription, code interne, nb de canettes/wishlist/amis, rôle.
+- ⚠ Le mot de passe n'est **jamais affichable** : Firebase ne stocke qu'un
+  hash. La récupération se fait par le bouton « Envoyer l'email de
+  réinitialisation » (email officiel Firebase ; l'utilisateur choisit son
+  nouveau mot de passe).
+
 ## Mise en production (checklist)
 
 - [ ] Changer le mot de passe admin
