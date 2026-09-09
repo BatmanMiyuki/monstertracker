@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080808">
+<meta name="robots" content="noindex">
+<title>Support — MonsterTracker</title>
+<link rel="icon" type="image/png" href="icon.png"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .sp-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px 16px;}
+  .sp-box{width:100%;max-width:520px;background:var(--dk);border:1px solid var(--br);padding:28px;}
+  .sp-logo{display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+  .sp-logo img{width:34px;height:34px;}
+  .sp-logo span{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:1px;}
+  .sp-logo em{color:var(--g);font-style:normal;}
+  .sp-title{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:3px;color:var(--g);margin-bottom:4px;}
+  .sp-sub{font-size:12px;color:var(--mu);margin-bottom:22px;line-height:1.6;}
+  .sp-code-inp{width:100%;background:var(--c1);border:1px solid var(--br);padding:14px;color:var(--g);font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:12px;text-align:center;outline:none;transition:border-color .2s;}
+  .sp-code-inp:focus{border-color:var(--g);}
+  .sp-screen{display:none;}.sp-screen.on{display:block;animation:fu .3s ease;}
+  .sp-field{margin:14px 0;}
+  .sp-field label{display:block;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:6px;}
+  .sp-field input{width:100%;background:var(--c1);border:1px solid var(--br);padding:11px 13px;color:var(--tx);font-family:'Barlow',sans-serif;font-size:13px;outline:none;}
+  .sp-field input:focus{border-color:var(--g);}
+  .sp-note{background:rgba(0,161,0,.06);border:1px solid rgba(0,161,0,.25);padding:12px;font-size:12px;line-height:1.6;color:var(--tx);margin-bottom:16px;}
+  .sp-warn{background:rgba(255,150,0,.07);border:1px solid rgba(255,150,0,.3);padding:12px;font-size:12px;line-height:1.6;color:#ff9600;margin-bottom:16px;}
+  .sp-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0;}
+  .sp-stat{background:var(--c1);border:1px solid var(--br);padding:12px;}
+  .sp-stat .v{font-family:'Bebas Neue',sans-serif;font-size:22px;color:var(--g);word-break:break-word;}
+  .sp-stat .l{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-top:2px;}
+  .sp-lock-row{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+  .sp-lock-row .av{width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+  .sp-back{background:none;border:none;color:var(--mu);font-size:12px;cursor:pointer;margin-top:14px;text-decoration:underline;}
+  .sp-back:hover{color:var(--tx);}
+</style>
+</head>
+<body>
+<div class="sp-wrap">
+  <div class="sp-box">
+    <div class="sp-logo">
+      <img src="icon.png" alt=""/>
+      <span>MONSTER<em>TRACKER</em> — SUPPORT</span>
+    </div>
+
+    <!-- Connexion requise -->
+    <div class="sp-screen" id="sc-login">
+      <div class="sp-title">CONNEXION ADMIN</div>
+      <p class="sp-sub">Espace réservé à l'administrateur. Connecte-toi avec ton compte admin MonsterTracker.</p>
+      <div class="errmsg" id="sp-login-err"></div>
+      <div class="sp-field"><label>Email admin</label><input type="email" id="sp-email" placeholder="ton@email.com"/></div>
+      <div class="sp-field"><label>Mot de passe</label><input type="password" id="sp-pass" placeholder="..."/></div>
+      <button class="btn-full" id="sp-login-btn" onclick="spLogin()">SE CONNECTER</button>
+    </div>
+
+    <!-- Accès refusé -->
+    <div class="sp-screen" id="sc-denied">
+      <div class="sp-title" style="color:var(--rd);">ACCÈS REFUSÉ</div>
+      <p class="sp-sub">Ton compte n'est pas administrateur. Cet espace est réservé au support de l'application.</p>
+      <button class="btn-full" onclick="spLogout()">SE DÉCONNECTER</button>
+      <button class="sp-back" onclick="location.href='index.html'">← Retour à l'application</button>
+    </div>
+
+    <!-- Création du code (première fois) -->
+    <div class="sp-screen" id="sc-setup">
+      <div class="sp-title">CRÉER TON CODE</div>
+      <p class="sp-sub">Choisis un code à 6 chiffres pour protéger cet espace. Tu devras le rentrer à chaque ouverture. Il est enregistré de façon sécurisée (empreinte SHA-256) et ne peut pas être relu.</p>
+      <div class="errmsg" id="sp-setup-err"></div>
+      <div class="sp-field"><label>Code à 6 chiffres</label><input class="sp-code-inp" type="password" inputmode="numeric" maxlength="6" id="sp-code1" placeholder="······"/></div>
+      <div class="sp-field"><label>Confirme le code</label><input class="sp-code-inp" type="password" inputmode="numeric" maxlength="6" id="sp-code2" placeholder="······"/></div>
+      <button class="btn-full" onclick="spSetup()">ENREGISTRER LE CODE</button>
+    </div>
+
+    <!-- Saisie du code -->
+    <div class="sp-screen" id="sc-gate">
+      <div class="sp-title">CODE D'ACCÈS</div>
+      <p class="sp-sub">Entre ton code à 6 chiffres pour ouvrir l'espace support.</p>
+      <div class="errmsg" id="sp-gate-err"></div>
+      <div class="sp-field"><input class="sp-code-inp" type="password" inputmode="numeric" maxlength="6" id="sp-gate-inp" placeholder="······" onkeydown="if(event.key==='Enter')spUnlock()"/></div>
+      <button class="btn-full" onclick="spUnlock()">DÉVERROUILLER</button>
+      <button class="sp-back" onclick="location.href='index.html'">← Retour à l'application</button>
+    </div>
+
+    <!-- Recherche -->
+    <div class="sp-screen" id="sc-main">
+      <div class="sp-title">ESPACE SUPPORT</div>
+      <p class="sp-sub">Retrouve le compte d'un utilisateur par son adresse email pour l'aider à récupérer son accès.</p>
+      <div class="sp-warn">&#128274; Les mots de passe sont chiffrés par Firebase : personne ne peut les lire, pas même toi. La récupération se fait par email de réinitialisation officiel.</div>
+      <div class="errmsg" id="sp-search-err"></div>
+      <div class="sp-field"><label>Adresse email de l'utilisateur</label><input type="email" id="sp-search" placeholder="utilisateur@email.com" onkeydown="if(event.key==='Enter')spSearch()"/></div>
+      <button class="btn-full" onclick="spSearch()">RECHERCHER</button>
+      <div id="sp-result"></div>
+      <button class="sp-back" onclick="location.href='index.html'">← Retour à l'application</button>
+    </div>
+
+    <!-- Fiche utilisateur -->
+    <div class="sp-screen" id="sc-user">
+      <div class="sp-title">FICHE UTILISATEUR</div>
+      <div class="sp-lock-row">
+        <div id="sp-u-avatar"></div>
+        <div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;" id="sp-u-name">-</div>
+          <div style="font-size:12px;color:var(--mu);" id="sp-u-email">-</div>
+        </div>
+      </div>
+      <div class="sp-stat-grid" id="sp-u-stats"></div>
+      <div class="sp-field"><label>Mot de passe</label>
+        <div style="background:var(--c1);border:1px solid var(--br);padding:12px;font-size:12px;line-height:1.6;color:var(--mu);">
+          &#128274; <strong style="color:var(--tx);">Illisible et non stocké.</strong> Firebase ne conserve qu'une empreinte cryptée (hash) du mot de passe : il est impossible de le retrouver, c'est une protection de sécurité obligatoire.
+        </div>
+      </div>
+      <div class="sp-note">Pour rendre l'accès à l'utilisateur : envoie-lui l'email officiel de réinitialisation ci-dessous. Il choisira lui-même son nouveau mot de passe et pourra te le communiquer.</div>
+      <div class="errmsg" id="sp-reset-err"></div>
+      <div class="okmsg" id="sp-reset-ok"></div>
+      <button class="btn-full" onclick="spSendReset()">&#9993; ENVOYER L'EMAIL DE RÉINITIALISATION</button>
+      <button class="btn-ghost" style="width:100%;margin-top:8px;" onclick="spShow('main')">&#8592; NOUVELLE RECHERCHE</button>
+    </div>
+
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+<script type="module" src="js/support.js"></script>
+</body>
+</html>

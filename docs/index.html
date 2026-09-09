@@ -144,6 +144,7 @@
   </div>
   <div class="app-nav-r">
     <div class="nav-who">Salut, <b id="nav-name">-</b></div>
+    <button id="support-btn" class="btn-rd" style="display:none;border-color:rgba(0,161,0,.4);color:var(--g);" onclick="location.href='support.html'">&#128272; SUPPORT</button>
     <button id="pwa-install-btn" onclick="doInstall()">&#11015; INSTALLER</button>
     <button class="btn-rd" onclick="doLogout()">Déconnexion</button>
   </div>
@@ -264,10 +265,8 @@
     <div class="scard">
       <div class="scard-t">Thème</div>
       <div class="theme-btns">
-        <button class="theme-btn on" id="th-dark" onclick="setTheme('dark')">Sombre</button>
-        <button class="theme-btn" id="th-green" onclick="setTheme('green')">Vert</button>
-        <button class="theme-btn" id="th-red" onclick="setTheme('red')">Rouge</button>
-        <button class="theme-btn" id="th-blue" onclick="setTheme('blue')">Bleu</button>
+        <button class="theme-btn on" id="th-dark" onclick="setTheme('dark')">&#9632; Noir</button>
+        <button class="theme-btn" id="th-light" onclick="setTheme('light')">&#9633; Blanc</button>
       </div>
     </div>
     <div class="scard">
@@ -437,10 +436,8 @@
     <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">
       <div class="mlbl" style="margin-top:0;">Thème</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="theme-btn" id="adm-th-dark" onclick="setTheme('dark')">&#9679; Sombre</button>
-        <button class="theme-btn" id="adm-th-green" onclick="setTheme('green')">&#9679; Vert</button>
-        <button class="theme-btn" id="adm-th-red" onclick="setTheme('red')">&#9679; Rouge</button>
-        <button class="theme-btn" id="adm-th-blue" onclick="setTheme('blue')">&#9679; Bleu</button>
+        <button class="theme-btn" id="adm-th-dark" onclick="setTheme('dark')">&#9632; Noir</button>
+        <button class="theme-btn" id="adm-th-light" onclick="setTheme('light')">&#9633; Blanc</button>
       </div>
     </div>
     <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">

@@ -327,3 +327,38 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
   .cd-layout > #cd-img-wrap{width:100% !important;min-height:150px;border-bottom:1px solid var(--br);}
   .modal{max-height:90vh;}
 }
+
+/* ════════════════════════════════════════════════════════
+   THÈME BLANC (accent toujours vert)
+   ════════════════════════════════════════════════════════ */
+body.light{--g:#00a100;--glow:rgba(0,161,0,.15);--g-r:0;--g-g:161;--g-b:0;--g-hov:#00c000;--bk:#f2f2f2;--dk:#ffffff;--c1:#ffffff;--c2:#ececec;--br:#d9d9d9;--tx:#141414;--mu:#666;--rd:#d21f1f;}
+body.light .ccard{background:#fff;}
+body.light .ln-nav{background:linear-gradient(to bottom,rgba(242,242,242,.97),transparent);}
+body.light .nav-l2{color:#555;}
+body.light .app-nav{background:rgba(255,255,255,.97);}
+body.light .modal,body.light .mhdr,body.light .mfoot,body.light .mftr{background:#fff;}
+body.light .toast{background:#fff;}
+body.light .atbl th{background:#ececec;}
+body.light .atbl td{border-bottom-color:#e4e4e4;}
+body.light .pk-item{background:#ececec;}
+body.light .img-zone{background:#fff;}
+body.light .upd-content{color:#444;}
+body.light .cprice{color:#8a6400;}
+body.light .sbox.val .sval{color:#8a6400;}
+body.light input::placeholder,body.light textarea::placeholder{color:#9b9b9b;}
+body.light .hero-p{color:#555;}
+body.light .sinput,body.light .minput,body.light .mta{background:#fff;}
+body.light .field input,body.light .field textarea,body.light .field select{background:#fff;}
+body.light .fr-add input{background:#fff;}
+body.light .fav-slot{background:#ececec;}
+body.light .rec-thumb{background:#ececec;}
+body.light .img-sub{color:#888;}
+body.light .upd-meta{color:#999;}
+body.light .cbtn.wl{color:#06c;}
+body.light #cd-desc{color:#444;}
+body.light #reply-msg{color:#444;background:#f4f4f4;}
+body.light [style*="color:#bbb"],body.light [style*="color:#aaa"],body.light [style*="color:#999"]{color:#444 !important;}
+body.light [style*="color:#ddd"]{color:#222 !important;}
+body.light [style*="color:#4af"]{color:#06c !important;}
+body.light .mclose:hover{color:#000;}
+body.light .btn-ghost:hover{border-color:#333;color:#333;}

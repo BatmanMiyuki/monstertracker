@@ -125,18 +125,12 @@ function showMaintOverlay() { var ov = document.getElementById('maintenance-over
 function hideMaintOverlay() { var ov = document.getElementById('maintenance-overlay'); if (ov) ov.style.display = 'none'; }
 
 // ── Thèmes ──
-var THEMES = {
-  dark: '',
-  green: ':root{--g:#39ff14;--glow:rgba(57,255,20,.18);--g-r:57;--g-g:255;--g-b:20;--g-hov:#50ff2a;}',
-  red: ':root{--g:#ff3535;--glow:rgba(255,53,53,.18);--g-r:255;--g-g:53;--g-b:53;--g-hov:#ff5555;}',
-  blue: ':root{--g:#44aaff;--glow:rgba(68,170,255,.18);--g-r:68;--g-g:170;--g-b:255;--g-hov:#66bbff;}',
-};
+// Thèmes : noir (défaut) ou blanc — l'accent reste toujours vert
 function setThemeLocal(t) {
-  var s = document.getElementById('th-ov');
-  if (!s) { s = document.createElement('style'); s.id = 'th-ov'; document.head.appendChild(s); }
-  s.textContent = THEMES[t] || '';
+  document.body.classList.toggle('light', t === 'light');
 }
 window.setTheme = function (t) {
+  if (t !== 'light') t = 'dark';
   document.querySelectorAll('.theme-btn').forEach(function (b) { b.classList.remove('on'); });
   ['th-', 'adm-th-'].forEach(function (p) { var b = document.getElementById(p + t); if (b) b.classList.add('on'); });
   setThemeLocal(t);
@@ -272,8 +266,8 @@ function drawChart(data, cid) {
     var x = pad + i * (bw + gap), y = H - bh - 18;
     var mo = d.month ? d.month.substring(5) : '';
     bars += '<rect fill="rgba(var(--g-r),var(--g-g),var(--g-b),.25)" x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="2"/>';
-    if (cnt > 0) bars += '<text font-family="Bebas Neue,sans-serif" font-size="11" fill="var(--g)" text-anchor="middle" x="' + (x + bw / 2) + '" y="' + (y - 3) + '">' + cnt + '</text>';
-    bars += '<text font-family="Barlow Condensed,sans-serif" font-size="9" fill="#555" text-anchor="middle" x="' + (x + bw / 2) + '" y="' + (H - 4) + '">' + escapeHtml(mo) + '</text>';
+    if (cnt > 0) bars += '<text font-family="Bebas Neue,sans-serif" font-size="11" style="fill:var(--g)" text-anchor="middle" x="' + (x + bw / 2) + '" y="' + (y - 3) + '">' + cnt + '</text>';
+    bars += '<text font-family="Barlow Condensed,sans-serif" font-size="9" style="fill:var(--mu)" text-anchor="middle" x="' + (x + bw / 2) + '" y="' + (H - 4) + '">' + escapeHtml(mo) + '</text>';
   });
   ct.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-height:115px;overflow:visible;">' + bars + '</svg>';
 }
@@ -286,7 +280,7 @@ function drawPieChart(data, cid) {
   var html = '<div style="display:flex;flex-direction:column;gap:6px;">';
   data.slice(0, 8).forEach(function (d, i) {
     var pct = max > 0 ? Math.round((parseInt(d.count, 10) / max) * 100) : 0;
-    html += '<div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;font-size:11px;color:#bbb;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(d.label) + '</div><div style="flex:1;height:16px;background:var(--br);"><div style="height:100%;width:' + pct + '%;background:' + colors[i % colors.length] + ';transition:width .5s;"></div></div><div style="width:24px;font-size:11px;color:var(--mu);text-align:right;">' + escapeHtml(d.count) + '</div></div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;font-size:11px;color:var(--tx);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(d.label) + '</div><div style="flex:1;height:16px;background:var(--br);"><div style="height:100%;width:' + pct + '%;background:' + colors[i % colors.length] + ';transition:width .5s;"></div></div><div style="width:24px;font-size:11px;color:var(--mu);text-align:right;">' + escapeHtml(d.count) + '</div></div>';
   });
   el.innerHTML = html + '</div>';
 }

@@ -193,7 +193,7 @@ api.patch('/me', (req, res) => {
     if (clash) return res.status(409).json({ error: 'Ce pseudo est déjà pris.' });
     db.prepare('UPDATE users SET username = ? WHERE id = ?').run(u, req.user.id);
   }
-  if (theme !== undefined && ['dark', 'green', 'red', 'blue'].includes(theme)) {
+  if (theme !== undefined && ['dark', 'light'].includes(theme)) {
     db.prepare('UPDATE users SET theme = ? WHERE id = ?').run(theme, req.user.id);
   }
   if (password !== undefined) {
