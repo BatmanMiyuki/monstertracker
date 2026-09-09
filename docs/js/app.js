@@ -1106,26 +1106,11 @@ window.loadAdmInbox = function () {
   }).catch((e) => { document.getElementById('inbox-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
 window.setInboxFilter = (f) => { _inboxFilter = f; loadAdmInbox(); };
-function forgotEmailTemplate(m) {
-  const pseudo = (m.username && m.username !== 'Compte bloqué') ? m.username : '(pseudo du compte)';
-  return 'Bonjour,\n\nVous avez demandé la récupération de votre mot de passe pour votre compte sur notre application Monster Tracker.\n\nVoici vos informations de connexion :\n\nPseudo : ' + pseudo + '\nEmail : ' + (m.email || '') + '\n\nMot de passe : un lien sécurisé de réinitialisation vient de vous être envoyé dans un email séparé (objet : « Réinitialisation du mot de passe »). Cliquez sur ce lien pour définir votre nouveau mot de passe.\n\nVous aurez toujours la possibilité de changer votre mot de passe directement sur l\'application.\n\nSi vous n\'êtes pas à l\'origine de cette demande, vous pouvez ignorer cet email.\n\nMerci d\'utiliser notre application.\n\nL\'équipe administrative.';
-}
-function sendOfficialLink(m) {
-  return sendPasswordResetEmail(auth, m.email)
-    .then(() => { toast('Lien officiel envoyé à ' + m.email + ' ✓'); return true; })
-    .catch((e) => { toast('Lien officiel non envoyé : ' + e.message, 'err'); return false; });
-}
-window.copyForgotEmail = function (id) {
-  const m = _admMsgs.find((x) => x.id === id); if (!m) return;
-  sendOfficialLink(m);
-  const txt = forgotEmailTemplate(m);
-  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast('Email type copié ✓ (joins le logo à l\'envoi)')).catch(() => toast('Copie impossible', 'err'));
+window.copyForgotCode = function () {
+  const c = window._forgotCode || '';
+  if (!c) { toast('Code indisponible', 'err'); return; }
+  if (navigator.clipboard) navigator.clipboard.writeText(c).then(() => toast('Code copié ✓ Colle-le dans le Support')).catch(() => toast('Copie impossible', 'err'));
   else toast('Copie impossible', 'err');
-};
-window.mailtoForgot = function (id) {
-  const m = _admMsgs.find((x) => x.id === id); if (!m) return;
-  sendOfficialLink(m);
-  location.href = 'mailto:' + encodeURIComponent(m.email || '') + '?subject=' + encodeURIComponent('Récupération de votre mot de passe — Monster Tracker') + '&body=' + encodeURIComponent(forgotEmailTemplate(m));
 };
 window.viewMsg = function (id) {
   const m = _admMsgs.find((x) => x.id === id); if (!m) return;
@@ -1135,9 +1120,18 @@ window.viewMsg = function (id) {
   if (m.attachment_url) b += '<img src="' + escapeHtml(m.attachment_url) + '" style="max-width:100%;max-height:280px;object-fit:contain;border:1px solid var(--br);margin-bottom:12px;cursor:pointer;" onclick="window.open(this.src)"/>';
   if (m.reply) b += '<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--g);margin-bottom:6px;">Réponse envoyée</div><div style="font-size:13px;line-height:1.6;white-space:pre-wrap;border-left:3px solid var(--g);padding:10px 14px;background:var(--c1);">' + escapeHtml(m.reply) + '</div>';
   if (m.category === 'Mot de passe oublié' && m.email) {
-    b += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">'
-      + '<button class="btn-g" style="flex:1;min-width:160px;font-size:12px;padding:11px;" onclick="copyForgotEmail(\'' + m.id + '\')">COPIER L\'EMAIL TYPE (+ ENVOIE LE LIEN)</button>'
-      + '<button class="btn-o" style="flex:1;min-width:160px;font-size:12px;padding:10px;" onclick="mailtoForgot(\'' + m.id + '\')">OUVRIR DANS MA MESSAGERIE (+ ENVOIE LE LIEN)</button></div>';
+    b += '<div style="margin-top:16px;background:var(--c1);border:1px solid var(--br);padding:14px;">'
+      + '<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;">Compte concerné</div>'
+      + '<div style="font-size:13px;margin-bottom:8px;">Email : <b>' + escapeHtml(m.email) + '</b></div>'
+      + '<div style="font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">Code utilisateur : <code id="forgot-code-val" style="font-family:monospace;font-size:14px;letter-spacing:2px;color:var(--g);">…</code>'
+      + '<button class="btn-ghost" style="padding:7px 12px;" onclick="copyForgotCode()">Copier</button></div>'
+      + '<div style="font-size:11px;color:var(--mu);margin-top:10px;line-height:1.6;">Copie ce code, ouvre la mini-app SUPPORT et colle-le dans la recherche : la fiche du compte s\'affiche avec le bouton d\'envoi du lien de réinitialisation.</div></div>';
+    getDocs(query(collection(db, 'users'), where('email', '==', m.email))).then((snap) => {
+      const el = document.getElementById('forgot-code-val');
+      if (!el) return;
+      if (!snap.empty) { const c = snap.docs[0].data().user_code || '—'; window._forgotCode = c; el.textContent = c; }
+      else { window._forgotCode = ''; el.textContent = 'compte introuvable'; }
+    }).catch(() => {});
   }
   document.getElementById('mview-body').innerHTML = b;
   document.getElementById('modal-view').classList.add('on');
