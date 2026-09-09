@@ -1,338 +1,404 @@
 // ════════════════════════════════════════════════════════════
-//  MonsterTracker v2.1 — Version 100 % statique (GitHub Pages)
-//  Toutes les données vivent dans le navigateur (localStorage).
-//  Aucun serveur, aucun compte, aucun envoi de données.
+//  MonsterTracker v3 — Frontend Firebase (comptes réels + admin)
+//  Même schéma Firestore que la v1 → données existantes compatibles.
+//  Corrections : anti-XSS (escapeHtml/textContent), images compressées,
+//  code mort supprimé, plus d'auth anonyme.
 // ════════════════════════════════════════════════════════════
-'use strict';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, deleteUser } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, getDocs, onSnapshot, serverTimestamp, writeBatch, limit } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-var STORAGE_KEY = 'mt_static_v1';
-var state = null;
-var pickerMode = null;
-var _detailCan = null;
-var _resetCode = '';
-var _installPrompt = null;
+const app = initializeApp({
+  apiKey: 'AIzaSyAlanpPYiUG8tg0P8prqMjYiHH2QmEqKcc',
+  authDomain: 'monstertracker-bymiyuki.firebaseapp.com',
+  projectId: 'monstertracker-bymiyuki',
+  storageBucket: 'monstertracker-bymiyuki.firebasestorage.app',
+  messagingSenderId: '714396226229',
+  appId: '1:714396226229:web:9fd3fc50d9396ca7a324fc',
+});
+const auth = getAuth(app);
+const db = getFirestore(app);
+const fst = () => serverTimestamp();
+const fbatch = () => writeBatch(db);
 
-// ── Helpers ──
+// ── État global ──
+let user = null, allCans = [], pickerMode = null, pickerCans = [];
+let _detailCan = null, _cfCat = '', _admMsgs = [], _delCode = '';
+let _inboxFilter = 'all', _isMaint = false, _maintUnsub = null;
+let _chatPoll = null, _badgePoll = null, _currentChatFriend = null;
+let _friendSearchTimer = null, _pseudoTimer = null, _installPrompt = null;
+
+// ── Helpers ─
 function escapeHtml(v) {
   if (v === null || v === undefined) return '';
-  return String(v)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 function toast(msg, t) {
   t = t || 'ok';
-  var el = document.createElement('div');
+  const el = document.createElement('div');
   el.className = 'toast ' + t;
   el.textContent = msg;
   document.getElementById('toasts').appendChild(el);
-  setTimeout(function () { el.remove(); }, 3400);
+  setTimeout(() => el.remove(), 3400);
 }
+function lHtml() { return '<div class="loading"><div class="spin"></div>Chargement...</div>'; }
 function eHtml(i, t, p) { return '<div class="empty"><div class="ei">' + i + '</div><h3>' + escapeHtml(t) + '</h3><p>' + escapeHtml(p) + '</p></div>'; }
 function fmtPrice(v) { return (v != null && parseFloat(v) > 0) ? parseFloat(v).toFixed(2) + '€' : '—'; }
-function fmtDate(iso) { return iso ? new Date(iso).toLocaleDateString('fr-FR') : ''; }
-function timeAgo(iso) {
-  var s = Math.floor((Date.now() - new Date(iso)) / 1000);
+function tsToDate(ts) { if (!ts) return null; if (ts.toDate) return ts.toDate(); return new Date(ts); }
+function fmtDate(ts) { const d = tsToDate(ts); return d ? d.toLocaleDateString('fr-FR') : ''; }
+function timeAgo(ts) {
+  const d = tsToDate(ts); if (!d) return '';
+  const s = Math.floor((Date.now() - d) / 1000);
   if (s < 60) return 'à l\'instant';
   if (s < 3600) return Math.floor(s / 60) + ' min';
   if (s < 86400) return Math.floor(s / 3600) + ' h';
   return Math.floor(s / 86400) + ' j';
 }
-function setErr(id, text) { var el = document.getElementById(id); if (el) { el.textContent = text || ''; el.classList.toggle('on', !!text); } }
-function setOk(id, text) { var el = document.getElementById(id); if (el) { el.textContent = text || ''; el.classList.toggle('on', !!text); } }
-window.closeModal = function (id) { document.getElementById('modal-' + id).classList.remove('on'); };
-window.tpw = function (id, eye) {
-  var i = document.getElementById(id);
-  i.type = i.type === 'password' ? 'text' : 'password';
-  eye.textContent = i.type === 'password' ? '👁' : '🙈';
-};
+function hexToRgb(hex) { const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); return r ? parseInt(r[1], 16) + ',' + parseInt(r[2], 16) + ',' + parseInt(r[3], 16) : '170,170,170'; }
+function setErr(id, text) { const el = document.getElementById(id); if (el) { el.textContent = text || ''; el.classList.toggle('on', !!text); } }
+function setOk(id, text) { const el = document.getElementById(id); if (el) { el.textContent = text || ''; el.classList.toggle('on', !!text); } }
+window.closeModal = (id) => document.getElementById('modal-' + id).classList.remove('on');
+window.tpw = (id, eye) => { const i = document.getElementById(id); i.type = i.type === 'password' ? 'text' : 'password'; eye.textContent = i.type === 'password' ? '👁' : '🙈'; };
 
-// ════════════════════════════════════════════════════════
-//  PERSISTANCE (localStorage)
-// ════════════════════════════════════════════════════════
-var DEMO_CANS = [
-  { name: 'Monster Energy Original', series: 'Original', variant: null, language: 'FR', cap_color: 'Noir', full_color: 'Noir', volume: '500ml', country: 'France', year: 2020, description: 'La canette iconique, celle par qui tout a commencé.', is_limited: 0, accent_color: '#39ff14' },
-  { name: 'Monster Ultra White', series: 'Ultra', variant: 'Zero Sugar', language: 'FR', cap_color: 'Blanc', full_color: 'Blanc', volume: '500ml', country: 'France', year: 2021, description: 'Sans sucre, goût citronné léger.', is_limited: 0, accent_color: '#e8e8e8' },
-  { name: 'Monster Ultra Red', series: 'Ultra', variant: 'Sans sucre', language: 'FR', cap_color: 'Rouge', full_color: 'Rouge', volume: '500ml', country: 'France', year: 2021, description: 'Notes de fruits rouges sans sucre.', is_limited: 0, accent_color: '#ff3535' },
-  { name: 'Monster Ultra Violet', series: 'Ultra', variant: 'Grape', language: 'EN', cap_color: 'Violet', full_color: 'Violet', volume: '500ml', country: 'Royaume-Uni', year: 2022, description: 'Raisin pétillant, très populaire au Royaume-Uni.', is_limited: 0, accent_color: '#bf5fff' },
-  { name: 'Monster Mango Loco', series: 'Juice', variant: 'Mango Loco', language: 'EN', cap_color: 'Jaune', full_color: 'Jaune', volume: '500ml', country: 'Espagne', year: 2019, description: 'Jus de mangue exotique, la plus recherchée en France.', is_limited: 0, accent_color: '#ffc800' },
-  { name: 'Monster Pacific Punch', series: 'Juice', variant: 'Pacific Punch', language: 'EN', cap_color: 'Orange', full_color: 'Orange', volume: '500ml', country: 'USA', year: 2020, description: 'Punch tropical importé des États-Unis.', is_limited: 0, accent_color: '#ff9600' },
-  { name: 'Monster Khaotic', series: 'Juice', variant: 'Khaotic', language: 'EN', cap_color: 'Orange', full_color: 'Orange', volume: '473ml', country: 'USA', year: 2018, description: 'Agrumes en pagaille. Rare en Europe.', is_limited: 1, accent_color: '#ff9600' },
-  { name: 'Monster Pipeline Punch', series: 'Juice', variant: 'Pipeline Punch', language: 'EN', cap_color: 'Rose', full_color: 'Rose', volume: '500ml', country: 'Royaume-Uni', year: 2021, description: 'Fruit de la passion, orange et goyave.', is_limited: 0, accent_color: '#ff6ec7' },
-  { name: 'Monster Rehab Tea + Lemonade', series: 'Rehab', variant: 'Tea + Lemonade', language: 'EN', cap_color: 'Vert', full_color: 'Blanc', volume: '458ml', country: 'USA', year: 2019, description: 'Thé glacé et limonade, faible en calories.', is_limited: 0, accent_color: '#00e5a0' },
-  { name: 'Monster Ultra Paradise', series: 'Ultra', variant: 'Paradise', language: 'FR', cap_color: 'Vert', full_color: 'Vert clair', volume: '500ml', country: 'France', year: 2022, description: 'Kiwi, citron vert et concombre.', is_limited: 0, accent_color: '#7fff6e' },
-  { name: 'Monster Ultra Watermelon', series: 'Ultra', variant: 'Watermelon', language: 'FR', cap_color: 'Vert', full_color: 'Rouge', volume: '500ml', country: 'France', year: 2022, description: 'Pastèque sans sucre.', is_limited: 0, accent_color: '#ff5566' },
-  { name: 'Monster Lewis Hamilton #44', series: 'Édition Spéciale', variant: 'F1 Collaboration', language: 'EN', cap_color: 'Noir', full_color: 'Noir/Rouge', volume: '500ml', country: 'Royaume-Uni', year: 2023, description: 'Édition limitée en l’honneur de Lewis Hamilton.', is_limited: 1, accent_color: '#ff3535' },
-  { name: 'Monster Ultra Gold', series: 'Ultra', variant: 'Gold', language: 'FR', cap_color: 'Doré', full_color: 'Doré', volume: '500ml', country: 'France', year: 2023, description: 'Notes d’ananas doré, sans sucre.', is_limited: 0, accent_color: '#ffd700' },
-  { name: 'Monster Ultra Blue', series: 'Ultra', variant: 'Blueberry', language: 'FR', cap_color: 'Bleu', full_color: 'Bleu', volume: '500ml', country: 'France', year: 2023, description: 'Myrtille sans sucre.', is_limited: 0, accent_color: '#44aaff' },
-  { name: 'Monster Java Vanilla Light', series: 'Java', variant: 'Vanilla Light', language: 'EN', cap_color: 'Beige', full_color: 'Beige', volume: '473ml', country: 'USA', year: 2017, description: 'Café latte vanille, rarissime en Europe.', is_limited: 1, accent_color: '#d8c9a3' },
-  { name: 'Monster The Doctor VR46', series: 'Édition Spéciale', variant: 'Valentino Rossi', language: 'IT', cap_color: 'Jaune', full_color: 'Jaune/Bleu', volume: '500ml', country: 'Italie', year: 2022, description: 'Collaboration Valentino Rossi, introuvable en France.', is_limited: 1, accent_color: '#ffc800' },
-];
-
-function defaultState() {
-  var cans = DEMO_CANS.map(function (c, i) {
-    return Object.assign({ id: i + 1, image_url: null, created_at: new Date().toISOString() }, c);
-  });
-  return {
-    version: 1,
-    profile: { username: 'Collectionneur', theme: 'dark', avatar: null },
-    cans: cans,
-    collection: [],   // [{can_id, price, purchase_type, added_at}]
-    wishlist: [],     // [can_id]
-    favorites: {},    // {1: can_id, 2: can_id, 3: can_id}
-    nextCanId: cans.length + 1,
-  };
-}
-
-function loadState() {
-  try {
-    var raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      var parsed = JSON.parse(raw);
-      if (parsed && parsed.cans && parsed.profile) return parsed;
-    }
-  } catch (e) { console.warn('État illisible, réinitialisation.', e); }
-  return defaultState();
-}
-function save() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    return true;
-  } catch (e) {
-    toast('Stockage plein ! Supprime des canettes avec photo ou exporte tes données.', 'err');
-    return false;
-  }
-}
-
-// ── Redimensionnement d'image (évite de saturer le localStorage) ──
-function resizeImage(file, maxDim, quality, cb) {
-  var r = new FileReader();
-  r.onload = function (e) {
-    var img = new Image();
-    img.onload = function () {
-      var w = img.width, h = img.height;
-      var scale = Math.min(1, maxDim / Math.max(w, h));
-      var c = document.createElement('canvas');
-      c.width = Math.round(w * scale); c.height = Math.round(h * scale);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      cb(c.toDataURL('image/jpeg', quality));
+// ── Compression d'image (évite d'exploser la limite 1 Mo/doc de Firestore) ──
+function compressImage(file, maxDim, quality) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        const scale = Math.min(1, maxDim / Math.max(w, h));
+        const c = document.createElement('canvas');
+        c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        res(c.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => rej(new Error('Image illisible.'));
+      img.src = e.target.result;
     };
-    img.onerror = function () { cb(null); };
-    img.src = e.target.result;
-  };
-  r.onerror = function () { cb(null); };
-  r.readAsDataURL(file);
+    r.onerror = () => rej(new Error('Fichier illisible.'));
+    r.readAsDataURL(file);
+  });
 }
 
-// ════════════════════════════════════════════════════════
-//  NAVIGATION
-// ════════════════════════════════════════════════════════
-window.go = function (p) {
-  document.querySelectorAll('.page').forEach(function (x) { x.classList.remove('active'); });
+// ── Navigation ──
+window.go = (p) => {
+  document.querySelectorAll('.page').forEach((x) => x.classList.remove('active'));
   document.getElementById('page-' + p).classList.add('active');
   window.scrollTo(0, 0);
 };
-window.enterApp = function () {
-  applyThemeUI(state.profile.theme || 'dark');
-  document.getElementById('nav-name').textContent = state.profile.username || 'Collectionneur';
-  go('app');
-  goTab('home', document.getElementById('tab-home'));
+window.goLandingApp = () => {
+  if (!user) { go('landing'); return; }
+  goTab(user.role === 'admin' ? 'adm-cans' : 'home', document.getElementById(user.role === 'admin' ? 'tab-adm-cans' : 'tab-home'));
 };
-window.goTab = function (s, btn) {
-  document.querySelectorAll('.sec').forEach(function (x) { x.classList.remove('on'); });
-  document.querySelectorAll('.ntab').forEach(function (x) { x.classList.remove('on'); });
+window.goTab = (s, btn) => {
+  document.querySelectorAll('.sec').forEach((x) => x.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach((x) => x.classList.remove('on'));
   document.getElementById('sec-' + s).classList.add('on');
   if (btn) btn.classList.add('on');
-  var m = { home: renderHome, catalogue: renderCatalogue, collection: renderCollection, manage: renderManage, settings: renderSettings };
+  const m = { home: loadHome, catalogue: loadCatalogue, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-col': loadAdmCol, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings };
   if (m[s]) m[s]();
 };
+window.showForgot = () => { document.getElementById('forgot-panel').style.display = 'block'; };
+window.hideForgot = () => { document.getElementById('forgot-panel').style.display = 'none'; };
 
 // ── Thèmes ──
-var THEMES = {
+const THEMES = {
   dark: '',
   green: ':root{--g:#39ff14;--glow:rgba(57,255,20,.18);--g-r:57;--g-g:255;--g-b:20;--g-hov:#50ff2a;}',
   red: ':root{--g:#ff3535;--glow:rgba(255,53,53,.18);--g-r:255;--g-g:53;--g-b:53;--g-hov:#ff5555;}',
   blue: ':root{--g:#44aaff;--glow:rgba(68,170,255,.18);--g-r:68;--g-g:170;--g-b:255;--g-hov:#66bbff;}',
 };
-function applyThemeUI(t) {
-  var s = document.getElementById('th-ov');
+function setThemeLocal(t) {
+  let s = document.getElementById('th-ov');
   if (!s) { s = document.createElement('style'); s.id = 'th-ov'; document.head.appendChild(s); }
   s.textContent = THEMES[t] || '';
-  document.querySelectorAll('.theme-btn').forEach(function (b) { b.classList.remove('on'); });
-  var tb = document.getElementById('th-' + t);
-  if (tb) tb.classList.add('on');
 }
-window.setTheme = function (t) {
-  state.profile.theme = t;
-  applyThemeUI(t);
-  save();
+window.setTheme = (t) => {
+  document.querySelectorAll('.theme-btn').forEach((b) => b.classList.remove('on'));
+  ['th-', 'adm-th-'].forEach((p) => { const b = document.getElementById(p + t); if (b) b.classList.add('on'); });
+  setThemeLocal(t);
+  if (user) updateDoc(doc(db, 'users', user.uid), { theme: t }).then(() => { user.theme = t; }).catch(() => {});
 };
 
-// ════════════════════════════════════════════════════════
-//  ACCÈS DONNÉES
-// ════════════════════════════════════════════════════════
-function canById(id) { return state.cans.find(function (c) { return c.id === id; }); }
-function inCollection(canId) { return state.collection.some(function (x) { return x.can_id === canId; }); }
-function inWishlist(canId) { return state.wishlist.indexOf(canId) !== -1; }
-function collectionValue() {
-  return state.collection.reduce(function (s, x) { return s + (parseFloat(x.price) || 0); }, 0);
+// ── Avatars ──
+function letterAvatar(letter, size) {
+  size = size || 40;
+  return '<div style="width:' + size + 'px;height:' + size + 'px;background:var(--g);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:' + Math.round(size * .45) + 'px;color:#000;flex-shrink:0;">' + escapeHtml(letter) + '</div>';
+}
+function avatarHtml(u, size) {
+  size = size || 40;
+  const s = 'width:' + size + 'px;height:' + size + 'px;flex-shrink:0;border-radius:50%;object-fit:cover;';
+  if (u && u.avatar_url) return '<img src="' + escapeHtml(u.avatar_url) + '" alt="" style="' + s + '" onerror="this.outerHTML=\'' + letterAvatar(((u.username || '?')[0]).toUpperCase(), size).replace(/'/g, "\\'") + '\'">';
+  return letterAvatar((u && u.username ? u.username[0] : '?').toUpperCase(), size);
 }
 
-// ════════════════════════════════════════════════════════
-//  CHARTS
-// ════════════════════════════════════════════════════════
-function drawBarChart(data, cid) {
-  var el = document.getElementById(cid);
+// ── Auth ──
+onAuthStateChanged(auth, (fbUser) => {
+  if (fbUser) {
+    getDoc(doc(db, 'users', fbUser.uid)).then((snap) => {
+      if (snap.exists()) {
+        user = Object.assign({ uid: fbUser.uid, email: fbUser.email }, snap.data());
+        showApp();
+      } else {
+        const username = fbUser.email.split('@')[0];
+        const code = Math.random().toString(36).substr(2, 8).toUpperCase();
+        return setDoc(doc(db, 'users', fbUser.uid), { username, email: fbUser.email, role: 'user', theme: 'dark', avatar_url: null, user_code: code, created_at: fst() })
+          .then(() => getDoc(doc(db, 'users', fbUser.uid)))
+          .then((s2) => { user = Object.assign({ uid: fbUser.uid, email: fbUser.email }, s2.data()); showApp(); });
+      }
+    }).catch((e) => { toast('Erreur profil : ' + e.message, 'err'); });
+  } else {
+    user = null;
+    stopMaintListen(); stopChatPoll(); stopPolling();
+    const ap = document.getElementById('page-app');
+    if (ap && ap.classList.contains('active')) go('landing');
+  }
+});
+
+window.doRegister = () => {
+  setErr('rerr', '');
+  const username = document.getElementById('ru').value.trim();
+  const email = document.getElementById('re').value.trim();
+  const pw = document.getElementById('rp').value;
+  const pw2 = document.getElementById('rp2').value;
+  if (!username) return setErr('rerr', 'Pseudo requis.');
+  if (!/^[a-zA-Z0-9_.\-]+$/.test(username)) return setErr('rerr', 'Pseudo : lettres, chiffres, - _ . uniquement.');
+  if (!email) return setErr('rerr', 'Email requis.');
+  if (pw.length < 6) return setErr('rerr', 'Mot de passe : 6 caractères minimum.');
+  if (pw !== pw2) return setErr('rerr', 'Les mots de passe ne correspondent pas.');
+  const btn = document.getElementById('register-btn'); btn.disabled = true;
+  toast('Création du compte...');
+  const code = Math.random().toString(36).substr(2, 8).toUpperCase();
+  createUserWithEmailAndPassword(auth, email, pw).then((cred) =>
+    setDoc(doc(db, 'users', cred.user.uid), { username, email, role: 'user', theme: 'dark', avatar_url: null, user_code: code, created_at: serverTimestamp() })
+  ).then(() => toast('Compte créé ✓'))
+    .catch((e) => { const msg = e.code === 'auth/email-already-in-use' ? 'Cet email est déjà utilisé.' : e.code === 'auth/weak-password' ? 'Mot de passe trop faible.' : e.message; setErr('rerr', msg); toast(msg, 'err'); })
+    .finally(() => { btn.disabled = false; });
+};
+
+window.doLogin = () => {
+  setErr('lerr', '');
+  const email = document.getElementById('le').value.trim();
+  const pw = document.getElementById('lp').value;
+  if (!email || !pw) return setErr('lerr', 'Email et mot de passe requis.');
+  const btn = document.getElementById('login-btn'); btn.disabled = true;
+  toast('Connexion...');
+  signInWithEmailAndPassword(auth, email, pw)
+    .then(() => toast('Connecté ✓'))
+    .catch((e) => { const msg = (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found') ? 'Email ou mot de passe incorrect.' : e.message; setErr('lerr', msg); toast(msg, 'err'); })
+    .finally(() => { btn.disabled = false; });
+};
+
+window.doLogout = () => {
+  stopMaintListen(); stopChatPoll(); stopPolling();
+  signOut(auth).then(() => go('landing'));
+};
+
+// ── Vérif pseudo dispo ──
+window.checkPseudo = () => {
+  const val = document.getElementById('ru').value.trim(), el = document.getElementById('pst');
+  clearTimeout(_pseudoTimer);
+  if (!val) { el.textContent = ''; return; }
+  el.className = 'pst pst-chk'; el.textContent = 'Vérification...';
+  _pseudoTimer = setTimeout(() => {
+    getDocs(query(collection(db, 'users'), where('username', '==', val)))
+      .then((snap) => { el.className = 'pst ' + (snap.empty ? 'pst-ok' : 'pst-err'); el.textContent = snap.empty ? '✓ Disponible !' : '✗ Déjà pris'; })
+      .catch(() => { el.textContent = ''; });
+  }, 600);
+};
+
+function _setupAppUI() {
+  if (!user) return;
+  const isAdmin = user.role === 'admin';
+  document.getElementById('user-tabs').style.display = isAdmin ? 'none' : 'flex';
+  document.getElementById('admin-tabs').style.display = isAdmin ? 'flex' : 'none';
+  document.getElementById('nav-name').textContent = isAdmin ? 'Admin' : (user.username || '');
+  if (!isAdmin) {
+    document.getElementById('set-name').textContent = user.username || '';
+    document.getElementById('set-user').value = user.username || '';
+    document.getElementById('set-email').value = user.email || '';
+  }
+  setThemeLocal(user.theme || 'dark');
+  document.querySelectorAll('.theme-btn').forEach((b) => b.classList.remove('on'));
+  ['th-', 'adm-th-'].forEach((p) => { const b = document.getElementById(p + (user.theme || 'dark')); if (b) b.classList.add('on'); });
+}
+function showApp() {
+  _setupAppUI();
+  go('app');
+  startPolling();
+  startMaintListen();
+  if (user.role === 'admin') goTab('adm-cans', document.getElementById('tab-adm-cans'));
+  else goTab('home', document.getElementById('tab-home'));
+}
+
+// ── Maintenance ─
+function startMaintListen() {
+  stopMaintListen();
+  _maintUnsub = onSnapshot(doc(db, 'settings', 'maintenance'), (snap) => {
+    const active = snap.exists() ? snap.data().active : false;
+    if (user && user.role === 'admin') return;
+    if (active && !_isMaint) { _isMaint = true; document.getElementById('maintenance-overlay').style.display = 'flex'; }
+    else if (!active && _isMaint) { _isMaint = false; document.getElementById('maintenance-overlay').style.display = 'none'; }
+  }, () => {});
+}
+function stopMaintListen() { if (_maintUnsub) { _maintUnsub(); _maintUnsub = null; } }
+
+// ── Badges ──
+function startPolling() { stopPolling(); updateBadges(); _badgePoll = setInterval(updateBadges, 20000); }
+function stopPolling() { if (_badgePoll) { clearInterval(_badgePoll); _badgePoll = null; } }
+function setBadge(id, n, bg) { const el = document.getElementById(id); if (!el) return; el.textContent = n; if (bg) el.style.background = bg; el.style.display = n > 0 ? 'inline-flex' : 'none'; }
+function updateBadges() {
+  if (!user) return;
+  getDocs(query(collection(db, 'friend_requests'), where('to_uid', '==', user.uid), where('status', '==', 'pending'))).then((s) => {
+    setBadge('friends-badge', s.size, '#ff9600');
+    setBadge('notif-badge', s.size);
+  }).catch(() => {});
+  getDocs(query(collection(db, 'chats'), where('to_uid', '==', user.uid), where('read', '==', false))).then((s) => setBadge('chat-badge', s.size)).catch(() => {});
+  if (user.role === 'admin') {
+    getDocs(query(collection(db, 'messages'), where('reply', '==', null))).then((s) => setBadge('inbox-badge', s.size)).catch(() => {});
+  }
+}
+
+// ── Charts ──
+function drawChart(data, cid) {
+  const ct = document.getElementById(cid); if (!ct) return;
+  if (!data || !data.length) { ct.innerHTML = '<p style="color:var(--mu);font-size:12px;">Pas encore de données.</p>'; return; }
+  const maxV = Math.max.apply(null, data.map((d) => parseInt(d.count, 10)));
+  const W = 500, H = 110, bw = Math.max(12, Math.floor((W - 20) / data.length) - 6), gap = 6, pad = 10;
+  let bars = '';
+  data.forEach((d, i) => {
+    const cnt = parseInt(d.count, 10);
+    const bh = Math.max(2, Math.floor((cnt / maxV) * (H - 28)));
+    const x = pad + i * (bw + gap), y = H - bh - 18;
+    const mo = d.month ? d.month.substring(5) : '';
+    bars += '<rect fill="rgba(var(--g-r),var(--g-g),var(--g-b),.25)" x="' + x + '" y="' + y + '" width="' + bw + '" height="' + bh + '" rx="2"/>';
+    if (cnt > 0) bars += '<text font-family="Bebas Neue,sans-serif" font-size="11" fill="var(--g)" text-anchor="middle" x="' + (x + bw / 2) + '" y="' + (y - 3) + '">' + cnt + '</text>';
+    bars += '<text font-family="Barlow Condensed,sans-serif" font-size="9" fill="#555" text-anchor="middle" x="' + (x + bw / 2) + '" y="' + (H - 4) + '">' + escapeHtml(mo) + '</text>';
+  });
+  ct.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-height:115px;overflow:visible;">' + bars + '</svg>';
+}
+function drawPieChart(data, cid) {
+  const el = document.getElementById(cid); if (!el) return;
   if (!data || !data.length) { el.innerHTML = '<div style="text-align:center;color:var(--mu);font-size:12px;padding:20px;">Pas de données</div>'; return; }
-  var themeG = getComputedStyle(document.documentElement).getPropertyValue('--g').trim() || '#39ff14';
-  var colors = [themeG, '#00cfff', '#ff9600', '#ff3535', '#ffc800', '#bf5fff', '#00e5a0', '#ff6ec7', '#7fff6e', '#5599ff'];
-  var max = Math.max.apply(null, data.map(function (d) { return d.count; }));
-  var html = '<div style="display:flex;flex-direction:column;gap:6px;">';
-  data.slice(0, 8).forEach(function (d, i) {
-    var pct = max > 0 ? Math.round((d.count / max) * 100) : 0;
-    html += '<div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;font-size:11px;color:#bbb;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(d.label) + '</div><div style="flex:1;height:16px;background:var(--br);"><div style="height:100%;width:' + pct + '%;background:' + colors[i % colors.length] + ';transition:width .5s;"></div></div><div style="width:24px;font-size:11px;color:var(--mu);text-align:right;">' + d.count + '</div></div>';
+  const themeG = getComputedStyle(document.documentElement).getPropertyValue('--g').trim() || '#39ff14';
+  const colors = [themeG, '#00cfff', '#ff9600', '#ff3535', '#ffc800', '#bf5fff', '#00e5a0', '#ff6ec7', '#7fff6e', '#5599ff'];
+  const max = Math.max.apply(null, data.map((d) => parseInt(d.count, 10)));
+  let html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+  data.slice(0, 8).forEach((d, i) => {
+    const pct = max > 0 ? Math.round((parseInt(d.count, 10) / max) * 100) : 0;
+    html += '<div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;font-size:11px;color:#bbb;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(d.label) + '</div><div style="flex:1;height:16px;background:var(--br);"><div style="height:100%;width:' + pct + '%;background:' + colors[i % colors.length] + ';transition:width .5s;"></div></div><div style="width:24px;font-size:11px;color:var(--mu);text-align:right;">' + escapeHtml(d.count) + '</div></div>';
   });
   el.innerHTML = html + '</div>';
 }
 
-// ════════════════════════════════════════════════════════
-//  CARTE CANETTE
-// ════════════════════════════════════════════════════════
+// ── Carte canette ──
 function accentBg(color) {
   color = color || getComputedStyle(document.documentElement).getPropertyValue('--g').trim() || '#39ff14';
-  var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color);
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color);
   if (!m) return 'var(--bk)';
-  var r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+  const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
   return 'radial-gradient(ellipse at 50% 65%, rgba(' + r + ',' + g + ',' + b + ',0.16) 0%, rgba(8,8,8,1) 68%)';
 }
 function canCardHtml(can, btnsHtml) {
-  var accent = can.is_limited ? '#ff9600' : (can.accent_color || '#39ff14');
-  var img = can.image_url
-    ? '<img src="' + escapeHtml(can.image_url) + '" alt="' + escapeHtml(can.name) + '" onerror="this.style.display=\'none\'">'
-    : '<span style="font-size:52px;">&#129371;</span>';
-  var lim = can.is_limited ? '<div class="lim-tag">Limitée</div>' : '';
-  var owned = inCollection(can.id) ? '<div class="owned-ov"><div class="owned-tag">✓ Possédée</div></div>' : '';
-  var sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
-  var cardBorder = can.is_limited ? 'border:2px solid #ff9600;border-bottom:3px solid #ff9600;' : 'border-bottom:3px solid ' + accent + ';';
+  const accent = can.is_limited ? '#ff9600' : (can.accent_color || '#39ff14');
+  const img = can.image_url ? '<img src="' + escapeHtml(can.image_url) + '" alt="' + escapeHtml(can.name) + '" onerror="this.style.display=\'none\'">' : '<span style="font-size:52px;">&#129371;</span>';
+  const lim = can.is_limited ? '<div class="lim-tag">Limitée</div>' : '';
+  const owned = can.in_collection ? '<div class="owned-ov"><div class="owned-tag">✓ Possédée</div></div>' : '';
+  const price = can.price ? '<div class="cprice">' + fmtPrice(can.price) + '</div>' : '';
+  const sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
+  const cardBorder = can.is_limited ? 'border:2px solid #ff9600;border-bottom:3px solid #ff9600;' : 'border-bottom:3px solid ' + accent + ';';
   return '<div class="ccard" style="' + cardBorder + '">'
     + '<div class="cthumb" style="background:' + accentBg(accent) + '">' + img + lim + owned + '</div>'
-    + '<div class="cbody">'
-    + '<div class="cname">' + escapeHtml(can.name) + '</div>'
-    + '<div class="csub">' + sub + '</div>'
+    + '<div class="cbody"><div class="cname">' + escapeHtml(can.name) + '</div><div class="csub">' + sub + '</div>' + price
     + (btnsHtml ? '<div class="cbtns">' + btnsHtml + '</div>' : '')
     + '</div></div>';
 }
 
-// ════════════════════════════════════════════════════════
-//  ACCUEIL
-// ════════════════════════════════════════════════════════
-function renderHome() {
-  var owned = state.collection.length;
-  var total = state.cans.length;
-  var value = collectionValue();
-  var pct = total ? Math.round((owned / total) * 100) : 0;
-  document.getElementById('h-owned').textContent = owned;
-  document.getElementById('h-total').textContent = total;
-  document.getElementById('h-value').textContent = value > 0 ? value.toFixed(2) + '€' : '—';
-  document.getElementById('h-wish').textContent = state.wishlist.length;
-  document.getElementById('h-pct').textContent = pct + '%';
-  document.getElementById('h-prog').style.width = pct + '%';
-
-  var seriesMap = {}, langMap = {};
-  state.collection.forEach(function (x) {
-    var c = canById(x.can_id);
-    if (!c) return;
-    if (c.series) seriesMap[c.series] = (seriesMap[c.series] || 0) + 1;
-    if (c.language) langMap[c.language] = (langMap[c.language] || 0) + 1;
-  });
-  drawBarChart(Object.keys(seriesMap).map(function (k) { return { label: k, count: seriesMap[k] }; }).sort(function (a, b) { return b.count - a.count; }), 'chart-series');
-  drawBarChart(Object.keys(langMap).map(function (k) { return { label: k, count: langMap[k] }; }).sort(function (a, b) { return b.count - a.count; }), 'chart-lang');
-
-  var recent = state.collection.slice().sort(function (a, b) { return new Date(b.added_at) - new Date(a.added_at); }).slice(0, 5);
-  var elRec = document.getElementById('h-recent');
-  if (recent.length) {
-    var rhtml = '<div class="rec-list">';
-    recent.forEach(function (x) {
-      var c = canById(x.can_id); if (!c) return;
-      var thumb = c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'"/>' : '&#129371;';
-      rhtml += '<div class="rec-item"><div class="rec-thumb">' + thumb + '</div><div><div class="rec-name">' + escapeHtml(c.name) + '</div><div class="rec-date">' + fmtDate(x.added_at) + '</div></div><div class="rec-ago">' + timeAgo(x.added_at) + '</div></div>';
+// ════════════════════ ACCUEIL ════════════════════
+window.loadHome = function () {
+  ['h-owned', 'h-total', 'h-value', 'h-friends'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = '...'; });
+  ['chart-series', 'chart-lang', 'h-recent', 'h-friends-act'].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = lHtml(); });
+  getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((colSnap) => {
+    const colItems = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const totalValue = colItems.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
+    getDocs(query(collection(db, 'cans'), where('is_published', '==', true))).then((cansSnap) => {
+      const pct = cansSnap.size > 0 ? Math.round((colItems.length / cansSnap.size) * 100) : 0;
+      document.getElementById('h-owned').textContent = colItems.length;
+      document.getElementById('h-total').textContent = cansSnap.size;
+      document.getElementById('h-value').textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
+      document.getElementById('h-pct').textContent = pct + '%';
+      document.getElementById('h-prog').style.width = pct + '%';
     });
-    elRec.innerHTML = rhtml + '</div>';
-  } else elRec.innerHTML = eHtml('&#129371;', 'Aucune canette ajoutée', 'Commence ta collection depuis le catalogue !');
-
-  var elWish = document.getElementById('h-wishlist');
-  var wishCans = state.wishlist.map(canById).filter(Boolean).slice(0, 5);
-  if (wishCans.length) {
-    var whtml = '<div class="rec-list">';
-    wishCans.forEach(function (c) {
-      var thumb = c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'"/>' : '&#129371;';
-      whtml += '<div class="rec-item"><div class="rec-thumb">' + thumb + '</div><div><div class="rec-name">' + escapeHtml(c.name) + '</div><div class="rec-date">' + escapeHtml(c.series || '') + '</div></div></div>';
+    getDocs(query(collection(db, 'friends'), where('uid', '==', user.uid), where('status', '==', 'accepted'))).then((frSnap) => {
+      document.getElementById('h-friends').textContent = frSnap.size;
+      const friendUids = frSnap.docs.map((d) => d.data().friendUid);
+      const el = document.getElementById('h-friends-act');
+      if (!friendUids.length) { el.innerHTML = eHtml('👥', 'Pas encore d\'amis', 'Ajoute des amis depuis l\'onglet Amis !'); return; }
+      Promise.all(friendUids.slice(0, 5).map((uid) => getDoc(doc(db, 'users', uid)))).then((docs) => {
+        let fhtml = '<div class="fr-list">';
+        docs.forEach((fd) => { if (!fd.exists()) return; const f = fd.data(); fhtml += '<div class="fr-card">' + avatarHtml(f, 38) + '<div><div class="fr-name">' + escapeHtml(f.username) + '</div></div></div>'; });
+        el.innerHTML = fhtml + '</div>';
+      });
     });
-    elWish.innerHTML = whtml + '</div>';
-  } else elWish.innerHTML = eHtml('💚', 'Wishlist vide', 'Ajoute des canettes à ta wishlist depuis le catalogue !');
-}
+    const recent = colItems.sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0)).slice(0, 5);
+    const elRec = document.getElementById('h-recent');
+    if (recent.length) {
+      let rhtml = '<div class="rec-list">';
+      recent.forEach((r) => {
+        const thumb = r.image_url ? '<img src="' + escapeHtml(r.image_url) + '" alt="" onerror="this.style.display=\'none\'"/>' : '&#129371;';
+        rhtml += '<div class="rec-item"><div class="rec-thumb">' + thumb + '</div><div><div class="rec-name">' + escapeHtml(r.name) + '</div><div class="rec-date">' + fmtDate(r.added_at) + '</div></div><div class="rec-ago">' + timeAgo(r.added_at) + '</div></div>';
+      });
+      elRec.innerHTML = rhtml + '</div>';
+    } else elRec.innerHTML = eHtml('&#129371;', 'Aucune canette ajoutée', 'Commence à ajouter des canettes à ta collection !');
+    const seriesMap = {}, langMap = {};
+    colItems.forEach((c) => { if (c.series) seriesMap[c.series] = (seriesMap[c.series] || 0) + 1; if (c.language) langMap[c.language] = (langMap[c.language] || 0) + 1; });
+    drawPieChart(Object.entries(seriesMap).map((e) => ({ label: e[0], count: e[1] })).sort((a, b) => b.count - a.count), 'chart-series');
+    drawPieChart(Object.entries(langMap).map((e) => ({ label: e[0], count: e[1] })).sort((a, b) => b.count - a.count), 'chart-lang');
+  }).catch((e) => console.error('loadHome', e));
+};
 
-// ════════════════════════════════════════════════════════
-//  CATALOGUE
-// ════════════════════════════════════════════════════════
-window.renderCatalogue = function () {
-  var q = (document.getElementById('search').value || '').toLowerCase();
-  var cans = state.cans.filter(function (c) {
-    return !q || (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q) || (c.variant || '').toLowerCase().includes(q);
-  });
-  var el = document.getElementById('cat-ct');
+// ════════════════════ CATALOGUE ════════════════════
+window.loadCatalogue = function () {
+  document.getElementById('cat-ct').innerHTML = lHtml();
+  const colIds = new Set(), wlIds = new Set();
+  getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((s) => {
+    s.docs.forEach((d) => colIds.add(d.data().can_id));
+    return getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid)));
+  }).then((s) => {
+    s.docs.forEach((d) => wlIds.add(d.data().can_id));
+    return getDocs(query(collection(db, 'cans'), where('is_published', '==', true)));
+  }).then((snap) => {
+    allCans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data(), { in_collection: colIds.has(d.id), in_wishlist: wlIds.has(d.id) }));
+    allCans.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    renderCat(allCans);
+  }).catch((e) => { document.getElementById('cat-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.filterCans = function () {
+  const q = document.getElementById('search').value.toLowerCase();
+  renderCat(allCans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q) || (c.variant || '').toLowerCase().includes(q)));
+};
+function renderCat(cans) {
+  const el = document.getElementById('cat-ct');
   if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE TROUVÉE', 'Aucun résultat.'); return; }
-  var html = '<div class="cgrid">';
-  cans.forEach(function (can) {
-    var owned = inCollection(can.id);
-    var wished = inWishlist(can.id);
-    var colBtn = '<button class="cbtn ' + (owned ? 'on' : '') + '" onclick="event.stopPropagation();toggleCol(' + can.id + ')">' + (owned ? '✓ Possédée' : '+ Collection') + '</button>';
-    var wlBtn = '<button class="cbtn wl ' + (wished ? 'on' : '') + '" onclick="event.stopPropagation();toggleWl(' + can.id + ')">' + (wished ? '♥' : '♡') + ' Wish</button>';
-    html += '<div onclick="openCanDetailById(' + can.id + ')">' + canCardHtml(can, colBtn + wlBtn) + '</div>';
+  let html = '<div class="cgrid">';
+  cans.forEach((can) => {
+    const colBtn = '<button class="cbtn ' + (can.in_collection ? 'on' : '') + '" onclick="event.stopPropagation();toggleCol(\'' + can.id + '\',' + can.in_collection + ')">' + (can.in_collection ? '✓ Possédée' : '+ Collection') + '</button>';
+    const wlBtn = '<button class="cbtn wl ' + (can.in_wishlist ? 'on' : '') + '" onclick="event.stopPropagation();toggleWl(\'' + can.id + '\',' + can.in_wishlist + ')">' + (can.in_wishlist ? '♥' : '♡') + ' Wish</button>';
+    html += '<div onclick="openCanDetailById(\'' + can.id + '\')">' + canCardHtml(can, colBtn + wlBtn) + '</div>';
   });
   el.innerHTML = html + '</div>';
-};
-
-window.openCanDetailById = function (id) {
-  var can = canById(id);
-  if (!can) return;
-  _detailCan = can;
-  document.getElementById('cd-title').textContent = can.name;
-  document.getElementById('cd-name').textContent = can.name;
-  document.getElementById('cd-series').textContent = [can.series, can.variant].filter(Boolean).join(' · ') || '';
-  document.getElementById('cd-limited').style.display = can.is_limited ? 'block' : 'none';
-  var imgWrap = document.getElementById('cd-img-wrap');
-  imgWrap.innerHTML = can.image_url
-    ? '<img src="' + escapeHtml(can.image_url) + '" alt="" style="width:160px;height:180px;object-fit:contain;background:' + accentBg(can.accent_color) + '" onerror="this.parentElement.innerHTML=\'&#129371;\'">'
-    : "<span style='font-size:60px;'>&#129371;</span>";
-  var fields = [
-    { label: 'Pays', val: can.country }, { label: 'Année', val: can.year },
-    { label: 'Volume', val: can.volume }, { label: 'Langue', val: can.language },
-    { label: 'Couleur capsule', val: can.cap_color }, { label: 'Couleur dominante', val: can.full_color },
-  ];
-  var mh = '';
-  fields.forEach(function (f) {
-    if (f.val) mh += '<div><span style="color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:1px;">' + f.label + '</span><div style="font-weight:700;font-size:13px;margin-top:2px;">' + escapeHtml(f.val) + '</div></div>';
-  });
-  document.getElementById('cd-meta').innerHTML = mh || '<div style="color:var(--mu);font-size:12px;">Pas de métadonnées</div>';
-  var descWrap = document.getElementById('cd-desc-wrap');
-  if (can.description) { document.getElementById('cd-desc').textContent = can.description; descWrap.style.display = 'block'; }
-  else descWrap.style.display = 'none';
-  document.getElementById('cd-add-btn').style.display = inCollection(can.id) ? 'none' : 'inline-flex';
-  document.getElementById('modal-can-detail').classList.add('on');
-};
-window.openAddModal = function () {
-  if (!_detailCan) return;
-  closeModal('can-detail');
-  openAddColModal(_detailCan);
-};
-
-window.toggleCol = function (id) {
-  if (inCollection(id)) {
-    state.collection = state.collection.filter(function (x) { return x.can_id !== id; });
-    save(); toast('Retirée ✓'); refreshCurrentTab();
+}
+window.openCanDetailById = (id) => openCanDetail(allCans.find((x) => x.id === id));
+window.toggleCol = function (id, owned) {
+  if (owned) {
+    getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid), where('can_id', '==', id))).then((snap) => {
+      const b = fbatch(); snap.docs.forEach((d) => b.delete(d.ref)); return b.commit();
+    }).then(() => { toast('Retirée ✓'); loadCatalogue(); });
     return;
   }
-  var can = canById(id);
+  const can = allCans.find((x) => x.id === id);
   if (can) openAddColModal(can);
 };
 function openAddColModal(can) {
@@ -340,384 +406,731 @@ function openAddColModal(can) {
   document.getElementById('ac-can-name').textContent = can.name;
   document.getElementById('ac-price').value = '';
   document.getElementById('ac-purchase-type').value = '';
-  ['ac-btn-store', 'ac-btn-online', 'ac-btn-gift'].forEach(function (bid) {
-    var b = document.getElementById(bid); if (b) { b.style.background = ''; b.style.color = ''; }
-  });
+  ['ac-btn-store', 'ac-btn-online', 'ac-btn-gift'].forEach((bid) => { const b = document.getElementById(bid); if (b) { b.style.background = ''; b.style.color = ''; } });
   document.getElementById('modal-add-col').classList.add('on');
 }
+window.toggleWl = function (id, inWl) {
+  if (inWl) {
+    getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid), where('can_id', '==', id))).then((snap) => {
+      const b = fbatch(); snap.docs.forEach((d) => b.delete(d.ref)); return b.commit();
+    }).then(() => { toast('Retirée de la wishlist'); loadCatalogue(); });
+  } else {
+    addDoc(collection(db, 'wishlist'), { uid: user.uid, can_id: id, added_at: fst() }).then(() => { toast('Ajoutée à la wishlist ♥'); loadCatalogue(); });
+  }
+};
 window.selectPurchase = function (type) {
   document.getElementById('ac-purchase-type').value = type;
-  var map = { store: 'ac-btn-store', online: 'ac-btn-online', gift: 'ac-btn-gift' };
-  Object.keys(map).forEach(function (k) {
-    var b = document.getElementById(map[k]);
-    if (b) { b.style.background = k === type ? 'var(--g)' : ''; b.style.color = k === type ? '#000' : ''; }
-  });
+  const map = { store: 'ac-btn-store', online: 'ac-btn-online', gift: 'ac-btn-gift' };
+  Object.keys(map).forEach((k) => { const b = document.getElementById(map[k]); if (b) { b.style.background = k === type ? 'var(--g)' : ''; b.style.color = k === type ? '#000' : ''; } });
 };
 window.confirmAddCol = function () {
-  var canId = parseInt(document.getElementById('ac-can-id').value, 10);
-  var price = document.getElementById('ac-price').value;
-  var pt = document.getElementById('ac-purchase-type').value;
-  if (inCollection(canId)) { toast('Déjà dans ta collection.', 'err'); return; }
-  state.collection.push({
-    can_id: canId,
-    price: price ? Math.max(0, parseFloat(price) || 0) : null,
-    purchase_type: pt || null,
-    added_at: new Date().toISOString(),
-  });
-  if (save()) { closeModal('add-col'); toast('Ajoutée à ta collection ✓'); refreshCurrentTab(); }
-};
-window.toggleWl = function (id) {
-  if (inWishlist(id)) {
-    state.wishlist = state.wishlist.filter(function (x) { return x !== id; });
-    save(); toast('Retirée de la wishlist');
-  } else {
-    state.wishlist.push(id);
-    save(); toast('Ajoutée à la wishlist ♥');
-  }
-  refreshCurrentTab();
-};
-function refreshCurrentTab() {
-  var on = document.querySelector('.sec.on');
-  if (!on) return;
-  var m = { 'sec-home': renderHome, 'sec-catalogue': renderCatalogue, 'sec-collection': renderCollection, 'sec-manage': renderManage, 'sec-settings': renderSettings };
-  if (m[on.id]) m[on.id]();
-}
-
-// ════════════════════════════════════════════════════════
-//  MA COLLECTION
-// ════════════════════════════════════════════════════════
-function renderCollection() {
-  var items = state.collection.slice().sort(function (a, b) { return new Date(b.added_at) - new Date(a.added_at); });
-  var value = collectionValue();
-  var total = state.cans.length;
-  var pct = total ? Math.round((items.length / total) * 100) : 0;
-  document.getElementById('c-owned').textContent = items.length;
-  document.getElementById('c-total').textContent = total;
-  document.getElementById('c-pct').textContent = pct + '%';
-  document.getElementById('c-value').textContent = value > 0 ? value.toFixed(2) + '€' : '—';
-  var el = document.getElementById('col-ct');
-  if (!items.length) { el.innerHTML = eHtml('&#129371;', 'COLLECTION VIDE', 'Va dans le catalogue pour ajouter tes premières canettes !'); return; }
-  var html = '<div class="cgrid">';
-  items.forEach(function (x) {
-    var c = canById(x.can_id); if (!c) return;
-    var shown = Object.assign({}, c, { price: x.price });
-    var rmBtn = '<button class="cbtn rm" onclick="removeCol(' + c.id + ')">✕ Retirer</button>';
-    html += '<div onclick="openCanDetailById(' + c.id + ')">' + canCardHtml(shown, rmBtn) + '</div>';
-  });
-  el.innerHTML = html + '</div>';
-}
-window.removeCol = function (canId) {
-  state.collection = state.collection.filter(function (x) { return x.can_id !== canId; });
-  save(); toast('Retirée'); renderCollection();
+  const canId = document.getElementById('ac-can-id').value;
+  const price = document.getElementById('ac-price').value;
+  const pt = document.getElementById('ac-purchase-type').value;
+  getDoc(doc(db, 'cans', canId)).then((canDoc) => {
+    const cd = canDoc.exists() ? canDoc.data() : {};
+    return addDoc(collection(db, 'collection'), {
+      uid: user.uid, can_id: canId, name: cd.name || '', series: cd.series || null, variant: cd.variant || null,
+      country: cd.country || null, year: cd.year || null, image_url: cd.image_url || null, is_limited: cd.is_limited || false,
+      language: cd.language || null, accent_color: cd.accent_color || null,
+      price: price ? parseFloat(price) : null, purchase_type: pt || null, added_at: fst(),
+    });
+  }).then(() => { closeModal('add-col'); toast('Ajoutée à ta collection ✓'); loadCatalogue(); }).catch((e) => toast(e.message, 'err'));
 };
 
-// ════════════════════════════════════════════════════════
-//  GÉRER LE CATALOGUE
-// ════════════════════════════════════════════════════════
-function renderManage() {
-  var q = (document.getElementById('manage-search').value || '').toLowerCase();
-  var cans = state.cans.filter(function (c) {
-    return !q || (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q);
-  });
-  var el = document.getElementById('manage-ct');
-  if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Ajoute ta première canette !'); return; }
-  var rows = '';
-  cans.forEach(function (c) {
-    var img = c.image_url
-      ? '<img src="' + escapeHtml(c.image_url) + '" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:3px;" onerror="this.style.display=\'none\'">'
-      : '<div style="width:40px;height:40px;background:var(--br);display:flex;align-items:center;justify-content:center;font-size:18px;">&#129371;</div>';
-    var accentDot = c.accent_color ? '<div style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + escapeHtml(c.accent_color) + ';margin-left:6px;vertical-align:middle;border:1px solid rgba(255,255,255,.2);"></div>' : '';
-    var lim = c.is_limited ? ' <span class="tbadge lim">Limitée</span>' : '';
-    var ownedCount = inCollection(c.id) ? '<span class="tstat">✓</span>' : '<span style="color:var(--mu);">—</span>';
-    rows += '<tr><td>' + img + '</td>'
-      + '<td><div class="tname">' + escapeHtml(c.name) + accentDot + '</div></td>'
-      + '<td style="color:var(--mu);font-size:12px;">' + escapeHtml(c.series || '—') + (c.variant ? ' · ' + escapeHtml(c.variant) : '') + lim + '</td>'
-      + '<td>' + ownedCount + '</td>'
-      + '<td><div class="tacts"><button class="tedit" onclick="openCanModal(' + c.id + ')">Éditer</button><button class="tdel" onclick="deleteCan(' + c.id + ')">Suppr.</button></div></td></tr>';
-  });
-  el.innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Photo</th><th>Nom</th><th>Série</th><th>Possédée</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+// ── Détail ──
+function openCanDetail(can) {
+  if (!can) return;
+  _detailCan = can;
+  document.getElementById('cd-title').textContent = can.name;
+  document.getElementById('cd-name').textContent = can.name;
+  document.getElementById('cd-series').textContent = [can.series, can.variant].filter(Boolean).join(' · ') || '';
+  document.getElementById('cd-limited').style.display = can.is_limited ? 'block' : 'none';
+  const imgWrap = document.getElementById('cd-img-wrap');
+  imgWrap.innerHTML = can.image_url
+    ? '<img src="' + escapeHtml(can.image_url) + '" alt="" style="width:160px;height:180px;object-fit:contain;background:' + accentBg(can.accent_color) + '" onerror="this.parentElement.innerHTML=\'&#129371;\'">'
+    : "<span style='font-size:60px;'>&#129371;</span>";
+  const fields = [{ label: 'Pays', val: can.country }, { label: 'Année', val: can.year }, { label: 'Volume', val: can.volume }, { label: 'Langue', val: can.language }, { label: 'Couleur capsule', val: can.cap_color }, { label: 'Couleur dominante', val: can.full_color }];
+  let mh = '';
+  fields.forEach((f) => { if (f.val) mh += '<div><span style="color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:1px;">' + f.label + '</span><div style="font-weight:700;font-size:13px;margin-top:2px;">' + escapeHtml(f.val) + '</div></div>'; });
+  document.getElementById('cd-meta').innerHTML = mh || '<div style="color:var(--mu);font-size:12px;">Pas de métadonnées</div>';
+  const descWrap = document.getElementById('cd-desc-wrap');
+  if (can.description) { document.getElementById('cd-desc').textContent = can.description; descWrap.style.display = 'block'; }
+  else descWrap.style.display = 'none';
+  document.getElementById('cd-add-btn').style.display = can.in_collection ? 'none' : 'inline-flex';
+  document.getElementById('modal-can-detail').classList.add('on');
 }
+window.openAddModal = function () { if (_detailCan) { closeModal('can-detail'); openAddColModal(_detailCan); } };
 
-var _pendingImg = null;    // nouvelle image (dataURL) en attente dans la modale
-var _existingImg = null;   // image actuelle de la canette (conservée si l'utilisateur n'y touche pas)
-window.openCanModal = function (canId) {
-  var c = canId ? canById(canId) : null;
-  _pendingImg = null;
-  _existingImg = (c && c.image_url) || null;
-  document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
-  document.getElementById('cm-id').value = (c && c.id) || '';
-  var map = { name: 'name', series: 'series', variant: 'variant', lang: 'language', cap: 'cap_color', fc: 'full_color', vol: 'volume', country: 'country', year: 'year', desc: 'description' };
-  Object.keys(map).forEach(function (f) { document.getElementById('cm-' + f).value = (c && c[map[f]]) || ''; });
-  // Le champ URL n'est pré-rempli que pour les URLs http (pas les dataURL uploadées)
-  document.getElementById('cm-img-url').value = (c && c.image_url && /^https?:/i.test(c.image_url)) ? c.image_url : '';
-  document.getElementById('cm-color').value = (c && c.accent_color) || '#39ff14';
-  document.getElementById('cm-limited').checked = !!(c && c.is_limited);
-  document.getElementById('cm-img-file').value = '';
-  var prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
-  if (c && c.image_url) { prev.src = c.image_url; prev.style.display = 'block'; lbl.style.display = 'none'; }
-  else { prev.style.display = 'none'; lbl.style.display = 'block'; }
-  document.getElementById('modal-can').classList.add('on');
+// ════════════════════ MA COLLECTION ════════════════════
+window.loadCollection = function () {
+  document.getElementById('col-ct').innerHTML = lHtml();
+  getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((colSnap) => {
+    const colItems = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    colItems.sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0));
+    const totalValue = colItems.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
+    getDocs(query(collection(db, 'cans'), where('is_published', '==', true))).then((s) => {
+      const pct = s.size > 0 ? Math.round((colItems.length / s.size) * 100) : 0;
+      document.getElementById('c-owned').textContent = colItems.length;
+      document.getElementById('c-total').textContent = s.size;
+      document.getElementById('c-pct').textContent = pct + '%';
+      document.getElementById('c-value').textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
+    });
+    if (!colItems.length) { document.getElementById('col-ct').innerHTML = eHtml('&#129371;', 'COLLECTION VIDE', 'Va dans le catalogue pour ajouter tes premières canettes !'); return; }
+    let html = '<div class="cgrid">';
+    colItems.forEach((c) => { html += '<div>' + canCardHtml(c, '<button class="cbtn rm" onclick="removeCol(\'' + c.id + '\')">✕ Retirer</button>') + '</div>'; });
+    document.getElementById('col-ct').innerHTML = html + '</div>';
+  }).catch((e) => { document.getElementById('col-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
-window.handleImgFile = function (input) {
-  var file = input.files[0]; if (!file) return;
-  if (file.size > 8 * 1024 * 1024) { toast('Image trop lourde (max 8 Mo).', 'err'); return; }
-  resizeImage(file, 400, 0.8, function (dataUrl) {
-    if (!dataUrl) { toast('Image illisible.', 'err'); return; }
-    _pendingImg = dataUrl;
-    var prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
-    prev.src = dataUrl; prev.style.display = 'block'; lbl.style.display = 'none';
-    document.getElementById('cm-img-url').value = '';
-  });
-};
-window.previewUrl = function (url) {
-  var prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
-  _pendingImg = null;
-  if (url) { _existingImg = null; prev.src = url; prev.style.display = 'block'; lbl.style.display = 'none'; document.getElementById('cm-img-file').value = ''; }
-  else { _existingImg = null; prev.style.display = 'none'; lbl.style.display = 'block'; }
-};
-window.saveCan = function () {
-  var name = document.getElementById('cm-name').value.trim();
-  if (!name) { toast('Nom requis', 'err'); return; }
-  var id = document.getElementById('cm-id').value;
-  var imgUrl = document.getElementById('cm-img-url').value.trim();
-  var fields = {
-    name: name.slice(0, 120),
-    series: document.getElementById('cm-series').value.trim().slice(0, 80) || null,
-    variant: document.getElementById('cm-variant').value.trim().slice(0, 80) || null,
-    language: document.getElementById('cm-lang').value.trim().slice(0, 30) || null,
-    cap_color: document.getElementById('cm-cap').value.trim().slice(0, 40) || null,
-    full_color: document.getElementById('cm-fc').value.trim().slice(0, 40) || null,
-    volume: document.getElementById('cm-vol').value.trim().slice(0, 30) || null,
-    country: document.getElementById('cm-country').value.trim().slice(0, 60) || null,
-    year: document.getElementById('cm-year').value ? parseInt(document.getElementById('cm-year').value, 10) : null,
-    description: document.getElementById('cm-desc').value.trim().slice(0, 2000) || null,
-    is_limited: document.getElementById('cm-limited').checked ? 1 : 0,
-    image_url: _pendingImg || imgUrl || _existingImg || null,
-    accent_color: document.getElementById('cm-color').value || '#39ff14',
-  };
-  if (id) {
-    var c = canById(parseInt(id, 10));
-    if (c) Object.assign(c, fields);
-    if (save()) { toast('Modifiée ✓'); closeModal('can'); renderManage(); }
-  } else {
-    fields.id = state.nextCanId++;
-    fields.created_at = new Date().toISOString();
-    state.cans.push(fields);
-    if (save()) { toast('Ajoutée ✓'); closeModal('can'); renderManage(); }
-    else state.cans.pop(); // rollback si stockage plein
-  }
-};
-window.deleteCan = function (id) {
-  var c = canById(id);
-  if (!c) return;
-  if (!confirm('Supprimer « ' + c.name + ' » ? Elle sera aussi retirée de ta collection et wishlist.')) return;
-  state.cans = state.cans.filter(function (x) { return x.id !== id; });
-  state.collection = state.collection.filter(function (x) { return x.can_id !== id; });
-  state.wishlist = state.wishlist.filter(function (x) { return x !== id; });
-  Object.keys(state.favorites).forEach(function (k) { if (state.favorites[k] === id) delete state.favorites[k]; });
-  save(); toast('Supprimée ✓'); renderManage();
-};
+window.removeCol = (docId) => deleteDoc(doc(db, 'collection', docId)).then(() => { toast('Retirée'); loadCollection(); }).catch((e) => toast(e.message, 'err'));
 
-// ════════════════════════════════════════════════════════
-//  PARAMÈTRES
-// ════════════════════════════════════════════════════════
-function letterAvatar(letter, size) {
-  size = size || 40;
-  return '<div style="width:' + size + 'px;height:' + size + 'px;background:var(--g);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:' + Math.round(size * .45) + 'px;color:#000;flex-shrink:0;">' + escapeHtml(letter) + '</div>';
+// ════════════════════ AMIS ════════════════════
+window.loadFriends = function () {
+  document.getElementById('friends-ct').innerHTML = lHtml();
+  setErr('friend-err', ''); setOk('friend-ok', '');
+  Promise.all([
+    getDocs(query(collection(db, 'friends'), where('uid', '==', user.uid), where('status', '==', 'accepted'))),
+    getDocs(query(collection(db, 'friend_requests'), where('to_uid', '==', user.uid), where('status', '==', 'pending'))),
+  ]).then((results) => {
+    const frSnap = results[0], reqSnap = results[1];
+    const requests = reqSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const friendUids = frSnap.docs.map((d) => d.data().friendUid);
+    const p1 = requests.map((r) => getDoc(doc(db, 'users', r.from_uid)).then((fd) => Object.assign({}, r, { fromName: fd.exists() ? fd.data().username : '?' })));
+    const p2 = friendUids.map((uid) => Promise.all([
+      getDoc(doc(db, 'users', uid)),
+      getDocs(query(collection(db, 'collection'), where('uid', '==', uid))),
+      getDocs(query(collection(db, 'chats'), where('to_uid', '==', user.uid), where('from_uid', '==', uid), where('read', '==', false))),
+    ]).then((res) => {
+      if (!res[0].exists()) return null;
+      const f = res[0].data();
+      return { uid, username: f.username, avatar_url: f.avatar_url, collection_count: res[1].size, unread_count: res[2].size };
+    }));
+    return Promise.all([Promise.all(p1), Promise.all(p2)]);
+  }).then((res) => {
+    const enrichedReqs = res[0], friends = res[1].filter(Boolean);
+    let html = '';
+    if (enrichedReqs.length) {
+      html += '<div style="margin-bottom:20px;"><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;color:#ff9600;margin-bottom:10px;">DEMANDES REÇUES</div>';
+      enrichedReqs.forEach((r) => {
+        html += '<div style="background:rgba(255,150,0,.07);border:1px solid rgba(255,150,0,.25);padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
+          + '<div style="width:36px;height:36px;background:var(--c1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:#ff9600;">' + escapeHtml((r.fromName || '?')[0].toUpperCase()) + '</div>'
+          + '<div style="flex:1;min-width:120px;"><div style="font-weight:700;">' + escapeHtml(r.fromName) + '</div><div style="font-size:12px;color:var(--mu);">veut être ton ami</div></div>'
+          + '<button class="btn-add" onclick="acceptRequest(\'' + r.id + '\',\'' + r.from_uid + '\')" style="padding:7px 14px;font-size:12px;">✓ Accepter</button>'
+          + '<button class="btn-ghost" onclick="rejectRequest(\'' + r.id + '\')" style="padding:7px 14px;font-size:12px;">✕</button></div>';
+      });
+      html += '</div>';
+    }
+    if (!friends.length && !enrichedReqs.length) html += eHtml('👥', 'Pas encore d\'amis', 'Recherche des amis par pseudo ci-dessus !');
+    else if (friends.length) {
+      html += '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;color:var(--mu);margin-bottom:10px;">MES AMIS (' + friends.length + ')</div><div style="display:flex;flex-direction:column;gap:8px;">';
+      friends.forEach((f) => {
+        const dot = f.unread_count > 0 ? '<span style="background:var(--g);color:#000;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-left:4px;">' + f.unread_count + '</span>' : '';
+        const safeName = escapeHtml(f.username).replace(/'/g, '&#39;');
+        html += '<div style="display:flex;align-items:center;gap:12px;background:var(--c1);border:1px solid var(--br);padding:14px;flex-wrap:wrap;">' + avatarHtml(f, 40)
+          + '<div style="flex:1;min-width:120px;"><div class="fr-name">' + escapeHtml(f.username) + dot + '</div><div class="fr-sub">' + f.collection_count + ' canette' + (f.collection_count !== 1 ? 's' : '') + '</div></div>'
+          + '<button class="btn-ghost" onclick="openFriendView(\'' + f.uid + '\',\'' + safeName + '\')" style="padding:7px 14px;font-size:12px;">👁 Voir</button>'
+          + '<button class="btn-ghost" onclick="openChat(\'' + f.uid + '\',\'' + safeName + '\')" style="padding:7px 14px;font-size:12px;">💬</button>'
+          + '<button class="tdel" onclick="removeFriend(\'' + f.uid + '\',\'' + safeName + '\')" style="padding:7px 12px;font-size:12px;">✕</button></div>';
+      });
+      html += '</div>';
+    }
+    document.getElementById('friends-ct').innerHTML = html;
+  }).catch((e) => { document.getElementById('friends-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.friendSearch = function () { clearTimeout(_friendSearchTimer); _friendSearchTimer = setTimeout(doFriendSearch, 400); };
+function doFriendSearch() {
+  const pseudo = document.getElementById('friend-input').value.trim();
+  setErr('friend-err', '');
+  const ok = document.getElementById('friend-ok');
+  ok.classList.remove('on'); ok.innerHTML = '';
+  if (!pseudo) return;
+  getDocs(query(collection(db, 'users'), where('username', '==', pseudo))).then((snap) => {
+    if (snap.empty) { setErr('friend-err', 'Aucun utilisateur trouvé avec ce pseudo.'); return; }
+    const uDoc = snap.docs[0];
+    const u = Object.assign({ uid: uDoc.id }, uDoc.data());
+    if (u.uid === user.uid) { setErr('friend-err', 'C\'est toi !'); return; }
+    return Promise.all([
+      getDocs(query(collection(db, 'friends'), where('uid', '==', user.uid), where('friendUid', '==', u.uid))),
+      getDocs(query(collection(db, 'friend_requests'), where('from_uid', '==', user.uid), where('to_uid', '==', u.uid), where('status', '==', 'pending'))),
+      getDocs(query(collection(db, 'collection'), where('uid', '==', u.uid))),
+    ]).then((res) => {
+      if (!res[0].empty) { setErr('friend-err', u.username + ' est déjà ton ami.'); return; }
+      let preview = '<div style="background:var(--c1);border:1px solid var(--g);padding:14px;display:flex;align-items:center;gap:12px;margin-top:8px;flex-wrap:wrap;">'
+        + '<div style="width:40px;height:40px;background:var(--bk);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:\'Bebas Neue\',sans-serif;font-size:20px;color:var(--g);">' + escapeHtml(u.username[0].toUpperCase()) + '</div>'
+        + '<div style="flex:1;min-width:120px;"><div style="font-weight:700;">' + escapeHtml(u.username) + '</div><div style="font-size:12px;color:var(--mu);">' + res[2].size + ' canette' + (res[2].size !== 1 ? 's' : '') + '</div></div>';
+      if (!res[1].empty) preview += '<span style="color:#ff9600;font-size:12px;font-weight:700;">Demande envoyée</span>';
+      else preview += '<button class="btn-add" onclick="sendFriendRequest(\'' + u.uid + '\')" style="padding:8px 16px;">+ Envoyer une demande</button>';
+      ok.innerHTML = preview + '</div>'; ok.classList.add('on');
+    });
+  }).catch((e) => setErr('friend-err', e.message));
 }
-function avatarHtml(size) {
-  var p = state.profile;
-  var s = 'width:' + size + 'px;height:' + size + 'px;flex-shrink:0;border-radius:50%;object-fit:cover;';
-  if (p.avatar) return '<img src="' + p.avatar + '" alt="" style="' + s + '">';
-  return letterAvatar((p.username || '?')[0].toUpperCase(), size);
-}
-
-function renderSettings() {
-  document.getElementById('set-user').value = state.profile.username || '';
-  document.getElementById('avatar-current').innerHTML = avatarHtml(64);
-  applyThemeUI(state.profile.theme || 'dark');
-  renderFavSlots();
-  renderWishSlots();
-}
-window.saveProfile = function () {
-  setErr('set-err', ''); setOk('set-ok', '');
-  var u = document.getElementById('set-user').value.trim().slice(0, 24);
-  if (u.length < 3) return setErr('set-err', 'Pseudo : 3 caractères minimum.');
-  state.profile.username = u;
-  save();
-  document.getElementById('nav-name').textContent = u;
-  setOk('set-ok', 'Profil mis à jour ✓');
+window.sendFriendRequest = (toUid) => addDoc(collection(db, 'friend_requests'), { from_uid: user.uid, to_uid: toUid, status: 'pending', created_at: fst() }).then(() => { toast('Demande envoyée ✓'); document.getElementById('friend-input').value = ''; document.getElementById('friend-ok').classList.remove('on'); loadFriends(); }).catch((e) => toast(e.message, 'err'));
+window.acceptRequest = function (reqId, fromUid) {
+  const batch = fbatch();
+  batch.update(doc(db, 'friend_requests', reqId), { status: 'accepted' });
+  batch.set(doc(collection(db, 'friends')), { uid: user.uid, friendUid: fromUid, status: 'accepted', created_at: fst() });
+  batch.set(doc(collection(db, 'friends')), { uid: fromUid, friendUid: user.uid, status: 'accepted', created_at: fst() });
+  batch.commit().then(() => { toast('Ami ajouté ✓'); loadFriends(); updateBadges(); }).catch((e) => toast(e.message, 'err'));
 };
-window.saveAvatar = function () {
-  var fi = document.getElementById('avatar-file');
-  if (!fi || !fi.files || !fi.files[0]) { toast('Sélectionne une image', 'err'); return; }
-  resizeImage(fi.files[0], 160, 0.8, function (dataUrl) {
-    if (!dataUrl) { toast('Image illisible.', 'err'); return; }
-    state.profile.avatar = dataUrl;
-    if (save()) {
-      document.getElementById('avatar-current').innerHTML = avatarHtml(64);
-      fi.value = '';
-      toast('Photo mise à jour ✓');
-    } else state.profile.avatar = null;
-  });
+window.rejectRequest = (reqId) => updateDoc(doc(db, 'friend_requests', reqId), { status: 'rejected' }).then(() => { toast('Demande refusée'); loadFriends(); updateBadges(); });
+window.removeFriend = function (friendUid, name) {
+  if (!confirm('Retirer ' + name + ' ?')) return;
+  Promise.all([
+    getDocs(query(collection(db, 'friends'), where('uid', '==', user.uid), where('friendUid', '==', friendUid))),
+    getDocs(query(collection(db, 'friends'), where('uid', '==', friendUid), where('friendUid', '==', user.uid))),
+  ]).then((res) => { const b = fbatch(); res[0].docs.forEach((d) => b.delete(d.ref)); res[1].docs.forEach((d) => b.delete(d.ref)); return b.commit(); })
+    .then(() => { toast('Ami retiré'); loadFriends(); }).catch((e) => toast(e.message, 'err'));
+};
+window.openFriendView = function (friendUid, friendName) {
+  document.querySelectorAll('.sec').forEach((x) => x.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach((x) => x.classList.remove('on'));
+  document.getElementById('sec-friend-view').classList.add('on');
+  document.getElementById('friend-view-name').textContent = friendName.toUpperCase() + ' — COLLECTION';
+  document.getElementById('friend-view-ct').innerHTML = lHtml();
+  getDocs(query(collection(db, 'collection'), where('uid', '==', friendUid))).then((snap) => {
+    const cans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    if (!cans.length) { document.getElementById('friend-view-ct').innerHTML = eHtml('&#129371;', 'Collection vide', 'Ton ami n\'a pas encore de canettes !'); return; }
+    let html = '<div class="cgrid">';
+    cans.forEach((c) => { html += '<div>' + canCardHtml(c, '') + '</div>'; });
+    document.getElementById('friend-view-ct').innerHTML = html + '</div>';
+  }).catch((e) => { document.getElementById('friend-view-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.backFromFriendView = function () { stopChatPoll(); _currentChatFriend = null; goTab('friends', document.getElementById('tab-friends')); };
+
+// ════════════════════ CHAT (rendu sécurisé) ════════════════════
+window.openChat = function (friendUid, friendName) {
+  _currentChatFriend = { uid: friendUid, name: friendName };
+  document.querySelectorAll('.sec').forEach((x) => x.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach((x) => x.classList.remove('on'));
+  document.getElementById('sec-chat').classList.add('on');
+  document.getElementById('chat-title').textContent = '💬 ' + friendName;
+  document.getElementById('chat-msg-inp').value = '';
+  loadChatMessages(); startChatPoll(); updateBadges();
+};
+function loadChatMessages() {
+  if (!_currentChatFriend) return;
+  // Pas d'orderBy composite : filtre + tri côté client
+  getDocs(query(collection(db, 'chats'), where('participants', 'array-contains', user.uid), limit(200))).then((snap) => {
+    const msgs = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()))
+      .filter((m) => (m.from_uid === user.uid && m.to_uid === _currentChatFriend.uid) || (m.from_uid === _currentChatFriend.uid && m.to_uid === user.uid))
+      .sort((a, b) => (tsToDate(a.created_at) || 0) - (tsToDate(b.created_at) || 0));
+    const unread = msgs.filter((m) => m.to_uid === user.uid && !m.read);
+    if (unread.length) { const b = fbatch(); unread.forEach((m) => b.update(doc(db, 'chats', m.id), { read: true })); b.commit(); }
+    const ct = document.getElementById('chat-messages'); if (!ct) return;
+    ct.innerHTML = '';
+    if (!msgs.length) { ct.innerHTML = '<div style="text-align:center;color:var(--mu);padding:40px;font-size:13px;">Envoie ton premier message !</div>'; return; }
+    msgs.forEach((m) => {
+      const mine = m.from_uid === user.uid;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;flex-direction:column;align-items:' + (mine ? 'flex-end' : 'flex-start') + ';margin-bottom:10px;';
+      if (!mine && m.sender_name) { const who = document.createElement('div'); who.style.cssText = 'font-size:11px;color:var(--mu);margin-bottom:3px;'; who.textContent = m.sender_name; wrap.appendChild(who); }
+      const bub = document.createElement('div');
+      bub.style.cssText = 'max-width:85%;padding:10px 14px;font-size:13px;border-radius:4px;word-break:break-word;background:' + (mine ? 'var(--g)' : 'var(--c1)') + ';color:' + (mine ? '#000' : 'var(--tx)') + ';';
+      bub.textContent = m.content;
+      wrap.appendChild(bub);
+      const ts = document.createElement('div');
+      ts.style.cssText = 'font-size:10px;color:var(--mu);margin-top:3px;';
+      const d = tsToDate(m.created_at);
+      ts.textContent = d ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+      wrap.appendChild(ts);
+      ct.appendChild(wrap);
+    });
+    ct.scrollTop = ct.scrollHeight;
+  }).catch((e) => console.error('chat', e));
+}
+window.sendChatMsg = function () {
+  const inp = document.getElementById('chat-msg-inp');
+  const content = inp.value.trim();
+  if (!content || !_currentChatFriend) return;
+  inp.value = '';
+  addDoc(collection(db, 'chats'), { from_uid: user.uid, to_uid: _currentChatFriend.uid, sender_name: user.username, participants: [user.uid, _currentChatFriend.uid], content, read: false, created_at: fst() })
+    .then(loadChatMessages).catch((e) => toast(e.message, 'err'));
+};
+function startChatPoll() { stopChatPoll(); _chatPoll = setInterval(loadChatMessages, 3000); }
+function stopChatPoll() { if (_chatPoll) { clearInterval(_chatPoll); _chatPoll = null; } }
+
+// ════════════════════ NOTIFICATIONS ════════════════════
+window.loadUpdates = function () {
+  document.getElementById('updates-ct').innerHTML = lHtml();
+  Promise.all([
+    getDocs(query(collection(db, 'updates'), orderBy('created_at', 'desc'))),
+    getDocs(query(collection(db, 'messages'), where('uid', '==', user.uid))),
+  ]).then((res) => {
+    const updates = res[0].docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const replies = res[1].docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((m) => !!m.reply);
+    let html = '';
+    if (replies.length) {
+      html += '<div style="margin-bottom:22px;"><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#4af;margin-bottom:12px;">RÉPONSES À TES MESSAGES</div>';
+      replies.forEach((r) => {
+        html += '<div style="background:rgba(68,170,255,.07);border:1px solid rgba(68,170,255,.2);padding:18px;margin-bottom:10px;">'
+          + '<div style="font-size:11px;color:#4af;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">' + escapeHtml(r.category) + '</div>'
+          + '<div style="font-size:13px;color:#999;margin-bottom:12px;padding:12px;background:rgba(0,0,0,.3);border-left:3px solid #333;white-space:pre-wrap;word-break:break-word;">' + escapeHtml(r.content) + '</div>';
+        if (r.attachment_url) html += '<div style="margin-bottom:12px;"><img src="' + escapeHtml(r.attachment_url) + '" alt="" style="max-width:100%;max-height:300px;object-fit:contain;border:1px solid var(--br);cursor:pointer;" onclick="window.open(this.src)"/></div>';
+        html += '<div style="font-size:13px;color:#ddd;white-space:pre-wrap;word-break:break-word;">' + escapeHtml(r.reply) + '</div><div style="font-size:11px;color:var(--mu);margin-top:10px;">Répondu le ' + fmtDate(r.replied_at) + '</div></div>';
+      });
+      html += '</div>';
+    }
+    if (updates.length) {
+      html += '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;">ANNONCES</div>';
+      updates.forEach((u) => { html += '<div class="upd-card" style="margin-bottom:10px;"><div class="upd-title">' + escapeHtml(u.title) + '</div><div class="upd-content">' + escapeHtml(u.content) + '</div><div class="upd-meta">' + fmtDate(u.created_at) + '</div></div>'; });
+    }
+    if (!html) html = eHtml('🔔', 'AUCUNE NOTIFICATION', 'Rien de neuf pour le moment.');
+    document.getElementById('updates-ct').innerHTML = html;
+  }).catch((e) => { document.getElementById('updates-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
 
-function renderFavSlots() {
-  [1, 2, 3].forEach(function (pos) {
-    var slot = document.getElementById('fav-' + pos);
-    var fav = state.favorites[pos] ? canById(state.favorites[pos]) : null;
+// ════════════════════ PARAMÈTRES ════════════════════
+window.loadSettings = function () {
+  document.getElementById('set-name').textContent = (user && user.username) || '';
+  document.getElementById('set-user').value = (user && user.username) || '';
+  document.getElementById('set-email').value = (user && user.email) || '';
+  const avEl = document.getElementById('avatar-current'); if (avEl) avEl.innerHTML = avatarHtml(user, 64);
+  const ap = document.getElementById('avatar-preview'); if (ap) ap.style.display = 'none';
+  Promise.all([
+    getDocs(query(collection(db, 'favorites'), where('uid', '==', user.uid))),
+    getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid))),
+  ]).then((res) => {
+    renderFavSlots(res[0].docs.map((d) => Object.assign({ id: d.id }, d.data())));
+    const wlIds = res[1].docs.map((d) => d.data().can_id).slice(0, 3);
+    return Promise.all(wlIds.map((id) => getDoc(doc(db, 'cans', id)).then((s) => s.exists() ? Object.assign({ id: s.id }, s.data()) : null)));
+  }).then((wlCans) => { if (wlCans) renderWishSlots(wlCans.filter(Boolean)); }).catch((e) => console.error('loadSettings', e));
+};
+function renderFavSlots(favs) {
+  [1, 2, 3].forEach((pos) => {
+    const slot = document.getElementById('fav-' + pos);
+    const fav = favs.find((f) => f.position === pos);
     if (fav) {
-      slot.innerHTML = (fav.image_url ? '<img src="' + escapeHtml(fav.image_url) + '" alt=""/>' : "<span style='font-size:30px;'>&#129371;</span>")
-        + '<div class="fav-ov"><span style="color:#fff;font-size:12px;">✕ Retirer</span></div><div class="fav-nm">' + escapeHtml(fav.name) + '</div>';
-      slot.onclick = function () { delete state.favorites[pos]; save(); toast('Favori retiré'); renderFavSlots(); };
+      slot.innerHTML = (fav.image_url ? '<img src="' + escapeHtml(fav.image_url) + '" alt=""/>' : "<span style='font-size:30px;'>&#129371;</span>") + '<div class="fav-ov"><span style="color:#fff;font-size:12px;">✕ Retirer</span></div><div class="fav-nm">' + escapeHtml(fav.name) + '</div>';
+      slot.onclick = () => removeFav(fav.id);
     } else {
       slot.innerHTML = '<span class="fav-num">' + pos + '</span><div class="fav-ov"><span style="color:var(--g);font-size:20px;">+</span></div>';
-      slot.onclick = function () { openPicker('fav', pos); };
+      slot.onclick = () => openPicker('fav', pos);
     }
   });
 }
-function renderWishSlots() {
-  var cans = state.wishlist.map(canById).filter(Boolean).slice(0, 3);
-  [0, 1, 2].forEach(function (i) {
-    var slot = document.getElementById('wish-' + (i + 1));
-    var c = cans[i];
+function renderWishSlots(cans) {
+  [0, 1, 2].forEach((i) => {
+    const slot = document.getElementById('wish-' + (i + 1));
+    const c = cans[i];
     if (c) {
-      slot.innerHTML = (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt=""/>' : "<span style='font-size:30px;'>&#129371;</span>")
-        + '<div class="fav-ov"><span style="color:#fff;font-size:12px;">✕ Retirer</span></div><div class="fav-nm">' + escapeHtml(c.name) + '</div>';
-      slot.onclick = function () { toggleWl(c.id); };
+      slot.innerHTML = (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt=""/>' : "<span style='font-size:30px;'>&#129371;</span>") + '<div class="fav-ov"><span style="color:#fff;font-size:12px;">✕ Retirer</span></div><div class="fav-nm">' + escapeHtml(c.name) + '</div>';
+      slot.onclick = () => { if (confirm('Retirer de la wishlist ?')) toggleWl(c.id, true); };
     } else {
       slot.innerHTML = '<span class="fav-num">' + (i + 1) + '</span><div class="fav-ov"><span style="color:#4af;font-size:20px;">+</span></div>';
-      slot.onclick = function () { openPicker('wish', i + 1); };
+      slot.onclick = () => openPicker('wish', i + 1);
     }
   });
 }
+function removeFav(favDocId) { deleteDoc(doc(db, 'favorites', favDocId)).then(() => { toast('Favori retiré'); loadSettings(); }).catch((e) => toast(e.message, 'err')); }
+window.saveProfile = function () {
+  setErr('set-err', ''); setOk('set-ok', '');
+  const username = document.getElementById('set-user').value.trim();
+  updateDoc(doc(db, 'users', user.uid), { username }).then(() => {
+    user.username = username;
+    document.getElementById('nav-name').textContent = username;
+    document.getElementById('set-name').textContent = username;
+    setOk('set-ok', 'Profil mis à jour ✓');
+  }).catch((e) => setErr('set-err', e.message));
+};
+window.savePw = function () {
+  setErr('pw-err', ''); setOk('pw-ok', '');
+  const np = document.getElementById('pw-new').value;
+  updatePassword(auth.currentUser, np).then(() => { setOk('pw-ok', 'Mot de passe mis à jour ✓'); document.getElementById('pw-new').value = ''; }).catch((e) => setErr('pw-err', e.message));
+};
+window.avatarFileChange = function () {
+  const fi = document.getElementById('avatar-file');
+  if (fi && fi.files && fi.files[0]) {
+    const r = new FileReader();
+    r.onload = (e) => { const pr = document.getElementById('avatar-preview'); pr.src = e.target.result; pr.style.display = 'block'; };
+    r.readAsDataURL(fi.files[0]);
+  }
+};
+window.saveAvatar = function () {
+  const fi = document.getElementById('avatar-file');
+  if (!fi || !fi.files || !fi.files[0]) { toast('Sélectionne une image', 'err'); return; }
+  const file = fi.files[0];
+  if (file.size > 3 * 1024 * 1024) { toast('Image trop lourde (max 3 Mo).', 'err'); return; }
+  compressImage(file, 160, 0.8).then((b64) => updateDoc(doc(db, 'users', user.uid), { avatar_url: b64 }).then(() => {
+    user.avatar_url = b64;
+    document.getElementById('avatar-current').innerHTML = avatarHtml(user, 64);
+    fi.value = ''; document.getElementById('avatar-preview').style.display = 'none';
+    toast('Photo mise à jour ✓');
+  })).catch((e) => toast(e.message, 'err'));
+};
 
 // ── Picker ──
 window.openPicker = function (type, pos) {
-  pickerMode = { type: type, pos: pos };
+  pickerMode = { type, pos };
   document.getElementById('picker-title').textContent = type === 'fav' ? 'FAVORI #' + pos : 'WISHLIST #' + pos;
   document.getElementById('picker-search').value = '';
-  renderPickerGrid(state.cans);
+  const render = () => { pickerCans = allCans; renderPickerGrid(pickerCans); };
+  if (!allCans.length) getDocs(query(collection(db, 'cans'), where('is_published', '==', true))).then((snap) => { allCans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data())); allCans.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')); render(); });
+  else render();
   document.getElementById('modal-picker').classList.add('on');
 };
-window.filterPicker = function () {
-  var q = document.getElementById('picker-search').value.toLowerCase();
-  renderPickerGrid(state.cans.filter(function (c) { return (c.name || '').toLowerCase().includes(q); }));
-};
+window.filterPicker = function () { const q = document.getElementById('picker-search').value.toLowerCase(); renderPickerGrid(pickerCans.filter((c) => (c.name || '').toLowerCase().includes(q))); };
 function renderPickerGrid(cans) {
-  document.getElementById('picker-grid').innerHTML = cans.slice(0, 60).map(function (c) {
-    return '<div class="pk-item" onclick="pickCan(' + c.id + ')"><div class="pk-thumb">' + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'&#129371;\'">' : '&#129371;') + '</div><div class="pk-name">' + escapeHtml(c.name) + '</div></div>';
-  }).join('');
+  document.getElementById('picker-grid').innerHTML = cans.slice(0, 60).map((c) => '<div class="pk-item" onclick="pickCan(\'' + c.id + '\')"><div class="pk-thumb">' + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'&#129371;\'">' : '&#129371;') + '</div><div class="pk-name">' + escapeHtml(c.name) + '</div></div>').join('');
 }
 window.pickCan = function (canId) {
   if (!pickerMode) return;
-  if (pickerMode.type === 'fav') {
-    state.favorites[pickerMode.pos] = canId;
-    save(); toast('Favori mis à jour ✓'); renderFavSlots();
-  } else {
-    if (!inWishlist(canId)) { state.wishlist.push(canId); save(); toast('Ajoutée à la wishlist ♥'); renderWishSlots(); }
-    else toast('Déjà dans la wishlist.', 'err');
-  }
-  closeModal('picker');
-};
-
-// ════════════════════════════════════════════════════════
-//  EXPORT / IMPORT / RESET
-// ════════════════════════════════════════════════════════
-window.exportData = function () {
-  var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'monstertracker-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json';
-  a.click();
-  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
-  toast('Sauvegarde exportée ✓');
-};
-window.importData = function (input) {
-  var file = input.files && input.files[0];
-  if (!file) return;
-  var r = new FileReader();
-  r.onload = function (e) {
-    try {
-      var parsed = JSON.parse(e.target.result);
-      if (!parsed || !Array.isArray(parsed.cans) || !parsed.profile) throw new Error('format');
-      if (!confirm('Importer cette sauvegarde ? Tes données actuelles seront remplacées.')) { input.value = ''; return; }
-      parsed.version = parsed.version || 1;
-      parsed.collection = parsed.collection || [];
-      parsed.wishlist = parsed.wishlist || [];
-      parsed.favorites = parsed.favorites || {};
-      parsed.nextCanId = parsed.nextCanId || (Math.max.apply(null, parsed.cans.map(function (c) { return c.id; }).concat([0])) + 1);
-      state = parsed;
-      save();
-      applyThemeUI(state.profile.theme || 'dark');
-      document.getElementById('nav-name').textContent = state.profile.username || 'Collectionneur';
-      toast('Sauvegarde importée ✓');
-      refreshCurrentTab();
-    } catch (err) {
-      toast('Fichier invalide — ce n\'est pas une sauvegarde MonsterTracker.', 'err');
+  getDoc(doc(db, 'cans', canId)).then((canDoc) => {
+    const cd = canDoc.exists() ? canDoc.data() : {};
+    if (pickerMode.type === 'fav') {
+      return getDocs(query(collection(db, 'favorites'), where('uid', '==', user.uid), where('position', '==', pickerMode.pos))).then((snap) => {
+        const b = fbatch();
+        snap.docs.forEach((d) => b.delete(d.ref));
+        b.set(doc(collection(db, 'favorites')), { uid: user.uid, can_id: canId, position: pickerMode.pos, name: cd.name, image_url: cd.image_url || null, added_at: fst() });
+        return b.commit();
+      }).then(() => { toast('Favori mis à jour ✓'); closeModal('picker'); loadSettings(); });
     }
-    input.value = '';
-  };
-  r.readAsText(file);
-};
-window.confirmReset = function () {
-  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  _resetCode = '';
-  for (var i = 0; i < 6; i++) _resetCode += chars[Math.floor(Math.random() * chars.length)];
-  document.getElementById('reset-code-display').textContent = _resetCode;
-  document.getElementById('reset-code-inp').value = '';
-  setErr('reset-err', '');
-  document.getElementById('modal-reset').classList.add('on');
-};
-window.doReset = function () {
-  var inp = document.getElementById('reset-code-inp').value.trim().toUpperCase();
-  if (inp !== _resetCode) return setErr('reset-err', 'Code incorrect.');
-  state = defaultState();
-  save();
-  closeModal('reset');
-  applyThemeUI('dark');
-  document.getElementById('nav-name').textContent = state.profile.username;
-  toast('Données réinitialisées.');
-  refreshCurrentTab();
+    return addDoc(collection(db, 'wishlist'), { uid: user.uid, can_id: canId, added_at: fst() }).then(() => { toast('Ajoutée à la wishlist ♥'); closeModal('picker'); loadSettings(); loadCatalogue(); });
+  }).catch((e) => toast(e.message, 'err'));
 };
 
-// ════════════════════════════════════════════════════════
-//  PWA
-// ════════════════════════════════════════════════════════
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('sw.js').catch(function () { });
+// ════════════════════ CONTACT ════════════════════
+window.goContact = function () {
+  document.querySelectorAll('.sec').forEach((x) => x.classList.remove('on'));
+  document.querySelectorAll('.ntab').forEach((x) => x.classList.remove('on'));
+  document.getElementById('sec-contact').classList.add('on');
+  ctBack();
+};
+window.ctBack = function () {
+  document.getElementById('ct-menu').style.display = 'block';
+  document.getElementById('ct-form').style.display = 'none';
+  document.getElementById('ct-delete').style.display = 'none';
+  document.getElementById('ct-legal').style.display = 'none';
+};
+window.ctShow = function (cat) {
+  _cfCat = cat;
+  document.getElementById('ctf-title').textContent = cat.toUpperCase();
+  document.getElementById('cf-pseudo').value = (user && user.username) || '';
+  document.getElementById('cf-cat').value = cat;
+  document.getElementById('cf-msg').value = '';
+  setErr('cf-err', ''); setOk('cf-ok', '');
+  document.getElementById('ct-menu').style.display = 'none';
+  document.getElementById('ct-form').style.display = 'block';
+};
+window.ctShowDel = function () {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  _delCode = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  document.getElementById('del-captcha-display').textContent = _delCode;
+  document.getElementById('del-captcha-inp').value = '';
+  setErr('del-err', '');
+  document.getElementById('ct-menu').style.display = 'none';
+  document.getElementById('ct-delete').style.display = 'block';
+};
+window.ctShowLegal = function () {
+  document.getElementById('ct-menu').style.display = 'none';
+  document.getElementById('ct-legal').style.display = 'block';
+};
+window.cfFileChange = function () {
+  const f = document.getElementById('cf-file'), prev = document.getElementById('cf-preview'), img = document.getElementById('cf-preview-img');
+  if (f && f.files && f.files[0]) {
+    const r = new FileReader();
+    r.onload = (e) => { img.src = e.target.result; prev.style.display = 'block'; };
+    r.readAsDataURL(f.files[0]);
+  } else prev.style.display = 'none';
+};
+window.sendContact = function () {
+  const msg = document.getElementById('cf-msg').value.trim();
+  setErr('cf-err', ''); setOk('cf-ok', '');
+  if (!msg) return setErr('cf-err', 'Le message ne peut pas être vide.');
+  const fileInput = document.getElementById('cf-file');
+  const send = (attachment) => {
+    addDoc(collection(db, 'messages'), { uid: user.uid, username: user.username, category: _cfCat, content: msg, attachment_url: attachment || null, reply: null, replied_at: null, created_at: fst() })
+      .then(() => {
+        setOk('cf-ok', 'Message envoyé ✓ L\'admin te répondra dès que possible.');
+        document.getElementById('cf-msg').value = '';
+        fileInput.value = ''; document.getElementById('cf-preview').style.display = 'none';
+        setTimeout(ctBack, 2500);
+      }).catch((e) => setErr('cf-err', e.message));
+  };
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    if (file.size > 4 * 1024 * 1024) { setErr('cf-err', 'Image trop lourde (max 4 Mo).'); return; }
+    compressImage(file, 800, 0.75).then(send).catch((e) => setErr('cf-err', e.message));
+  } else send(null);
+};
+window.confirmDelete = function () {
+  const inp = document.getElementById('del-captcha-inp').value.trim().toUpperCase();
+  setErr('del-err', '');
+  if (inp !== _delCode) return setErr('del-err', 'Code incorrect.');
+  const uid = user.uid;
+  const colls = ['collection', 'wishlist', 'favorites', 'friends', 'messages'];
+  const batch = fbatch();
+  const p = colls.map((c) => getDocs(query(collection(db, c), where('uid', '==', uid))).then((snap) => { snap.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'friend_requests'), where('from_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'friend_requests'), where('to_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'chats'), where('from_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'chats'), where('to_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'friends'), where('friendUid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  Promise.all(p).then(() => { batch.delete(doc(db, 'users', uid)); return batch.commit(); })
+    .then(() => auth.currentUser.delete())
+    .then(() => { toast('Compte supprimé.'); go('landing'); })
+    .catch((e) => setErr('del-err', e.message));
+};
+
+// ════════════════════ ADMIN : CANETTES ════════════════════
+window.loadAdmCans = function () {
+  document.getElementById('adm-cans-ct').innerHTML = lHtml();
+  const q = ((document.getElementById('adm-search') || {}).value || '').toLowerCase();
+  getDocs(query(collection(db, 'cans'), orderBy('name'))).then((snap) => {
+    let cans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    if (q) cans = cans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q));
+    if (!cans.length) { document.getElementById('adm-cans-ct').innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Ajoute ta première canette !'); return; }
+    let rows = '';
+    cans.forEach((c) => {
+      const img = c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:3px;" onerror="this.style.display=\'none\'">' : '<div style="width:40px;height:40px;background:var(--br);display:flex;align-items:center;justify-content:center;font-size:18px;">&#129371;</div>';
+      const accentDot = c.accent_color ? '<div style="display:inline-block;width:12px;height:12px;border-radius:50%;background:' + escapeHtml(c.accent_color) + ';margin-left:6px;vertical-align:middle;border:1px solid rgba(255,255,255,.2);"></div>' : '';
+      const badge = c.is_published ? '<span class="tbadge pub">Publiée</span>' : '<span class="tbadge draft">Brouillon</span>';
+      const lim = c.is_limited ? ' <span class="tbadge lim">Limitée</span>' : '';
+      const pubBtn = c.is_published ? '<button class="tedit" onclick="publishCan(\'' + c.id + '\',false)">Dépublier</button>' : '<button class="tedit" onclick="publishCan(\'' + c.id + '\',true)">Publier</button>';
+      rows += '<tr><td>' + img + '</td><td><div class="tname">' + escapeHtml(c.name) + accentDot + '</div></td><td style="color:var(--mu);font-size:12px;">' + escapeHtml(c.series || '—') + (c.variant ? ' · ' + escapeHtml(c.variant) : '') + lim + '</td><td>' + badge + '</td><td><div class="tacts"><button class="tedit" onclick="openCanModal(\'' + c.id + '\')">Éditer</button>' + pubBtn + '<button class="tdel" onclick="deleteCan(\'' + c.id + '\')">Suppr.</button></div></td></tr>';
+    });
+    document.getElementById('adm-cans-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Photo</th><th>Nom</th><th>Série</th><th>Statut</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }).catch((e) => { document.getElementById('adm-cans-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.openCanModal = function (canId) {
+  const setup = (c) => {
+    document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
+    document.getElementById('cm-id').value = (c && c.id) || '';
+    const map = { name: 'name', series: 'series', variant: 'variant', lang: 'language', cap: 'cap_color', fc: 'full_color', vol: 'volume', country: 'country', year: 'year', desc: 'description', 'img-url': 'image_url' };
+    Object.keys(map).forEach((f) => { document.getElementById('cm-' + f).value = (c && c[map[f]]) || ''; });
+    document.getElementById('cm-color').value = (c && c.accent_color) || '#39ff14';
+    document.getElementById('cm-limited').checked = !!(c && c.is_limited);
+    document.getElementById('cm-img-file').value = '';
+    const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
+    if (c && c.image_url) { prev.src = c.image_url; prev.style.display = 'block'; lbl.style.display = 'none'; }
+    else { prev.style.display = 'none'; lbl.style.display = 'block'; }
+    document.getElementById('modal-can').classList.add('on');
+  };
+  if (canId) getDoc(doc(db, 'cans', canId)).then((snap) => setup(snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null));
+  else setup(null);
+};
+window.handleImgFile = function (input) {
+  const file = input.files[0]; if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { toast('Image trop lourde (max 5 Mo).', 'err'); input.value = ''; return; }
+  compressImage(file, 400, 0.8).then((dataUrl) => {
+    const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
+    prev.src = dataUrl; prev.style.display = 'block'; lbl.style.display = 'none';
+    document.getElementById('cm-img-url').value = '';
+    input.dataset.compressed = dataUrl;
   });
+};
+window.previewUrl = function (url) {
+  const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
+  if (url) { prev.src = url; prev.style.display = 'block'; lbl.style.display = 'none'; document.getElementById('cm-img-file').value = ''; }
+  else { prev.style.display = 'none'; lbl.style.display = 'block'; }
+};
+window.saveCan = function () {
+  const name = document.getElementById('cm-name').value.trim();
+  if (!name) { toast('Nom requis', 'err'); return; }
+  const fi = document.getElementById('cm-img-file');
+  const imageUrl = (fi.dataset && fi.dataset.compressed) || document.getElementById('cm-img-url').value.trim();
+  const body = {
+    name, series: document.getElementById('cm-series').value || null, variant: document.getElementById('cm-variant').value || null,
+    language: document.getElementById('cm-lang').value || null, cap_color: document.getElementById('cm-cap').value || null,
+    full_color: document.getElementById('cm-fc').value || null, volume: document.getElementById('cm-vol').value || null,
+    country: document.getElementById('cm-country').value || null,
+    year: document.getElementById('cm-year').value ? parseInt(document.getElementById('cm-year').value, 10) : null,
+    description: document.getElementById('cm-desc').value || null,
+    is_limited: document.getElementById('cm-limited').checked,
+    image_url: imageUrl || null,
+    accent_color: document.getElementById('cm-color').value || '#39ff14',
+    updated_at: fst(),
+  };
+  const id = document.getElementById('cm-id').value;
+  const p = id ? updateDoc(doc(db, 'cans', id), body) : addDoc(collection(db, 'cans'), Object.assign({}, body, { is_published: false, created_at: fst() }));
+  p.then(() => { toast(id ? 'Modifiée ✓' : 'Ajoutée (brouillon)'); fi.dataset.compressed = ''; closeModal('can'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
+};
+window.publishCan = (id, pub) => updateDoc(doc(db, 'cans', id), { is_published: pub }).then(() => { toast(pub ? 'Publiée ✓' : 'Dépubliée'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
+window.deleteCan = (id) => { if (!confirm('Supprimer cette canette ?')) return; deleteDoc(doc(db, 'cans', id)).then(() => { toast('Supprimée ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err')); };
+
+// ════════════════════ ADMIN : ANNONCES ════════════════════
+window.loadAdmUpdates = function () {
+  document.getElementById('adm-updates-ct').innerHTML = lHtml();
+  getDocs(query(collection(db, 'updates'), orderBy('created_at', 'desc'))).then((snap) => {
+    const upds = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    if (!upds.length) { document.getElementById('adm-updates-ct').innerHTML = eHtml('📢', 'AUCUNE ANNONCE', 'Crée ta première annonce !'); return; }
+    let rows = '';
+    upds.forEach((u) => {
+      rows += '<tr><td><div class="tname">' + escapeHtml(u.title) + '</div></td><td style="color:var(--mu);font-size:12px;max-width:300px;">' + escapeHtml(u.content.substring(0, 100)) + (u.content.length > 100 ? '...' : '') + '</td><td style="color:var(--mu);font-size:11px;">' + fmtDate(u.created_at) + '</td><td><button class="tdel" onclick="delUpdate(\'' + u.id + '\')">Suppr.</button></td></tr>';
+    });
+    document.getElementById('adm-updates-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Titre</th><th>Contenu</th><th>Date</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }).catch((e) => { document.getElementById('adm-updates-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.openUpdateModal = function () { document.getElementById('um-title').value = ''; document.getElementById('um-content').value = ''; document.getElementById('modal-update').classList.add('on'); };
+window.saveUpdate = function () {
+  const t = document.getElementById('um-title').value.trim(), ct = document.getElementById('um-content').value.trim();
+  if (!t || !ct) { toast('Titre et contenu requis', 'err'); return; }
+  addDoc(collection(db, 'updates'), { title: t, content: ct, created_at: fst() }).then(() => { toast('Annonce publiée ✓'); closeModal('update'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err'));
+};
+window.delUpdate = (id) => { if (!confirm('Supprimer cette annonce ?')) return; deleteDoc(doc(db, 'updates', id)).then(() => { toast('Supprimée ✓'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err')); };
+
+// ════════════════════ ADMIN : UTILISATEURS ════════════════════
+window.loadAdmUsers = function () {
+  document.getElementById('adm-users-ct').innerHTML = lHtml();
+  const q = ((document.getElementById('user-search') || {}).value || '').toLowerCase();
+  getDocs(query(collection(db, 'users'), orderBy('username'))).then((snap) => {
+    let users = snap.docs.map((d) => Object.assign({ uid: d.id }, d.data()));
+    if (q) users = users.filter((u) => (u.username || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q));
+    return Promise.all(users.map((u) => getDocs(query(collection(db, 'collection'), where('uid', '==', u.uid))).then((s) => Object.assign({}, u, { col_count: s.size }))));
+  }).then((users) => {
+    let rows = '';
+    users.forEach((u) => {
+      const delBtn = u.role !== 'admin' ? '<button class="tdel" onclick="delUser(\'' + u.uid + '\',\'' + escapeHtml(u.username).replace(/'/g, '&#39;') + '\')">Suppr.</button>' : '—';
+      rows += '<tr><td><div style="display:flex;align-items:center;gap:9px;">' + avatarHtml(u, 30) + '<div class="tname">' + escapeHtml(u.username) + '</div></div><div style="font-size:10px;color:var(--mu);">' + escapeHtml(u.email) + '</div></td>'
+        + '<td style="font-family:monospace;font-size:11px;color:var(--mu);">' + escapeHtml(u.user_code || '—') + '</td>'
+        + '<td><span class="tbadge ' + (u.role === 'admin' ? 'lim' : 'std') + '">' + escapeHtml(u.role) + '</span></td>'
+        + '<td><span class="tstat">' + u.col_count + '</span></td>'
+        + '<td style="color:var(--mu);font-size:11px;">' + fmtDate(u.created_at) + '</td><td>' + delBtn + '</td></tr>';
+    });
+    document.getElementById('adm-users-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Utilisateur</th><th>Code</th><th>Rôle</th><th>Canettes</th><th>Inscrit le</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }).catch((e) => { document.getElementById('adm-users-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.delUser = function (uid, name) {
+  if (!confirm('Supprimer le compte de ' + name + ' et toutes ses données ?')) return;
+  const colls = ['collection', 'wishlist', 'favorites', 'messages'];
+  const batch = fbatch();
+  const p = colls.map((c) => getDocs(query(collection(db, c), where('uid', '==', uid))).then((snap) => { snap.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'friends'), where('uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'friends'), where('friendUid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'friend_requests'), where('from_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'friend_requests'), where('to_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'chats'), where('from_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'chats'), where('to_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  Promise.all(p).then(() => { batch.delete(doc(db, 'users', uid)); return batch.commit(); })
+    .then(() => { toast('Utilisateur supprimé ✓'); loadAdmUsers(); }).catch((e) => toast(e.message, 'err'));
+};
+
+// ════════════════════ ADMIN : MA COLLECTION ════════════════════
+window.loadAdmCol = function () {
+  getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((colSnap) => {
+    const cans = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    cans.sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0));
+    const totalValue = cans.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
+    getDocs(collection(db, 'cans')).then((s) => {
+      document.getElementById('adm-c-owned').textContent = cans.length;
+      document.getElementById('adm-c-total').textContent = s.size;
+      document.getElementById('adm-c-value').textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
+    });
+    const monthMap = {};
+    cans.forEach((c) => { const d = tsToDate(c.added_at); if (d) { const m = d.toISOString().substring(0, 7); monthMap[m] = (monthMap[m] || 0) + 1; } });
+    drawChart(Object.entries(monthMap).sort().slice(-12).map((e) => ({ month: e[0], count: e[1] })), 'adm-chart-ct');
+    if (!cans.length) { document.getElementById('adm-col-ct').innerHTML = eHtml('&#129371;', 'COLLECTION VIDE', 'Ajoute des canettes !'); return; }
+    let html = '<div class="cgrid">';
+    cans.forEach((c) => { html += '<div>' + canCardHtml(c, '<button class="cbtn rm" onclick="removeAdmCol(\'' + c.id + '\')">✕ Retirer</button>') + '</div>'; });
+    document.getElementById('adm-col-ct').innerHTML = html + '</div>';
+  }).catch((e) => console.error('loadAdmCol', e));
+};
+window.removeAdmCol = (docId) => deleteDoc(doc(db, 'collection', docId)).then(() => { toast('Retirée ✓'); loadAdmCol(); }).catch((e) => toast(e.message, 'err'));
+
+// ════════════════════ ADMIN : RÉCEPTION ════════════════════
+window.loadAdmInbox = function () {
+  document.getElementById('inbox-ct').innerHTML = lHtml();
+  getDocs(query(collection(db, 'messages'), orderBy('created_at', 'desc'))).then((snap) => {
+    _admMsgs = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const pending = _admMsgs.filter((m) => !m.reply).length;
+    const replied = _admMsgs.filter((m) => m.reply).length;
+    const filterHtml = '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">'
+      + '<button class="ntab' + (_inboxFilter === 'all' ? ' on' : '') + '" onclick="setInboxFilter(\'all\')" style="flex:0;padding:6px 16px;font-size:12px;height:auto;">Tous (' + _admMsgs.length + ')</button>'
+      + '<button class="ntab' + (_inboxFilter === 'pending' ? ' on' : '') + '" onclick="setInboxFilter(\'pending\')" style="flex:0;padding:6px 16px;font-size:12px;height:auto;">En attente (' + pending + ')</button>'
+      + '<button class="ntab' + (_inboxFilter === 'replied' ? ' on' : '') + '" onclick="setInboxFilter(\'replied\')" style="flex:0;padding:6px 16px;font-size:12px;height:auto;">Répondus (' + replied + ')</button></div>';
+    const filtered = _admMsgs.filter((m) => { if (_inboxFilter === 'pending') return !m.reply; if (_inboxFilter === 'replied') return !!m.reply; return true; });
+    if (!filtered.length) { document.getElementById('inbox-ct').innerHTML = filterHtml + eHtml('📭', 'AUCUN MESSAGE', 'Aucun message dans cette catégorie.'); return; }
+    const cats = { 'Signaler un bug': '#ff3535', 'Poser une question': '#4af', 'Problème de compte': '#ff9600', 'Suggestion': '#39ff14', 'Canette manquante': '#ffc800', 'Erreur de données': '#ff9600' };
+    let rows = '';
+    filtered.forEach((m) => {
+      const col = cats[m.category] || '#aaa';
+      const rgb = hexToRgb(col);
+      const badge = '<span class="tbadge" style="background:rgba(' + rgb + ',0.12);color:' + col + ';border:1px solid ' + col + '44;">' + escapeHtml(m.category) + '</span>';
+      const statusBadge = m.reply ? '<span class="tbadge pub">Répondu</span>' : '<span class="tbadge draft">En attente</span>';
+      const attachIcon = m.attachment_url ? '<span title="Photo jointe" style="margin-left:4px;font-size:12px;">📎</span>' : '';
+      rows += '<tr><td><div class="tname">' + escapeHtml(m.username || 'Invité') + '</div></td><td>' + badge + '</td><td style="max-width:220px;font-size:12px;color:#bbb;word-break:break-word;">' + escapeHtml(m.content.substring(0, 80)) + (m.content.length > 80 ? '...' : '') + attachIcon + '</td><td style="color:var(--mu);font-size:11px;white-space:nowrap;">' + fmtDate(m.created_at) + '</td><td>' + statusBadge + '</td><td><div class="tacts"><button class="tedit" onclick="openReply(\'' + m.id + '\')">Répondre</button><button class="tdel" onclick="delMsg(\'' + m.id + '\')">Suppr.</button></div></td></tr>';
+    });
+    document.getElementById('inbox-ct').innerHTML = filterHtml + '<div class="atbl-w"><table class="atbl"><thead><tr><th>Pseudo</th><th>Objet</th><th>Message</th><th>Date</th><th>Statut</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }).catch((e) => { document.getElementById('inbox-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.setInboxFilter = (f) => { _inboxFilter = f; loadAdmInbox(); };
+window.openReply = function (id) {
+  const m = _admMsgs.find((x) => x.id === id);
+  if (!m) { toast('Message introuvable', 'err'); return; }
+  document.getElementById('reply-id').value = id;
+  document.getElementById('reply-meta').textContent = (m.username || 'Invité') + ' — ' + m.category;
+  document.getElementById('reply-msg').textContent = m.content;
+  const imgEl = document.getElementById('reply-attach');
+  if (m.attachment_url) { imgEl.src = m.attachment_url; imgEl.style.display = 'block'; }
+  else imgEl.style.display = 'none';
+  document.getElementById('reply-txt').value = '';
+  document.getElementById('modal-reply').classList.add('on');
+};
+window.sendReply = function () {
+  const id = document.getElementById('reply-id').value;
+  const txt = document.getElementById('reply-txt').value.trim();
+  if (!txt) { toast('La réponse ne peut pas être vide', 'err'); return; }
+  updateDoc(doc(db, 'messages', id), { reply: txt, replied_at: fst() }).then(() => { toast('Réponse envoyée ✓'); closeModal('reply'); loadAdmInbox(); updateBadges(); }).catch((e) => toast(e.message, 'err'));
+};
+window.delMsg = (id) => { if (!confirm('Supprimer ce message ?')) return; deleteDoc(doc(db, 'messages', id)).then(() => { toast('Message supprimé ✓'); loadAdmInbox(); updateBadges(); }).catch((e) => toast(e.message, 'err')); };
+
+// ════════════════════ ADMIN : RÉGLAGES ════════════════════
+window.loadAdmSettings = function () {
+  document.getElementById('adm-set-user').value = (user && user.username) || '';
+  document.getElementById('adm-set-email').value = (user && user.email) || '';
+  loadMaintStatus();
+};
+window.saveAdmProfile = function () {
+  const username = document.getElementById('adm-set-user').value.trim();
+  setErr('adm-set-err', ''); setOk('adm-set-ok', '');
+  if (!username) return setErr('adm-set-err', 'Le pseudo ne peut pas être vide.');
+  updateDoc(doc(db, 'users', user.uid), { username }).then(() => { user.username = username; setOk('adm-set-ok', 'Profil mis à jour ✓'); }).catch((e) => setErr('adm-set-err', e.message));
+};
+window.saveAdmPassword = function () {
+  const np = document.getElementById('adm-pw-new').value, cp = document.getElementById('adm-pw-conf').value;
+  setErr('adm-pw-err', ''); setOk('adm-pw-ok', '');
+  if (!np) return setErr('adm-pw-err', 'Entre un nouveau mot de passe.');
+  if (np !== cp) return setErr('adm-pw-err', 'Les mots de passe ne correspondent pas.');
+  updatePassword(auth.currentUser, np).then(() => { setOk('adm-pw-ok', 'Mot de passe changé ✓'); document.getElementById('adm-pw-new').value = ''; document.getElementById('adm-pw-conf').value = ''; }).catch((e) => setErr('adm-pw-err', e.message));
+};
+window.setMaintenance = function (active) {
+  setDoc(doc(db, 'settings', 'maintenance'), { active }).then(() => { toast(active ? '🔴 Maintenance activée' : '🟢 Application relancée'); loadMaintStatus(); }).catch((e) => toast(e.message, 'err'));
+};
+function loadMaintStatus() {
+  getDoc(doc(db, 'settings', 'maintenance')).then((snap) => {
+    const active = snap.exists() ? snap.data().active : false;
+    document.getElementById('maint-status').innerHTML = active ? '<span style="color:#ff9600;font-weight:700;">⚠ MAINTENANCE ACTIVE</span>' : '<span style="color:var(--g);font-weight:700;">● APPLICATION EN LIGNE</span>';
+    document.getElementById('maint-on-btn').style.opacity = active ? '0.4' : '1';
+    document.getElementById('maint-off-btn').style.opacity = active ? '1' : '0.4';
+  }).catch(() => {});
 }
-window.addEventListener('beforeinstallprompt', function (e) {
-  e.preventDefault();
-  _installPrompt = e;
-  var btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'block';
-});
-window.addEventListener('appinstalled', function () {
-  _installPrompt = null;
-  var btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'none';
-  toast('Application installée ✓');
-});
+
+// ── PWA ──
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
+window.addEventListener('appinstalled', () => { _installPrompt = null; const btn = document.getElementById('pwa-install-btn'); if (btn) btn.style.display = 'none'; toast('Application installée ✓'); });
 window.doInstall = function () {
-  if (_installPrompt) {
-    _installPrompt.prompt();
-    _installPrompt.userChoice.then(function (r) { if (r.outcome !== 'accepted') _installPrompt = null; });
-  } else {
-    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    toast(isIOS
-      ? 'Sur iPhone : Partager ⬆ puis « Sur l\'écran d\'accueil ».'
-      : 'Utilise le menu de ton navigateur : « Installer l\'application ».', 'err');
+  if (_installPrompt) { _installPrompt.prompt(); _installPrompt.userChoice.then((r) => { if (r.outcome !== 'accepted') _installPrompt = null; }); }
+  else {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    toast(isIOS ? 'Sur iPhone : Partager ⬆ puis « Sur l\'écran d\'accueil ».' : 'Utilise le menu du navigateur : « Installer l\'application ».', 'err');
   }
 };
 
-// ── Fermer les modales en cliquant le fond ──
-document.querySelectorAll('.moverlay').forEach(function (ov) {
-  ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('on'); });
+// ── Vérif pseudo dispo à la saisie ──
+const _ruEl = document.getElementById('ru');
+if (_ruEl) _ruEl.addEventListener('input', () => window.checkPseudo());
+
+// ── Clavier ──
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const a = document.querySelector('.page.active');
+  if (!a) return;
+  if (a.id === 'page-login' && document.getElementById('forgot-panel').style.display !== 'block') doLogin();
+  if (a.id === 'page-register') doRegister();
 });
 
-// ── Démarrage ──
-state = loadState();
-applyThemeUI(state.profile.theme || 'dark');
+// ── Fermer modales au clic sur le fond ──
+document.querySelectorAll('.moverlay').forEach((ov) => ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('on'); }));
+
+// ── Démarrage : landing par défaut ──
+go('landing');

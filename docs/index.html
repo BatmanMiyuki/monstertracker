@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="MonsterTracker">
 <meta name="theme-color" content="#080808">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="Track ta collection de canettes Monster Energy — 100% local, installable, sans compte.">
+<meta name="description" content="Track ta collection de canettes Monster Energy : catalogue, wishlist, amis et statistiques.">
 <title>MonsterTracker</title>
 <link rel="icon" type="image/png" href="icon.png"/>
 <link rel="apple-touch-icon" href="icon.png"/>
@@ -26,33 +26,35 @@
     <span class="logo-t">MONSTER<em>TRACKER</em></span>
   </div>
   <div style="display:flex;align-items:center;gap:15px;">
-    <button class="nav-cta" onclick="enterApp()">OUVRIR L'APP</button>
+    <button class="nav-l2" onclick="go('login')">CONNEXION</button>
+    <button class="nav-cta" onclick="go('register')">INSCRIPTION</button>
   </div>
 </nav>
 <section class="hero">
   <div class="hero-l">
     <div class="hero-badge">&#129371; COLLECTION TRACKER</div>
     <h1 class="hero-h1">LIBÈRE<em>LA BÊTE</em></h1>
-    <p class="hero-p">Suis ta collection de canettes Monster Energy. Catalogue, statistiques, wishlist — tout est stocké sur ton appareil, sans compte ni serveur.</p>
+    <p class="hero-p">Suis ta collection de canettes Monster Energy. Catalogue complet, statistiques, wishlist et communauté de collectionneurs.</p>
     <div class="hero-btns">
-      <button class="btn-g" onclick="enterApp()">COMMENCER</button>
+      <button class="btn-g" onclick="go('register')">COMMENCER</button>
+      <button class="btn-o" onclick="go('login')">CONNEXION</button>
     </div>
   </div>
-  <div class="hero-r"><img src="icon.png" alt="MonsterTracker"/></div>
+  <div class="hero-r"><img src="https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=900&q=80" alt="" onerror="this.onerror=null;this.src='icon.png';this.style.objectFit='contain';this.style.padding='60px';this.style.filter='none';"/></div>
 </section>
 <section class="feats">
   <h2 class="sec-title">FONCTIONNALITÉS</h2>
   <p class="sec-sub">Tout ce qu'il faut pour suivre ta progression Monster Energy</p>
   <div class="feats-grid">
-    <div class="feat"><div class="feat-ico">&#9638;</div><h3>Catalogue complet</h3><p>Toutes les séries, variantes et éditions limitées. Ajoute tes propres canettes avec photos.</p></div>
+    <div class="feat"><div class="feat-ico">&#9638;</div><h3>Catalogue complet</h3><p>Toutes les séries, variantes et éditions limitées au même endroit.</p></div>
     <div class="feat"><div class="feat-ico">&#9889;</div><h3>Suivi facile</h3><p>Ajoute tes canettes en un clic. Suis ta progression et la valeur de ta collection.</p></div>
-    <div class="feat"><div class="feat-ico">&#128274;</div><h3>100 % privé</h3><p>Aucun compte, aucun serveur : tes données restent sur ton appareil. Exporte-les en JSON à tout moment.</p></div>
+    <div class="feat"><div class="feat-ico">&#128101;</div><h3>Communauté</h3><p>Ajoute tes amis par pseudo, compare vos collections et discutez en direct.</p></div>
   </div>
 </section>
 <section class="cta-band">
   <h2>PRÊT À COMMENCER ?</h2>
-  <p>Installe l'app sur ton téléphone pour l'avoir toujours avec toi.</p>
-  <button class="btn-g" onclick="enterApp()">OUVRIR MONSTERTRACKER</button>
+  <p>Rejoins la communauté des collectionneurs Monster Energy.</p>
+  <button class="btn-g" onclick="go('register')">CRÉER MON COMPTE</button>
 </section>
 <footer class="footer">
   <div class="logo" onclick="go('landing')">
@@ -63,10 +65,64 @@
 </footer>
 </div>
 
+<!-- ══════════ LOGIN ══════════ -->
+<div class="page" id="page-login">
+<div class="split">
+  <div class="svis"><img src="https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=900&q=80" alt="" onerror="this.style.display='none'"/><div class="svis-over"></div><div class="svis-grid"></div><div class="svis-scan"></div>
+    <div class="svis-body">
+      <img src="icon.png" alt=""/>
+      <div class="logo" onclick="go('landing')" style="justify-content:center;">
+        <span class="logo-t">MONSTER<em>TRACKER</em></span>
+      </div>
+      <h2>BON RETOUR</h2><p>Connecte-toi pour retrouver ta collection.</p>
+    </div>
+  </div>
+  <div class="sform"><div class="abox">
+    <div class="atitle">CONNEXION</div>
+    <p class="ahint">Pas encore de compte ? <a onclick="go('register')">Inscris-toi</a></p>
+    <div class="errmsg" id="lerr"></div>
+    <div class="field"><label>Email</label><input type="email" id="le" placeholder="ton@email.com" autocomplete="email"/></div>
+    <div class="field"><label>Mot de passe</label><div class="fpw"><input type="password" id="lp" placeholder="..." autocomplete="current-password"/><button type="button" class="feye" onclick="tpw('lp',this)">&#128065;</button></div></div>
+    <button class="btn-full" id="login-btn" onclick="doLogin()">SE CONNECTER</button>
+    <div style="text-align:center;margin-top:12px;"><a onclick="showForgot()" style="font-size:13px;color:var(--mu);cursor:pointer;text-decoration:underline;">Mot de passe oublié ?</a></div>
+    <div id="forgot-panel" style="display:none;margin-top:14px;background:var(--c1);border:1px solid var(--br);padding:16px;">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;color:var(--g);margin-bottom:8px;">MOT DE PASSE PERDU</div>
+      <p style="font-size:12px;line-height:1.7;color:#bbb;">Contacte l'administrateur (en personne ou depuis un autre compte via l'onglet Contact). Lui seul peut t'aider à récupérer l'accès ou à recréer ton compte.</p>
+      <div style="text-align:center;margin-top:10px;"><a onclick="hideForgot()" style="font-size:12px;color:var(--mu);cursor:pointer;">&#8592; Retour à la connexion</a></div>
+    </div>
+  </div></div>
+</div>
+</div>
+
+<!-- ══════════ REGISTER ══════════ -->
+<div class="page" id="page-register">
+<div class="split">
+  <div class="svis"><img src="https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=900&q=80" alt="" onerror="this.style.display='none'"/><div class="svis-over"></div><div class="svis-grid"></div><div class="svis-scan"></div>
+    <div class="svis-body">
+      <img src="icon.png" alt=""/>
+      <div class="logo" onclick="go('landing')" style="justify-content:center;">
+        <span class="logo-t">MONSTER<em>TRACKER</em></span>
+      </div>
+      <h2>REJOINS-NOUS</h2><p>Crée ton compte et commence ta collection.</p>
+    </div>
+  </div>
+  <div class="sform"><div class="abox">
+    <div class="atitle">INSCRIPTION</div>
+    <p class="ahint">Déjà un compte ? <a onclick="go('login')">Connecte-toi</a></p>
+    <div class="errmsg" id="rerr"></div>
+    <div class="field"><label>Pseudo</label><input type="text" id="ru" placeholder="TonPseudo" autocomplete="username"/><div class="pst" id="pst"></div></div>
+    <div class="field"><label>Email</label><input type="email" id="re" placeholder="ton@email.com" autocomplete="email"/></div>
+    <div class="field"><label>Mot de passe</label><div class="fpw"><input type="password" id="rp" placeholder="Min. 6 caractères" autocomplete="new-password"/><button type="button" class="feye" onclick="tpw('rp',this)">&#128065;</button></div></div>
+    <div class="field"><label>Confirmation</label><input type="password" id="rp2" placeholder="..." autocomplete="new-password"/></div>
+    <button class="btn-full" id="register-btn" onclick="doRegister()">CRÉER MON COMPTE</button>
+  </div></div>
+</div>
+</div>
+
 <!-- ══════════ APP ══════════ -->
 <div class="page" id="page-app">
 <nav class="app-nav">
-  <div class="logo" onclick="goTab('home',document.getElementById('tab-home'))">
+  <div class="logo" onclick="goLandingApp()">
     <img class="logo-icon" src="icon.png" alt="" style="width:18px;height:18px;"/>
     <span class="logo-t" style="font-size:20px;">MONSTER<em>TRACKER</em></span>
   </div>
@@ -74,12 +130,22 @@
     <button class="ntab on" id="tab-home"       onclick="goTab('home',this)">&#127968; Accueil</button>
     <button class="ntab"    id="tab-catalogue"  onclick="goTab('catalogue',this)">Catalogue</button>
     <button class="ntab"    id="tab-collection" onclick="goTab('collection',this)">Ma Collection</button>
-    <button class="ntab"    id="tab-manage"     onclick="goTab('manage',this)">&#9881; Gérer</button>
+    <button class="ntab"    id="tab-friends"    onclick="goTab('friends',this)">Amis<span class="badge" id="friends-badge" style="display:none;background:#ff9600;">0</span><span class="badge" id="chat-badge" style="display:none;">0</span></button>
+    <button class="ntab"    id="tab-updates"    onclick="goTab('updates',this)">&#128276; Notifications</button>
     <button class="ntab"    id="tab-settings"   onclick="goTab('settings',this)">Paramètres</button>
+  </div>
+  <div class="ntabs" id="admin-tabs" style="display:none;">
+    <button class="ntab on" id="tab-adm-cans"     onclick="goTab('adm-cans',this)">Canettes</button>
+    <button class="ntab"    id="tab-adm-updates"  onclick="goTab('adm-updates',this)">Annonces</button>
+    <button class="ntab"    id="tab-adm-users"    onclick="goTab('adm-users',this)">Utilisateurs</button>
+    <button class="ntab"    id="tab-adm-col"      onclick="goTab('adm-col',this)">Ma Collection</button>
+    <button class="ntab"    id="tab-adm-inbox"    onclick="goTab('adm-inbox',this)">&#128140; Réception<span class="badge" id="inbox-badge" style="display:none;"></span></button>
+    <button class="ntab"    id="tab-adm-settings" onclick="goTab('adm-settings',this)">&#9881; Réglages</button>
   </div>
   <div class="app-nav-r">
     <div class="nav-who">Salut, <b id="nav-name">-</b></div>
     <button id="pwa-install-btn" onclick="doInstall()">&#11015; INSTALLER</button>
+    <button class="btn-rd" onclick="doLogout()">Déconnexion</button>
   </div>
 </nav>
 <div class="app-main">
@@ -89,9 +155,9 @@
   <div class="sec-hd"><h1>TABLEAU DE BORD</h1><p>Ta progression Monster Energy</p></div>
   <div class="srow">
     <div class="sbox"><div class="sval" id="h-owned">-</div><div class="slbl2">Possédées</div></div>
-    <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total catalogue</div></div>
+    <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total dispo.</div></div>
     <div class="sbox val"><div class="sval" id="h-value">-</div><div class="slbl2">Valeur €</div></div>
-    <div class="sbox"><div class="sval" id="h-wish">-</div><div class="slbl2">Wishlist</div></div>
+    <div class="sbox"><div class="sval" id="h-friends">-</div><div class="slbl2">Amis</div></div>
   </div>
   <div class="prog-wrap">
     <div class="prog-lbl"><span>Complétion</span><b id="h-pct">0%</b></div>
@@ -103,14 +169,14 @@
   </div>
   <div class="home-grid">
     <div class="home-card"><div class="hc-t">Ajouts récents</div><div id="h-recent"></div></div>
-    <div class="home-card"><div class="hc-t">Wishlist</div><div id="h-wishlist"></div></div>
+    <div class="home-card"><div class="hc-t">Mes amis</div><div id="h-friends-act"></div></div>
   </div>
 </div>
 
 <!-- CATALOGUE -->
 <div class="sec" id="sec-catalogue">
-  <div class="sec-hd"><h1>CATALOGUE</h1><p>Toutes les canettes</p></div>
-  <input class="sinput" id="search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="renderCatalogue()"/>
+  <div class="sec-hd"><h1>CATALOGUE</h1><p>Toutes les canettes disponibles</p></div>
+  <input class="sinput" id="search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
   <div id="cat-ct"></div>
 </div>
 
@@ -126,31 +192,74 @@
   <div id="col-ct"></div>
 </div>
 
-<!-- GÉRER LE CATALOGUE -->
-<div class="sec" id="sec-manage">
-  <div class="adm-hdr"><div><h2>GÉRER LE CATALOGUE</h2><p>Ajoute et modifie tes canettes — tout est stocké sur cet appareil</p></div><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div>
-  <input class="sinput" id="manage-search" type="text" placeholder="Rechercher une canette..." oninput="renderManage()"/>
-  <div id="manage-ct"></div>
+<!-- AMIS -->
+<div class="sec" id="sec-friends">
+  <div class="sec-hd"><h1>AMIS</h1><p>Ajoute des collectionneurs par pseudo</p></div>
+  <div class="fr-add"><input type="text" id="friend-input" placeholder="Rechercher quelqu'un..." oninput="friendSearch()"/></div>
+  <div class="errmsg" id="friend-err" style="margin-bottom:13px;"></div>
+  <div class="okmsg" id="friend-ok" style="margin-bottom:13px;"></div>
+  <div id="friends-ct"></div>
+</div>
+
+<!-- VUE AMI -->
+<div class="sec" id="sec-friend-view">
+  <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div><h1 id="friend-view-name">COLLECTION</h1><p>Collection de ton ami</p></div>
+    <button class="btn-ghost" onclick="backFromFriendView()">&#8592; Retour</button>
+  </div>
+  <div id="friend-view-ct"></div>
+</div>
+
+<!-- CHAT -->
+<div class="sec" id="sec-chat">
+  <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div><h1 id="chat-title">DISCUSSION</h1></div>
+    <button class="btn-ghost" onclick="backFromFriendView()">&#8592; Retour</button>
+  </div>
+  <div style="max-width:620px;display:flex;flex-direction:column;height:calc(100dvh - 240px);">
+    <div id="chat-messages" style="flex:1;overflow-y:auto;background:var(--c1);border:1px solid var(--br);padding:16px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="chat-msg-inp" class="minput" style="flex:1;" placeholder="Ton message..." maxlength="1000" onkeydown="if(event.key==='Enter')sendChatMsg()"/>
+      <button class="btn-add" onclick="sendChatMsg()" style="padding:10px 20px;">&#10148;</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS -->
+<div class="sec" id="sec-updates">
+  <div class="sec-hd"><h1>NOTIFICATIONS</h1><p>Annonces et réponses à tes messages</p></div>
+  <div id="updates-ct"></div>
 </div>
 
 <!-- PARAMÈTRES -->
 <div class="sec" id="sec-settings">
-  <div class="sec-hd"><h1>PARAMÈTRES</h1><p>Personnalise ton expérience</p></div>
+  <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
+    <div><h1>PARAMÈTRES</h1><p>Personnalise ton compte</p></div>
+    <button class="btn-o" onclick="goContact()" style="margin-bottom:4px;font-size:12px;padding:9px 18px;">&#9993; NOUS CONTACTER</button>
+  </div>
   <div class="sg">
     <div class="scard">
       <div class="scard-t">Photo de profil</div>
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
         <div id="avatar-current" style="width:64px;height:64px;flex-shrink:0;"></div>
-        <div style="font-size:13px;color:var(--mu);">Stockée uniquement sur cet appareil</div>
+        <div style="font-size:13px;color:var(--mu);">Visible par tes amis. Max 3 Mo</div>
       </div>
-      <input type="file" id="avatar-file" accept="image/*" style="background:var(--bk);border:1px solid var(--br);padding:10px;color:var(--tx);width:100%;cursor:pointer;margin-bottom:10px;"/>
+      <input type="file" id="avatar-file" accept="image/*" onchange="avatarFileChange()" style="background:var(--bk);border:1px solid var(--br);padding:10px;color:var(--tx);width:100%;cursor:pointer;margin-bottom:10px;"/>
+      <img id="avatar-preview" alt="" style="display:none;width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--g);margin-bottom:10px;"/>
       <button class="btn-g" onclick="saveAvatar()" style="width:100%;">METTRE À JOUR LA PHOTO</button>
     </div>
     <div class="scard">
       <div class="scard-t">Mon profil</div>
       <div class="errmsg" id="set-err"></div><div class="okmsg" id="set-ok"></div>
       <div class="field"><label>Pseudo</label><input type="text" id="set-user"/></div>
+      <div class="field"><label>Email</label><input type="text" id="set-email" disabled style="opacity:.4;cursor:not-allowed;"/></div>
       <button class="btn-g" style="width:100%;margin-top:4px;" onclick="saveProfile()">ENREGISTRER</button>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Mot de passe</div>
+      <div class="errmsg" id="pw-err"></div><div class="okmsg" id="pw-ok"></div>
+      <div class="field"><label>Nouveau mot de passe</label><div class="fpw"><input type="password" id="pw-new" placeholder="Min. 6 caractères" autocomplete="new-password"/><button type="button" class="feye" onclick="tpw('pw-new',this)">&#128065;</button></div></div>
+      <button class="btn-g" style="width:100%;margin-top:4px;" onclick="savePw()">CHANGER</button>
     </div>
     <div class="scard">
       <div class="scard-t">Thème</div>
@@ -162,12 +271,18 @@
       </div>
     </div>
     <div class="scard">
+      <div class="scard-t">Session</div>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:4px;">Connecté en tant que</p>
+      <p style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--g);margin-bottom:16px;" id="set-name">-</p>
+      <button class="btn-rd" style="width:100%;padding:12px;font-size:13px;letter-spacing:2px;" onclick="doLogout()">DÉCONNEXION</button>
+    </div>
+    <div class="scard">
       <div class="scard-t">Canettes favorites</div>
       <p style="font-size:12px;color:var(--mu);margin-bottom:11px;">Tes 3 canettes préférées</p>
       <div class="fav-slots" id="fav-slots">
-        <div class="fav-slot" id="fav-1"><span class="fav-num">1</span></div>
-        <div class="fav-slot" id="fav-2"><span class="fav-num">2</span></div>
-        <div class="fav-slot" id="fav-3"><span class="fav-num">3</span></div>
+        <div class="fav-slot" id="fav-1" onclick="openPicker('fav',1)"><span class="fav-num">1</span></div>
+        <div class="fav-slot" id="fav-2" onclick="openPicker('fav',2)"><span class="fav-num">2</span></div>
+        <div class="fav-slot" id="fav-3" onclick="openPicker('fav',3)"><span class="fav-num">3</span></div>
       </div>
     </div>
     <div class="scard">
@@ -179,24 +294,165 @@
         <div class="fav-slot" id="wish-3"><span class="fav-num">3</span></div>
       </div>
     </div>
-    <div class="scard">
-      <div class="scard-t">Sauvegarde des données</div>
-      <p style="font-size:12px;color:var(--mu);margin-bottom:11px;line-height:1.6;">Tes données vivent dans ce navigateur. Exporte-les pour les sauvegarder ou les importer sur un autre appareil.</p>
-      <button class="btn-g" style="width:100%;margin-bottom:8px;" onclick="exportData()">&#11015; EXPORTER (JSON)</button>
-      <label class="btn-o" style="display:block;text-align:center;margin-bottom:8px;cursor:pointer;">&#11014; IMPORTER UN FICHIER
-        <input type="file" id="import-file" accept=".json,application/json" style="display:none;" onchange="importData(this)"/>
-      </label>
-      <button class="btn-rd" style="width:100%;padding:12px;font-size:13px;letter-spacing:2px;" onclick="confirmReset()">&#9888; RÉINITIALISER LES DONNÉES</button>
+  </div>
+</div>
+
+<!-- CONTACT -->
+<div class="sec" id="sec-contact">
+  <div id="ct-menu">
+    <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div><h1>NOUS CONTACTER</h1><p>Comment pouvons-nous t'aider ?</p></div>
+      <button class="btn-ghost" onclick="goTab('settings',document.getElementById('tab-settings'))">&#8592; Retour</button>
     </div>
-    <div class="scard">
-      <div class="scard-t">Mentions légales</div>
-      <p style="font-size:12px;color:#bbb;line-height:1.8;">MonsterTracker est une application indépendante, <strong style="color:#ddd;">non officielle et non affiliée</strong> à Monster Energy Company.<br/><br/>Version 2.1 statique — 2026. Toutes les données sont stockées localement dans ton navigateur (localStorage) : aucune donnée n'est envoyée sur un serveur.</p>
+    <div style="display:flex;flex-direction:column;gap:9px;max-width:600px;">
+      <div class="ct-item" onclick="ctShow('Signaler un bug')"><span class="ct-ico">&#128030;</span><div><div class="ct-name">Signaler un bug</div><div class="ct-desc">Un problème technique dans l'app</div></div><span class="ct-arr">&#8250;</span></div>
+      <div class="ct-item" onclick="ctShow('Poser une question')"><span class="ct-ico">&#10067;</span><div><div class="ct-name">Poser une question</div><div class="ct-desc">Une question sur le fonctionnement</div></div><span class="ct-arr">&#8250;</span></div>
+      <div class="ct-item" onclick="ctShow('Problème de compte')"><span class="ct-ico">&#128274;</span><div><div class="ct-name">Problème de compte</div><div class="ct-desc">Accès perdu ou mot de passe oublié</div></div><span class="ct-arr">&#8250;</span></div>
+      <div class="ct-item" onclick="ctShow('Suggestion')"><span class="ct-ico">&#128161;</span><div><div class="ct-name">Suggestion</div><div class="ct-desc">Proposer une amélioration</div></div><span class="ct-arr">&#8250;</span></div>
+      <div class="ct-item" onclick="ctShow('Canette manquante')"><span class="ct-ico">&#129371;</span><div><div class="ct-name">Canette manquante</div><div class="ct-desc">Signaler une canette absente du catalogue</div></div><span class="ct-arr">&#8250;</span></div>
+      <div class="ct-item" onclick="ctShow('Erreur de données')"><span class="ct-ico">&#9888;</span><div><div class="ct-name">Erreur de données</div><div class="ct-desc">Une information incorrecte sur une canette</div></div><span class="ct-arr">&#8250;</span></div>
+      <div class="ct-item" onclick="ctShowDel()"><span class="ct-ico" style="color:var(--rd);">&#128465;</span><div><div class="ct-name" style="color:var(--rd);">Supprimer mon compte</div><div class="ct-desc">Suppression définitive et irréversible</div></div><span class="ct-arr">&#8250;</span></div>
+      <div class="ct-item" onclick="ctShowLegal()"><span class="ct-ico" style="color:var(--mu);">&#128196;</span><div><div class="ct-name">Mentions légales</div><div class="ct-desc">CGU, confidentialité, avertissement</div></div><span class="ct-arr">&#8250;</span></div>
     </div>
-    <div class="scard">
-      <div class="scard-t">Installer l'app</div>
-      <p style="font-size:12px;color:var(--mu);margin-bottom:11px;line-height:1.6;">Sur Android/Chrome : bouton ci-dessous. Sur iPhone/Safari : Partager &#11014; puis « Sur l'écran d'accueil ».</p>
-      <button class="btn-g" style="width:100%;" onclick="doInstall()">&#11015; INSTALLER</button>
+  </div>
+
+  <div id="ct-form" style="display:none;">
+    <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div><h1 id="ctf-title">SIGNALER UN BUG</h1><p>Décris ton problème en détail</p></div>
+      <button class="btn-ghost" onclick="ctBack()">&#8592; Retour</button>
     </div>
+    <div style="max-width:620px;">
+      <div style="background:var(--c1);border:1px solid var(--br);padding:22px;">
+        <div class="field"><label>Pseudo</label><input type="text" id="cf-pseudo" class="minput" disabled style="opacity:.5;"/></div>
+        <div class="field"><label>Objet</label><input type="text" id="cf-cat" class="minput" disabled style="opacity:.5;"/></div>
+        <div class="field"><label>Ton message *</label><textarea id="cf-msg" class="mta" style="min-height:180px;" placeholder="Décris ton problème, ta question ou ta suggestion..."></textarea></div>
+        <div class="field" style="margin-top:10px;">
+          <label>Photo (optionnelle, max 4 Mo)</label>
+          <input type="file" id="cf-file" accept="image/*" onchange="cfFileChange()" style="background:var(--bk);border:1px solid var(--br);padding:10px;color:var(--tx);width:100%;cursor:pointer;"/>
+          <div id="cf-preview" style="margin-top:8px;display:none;"><img id="cf-preview-img" alt="" style="max-width:100%;max-height:200px;object-fit:contain;border:1px solid var(--br);"/></div>
+        </div>
+        <div class="errmsg" id="cf-err"></div>
+        <div class="okmsg" id="cf-ok"></div>
+        <button class="btn-full" onclick="sendContact()" style="margin-top:0;">ENVOYER &#10148;</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ct-delete" style="display:none;">
+    <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div><h1 style="color:var(--rd);">SUPPRIMER MON COMPTE</h1><p>Action permanente et irréversible</p></div>
+      <button class="btn-ghost" onclick="ctBack()">&#8592; Retour</button>
+    </div>
+    <div style="max-width:620px;">
+      <div style="background:rgba(255,53,53,.05);border:1px solid rgba(255,53,53,.25);padding:22px;margin-bottom:14px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:var(--rd);margin-bottom:14px;">&#9888; ATTENTION — Cette action est permanente</div>
+        <p style="font-size:13px;line-height:1.7;color:#bbb;margin-bottom:10px;">En supprimant ton compte, toutes tes données seront définitivement effacées :</p>
+        <ul style="font-size:13px;color:#999;line-height:2;padding-left:18px;">
+          <li>Ton profil (pseudo, email, mot de passe)</li>
+          <li>Ta collection complète</li>
+          <li>Ta wishlist et tes favoris</li>
+          <li>Tes amis et tes messages</li>
+        </ul>
+        <p style="font-size:13px;color:var(--rd);margin-top:12px;font-weight:600;">Cette action est irréversible. Aucune récupération n'est possible.</p>
+      </div>
+      <div style="background:var(--c1);border:1px solid var(--br);padding:22px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;">Recopie le code ci-dessous pour confirmer</div>
+        <div id="del-captcha-display" style="background:var(--bk);border:2px dashed rgba(255,53,53,.4);padding:14px;text-align:center;font-family:monospace;font-size:28px;letter-spacing:8px;color:var(--rd);margin-bottom:14px;user-select:all;"></div>
+        <div class="field"><label>Entre le code exactement *</label><input type="text" id="del-captcha-inp" class="minput" placeholder="Recopie le code ci-dessus" maxlength="6" style="font-family:monospace;letter-spacing:4px;font-size:18px;text-align:center;border-color:rgba(255,53,53,.3);"/></div>
+        <div class="errmsg" id="del-err"></div>
+        <button class="btn-full" onclick="confirmDelete()" style="background:rgba(255,53,53,.15);border:1px solid rgba(255,53,53,.4);color:var(--rd);">SUPPRIMER DÉFINITIVEMENT MON COMPTE</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ct-legal" style="display:none;">
+    <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div><h1>MENTIONS LÉGALES</h1><p>CGU, confidentialité et avertissement</p></div>
+      <button class="btn-ghost" onclick="ctBack()">&#8592; Retour</button>
+    </div>
+    <div style="max-width:700px;">
+      <div style="background:var(--c1);border:1px solid var(--br);padding:28px;margin-bottom:14px;"><h2 style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--g);margin-bottom:12px;">Conditions d'utilisation</h2><p style="font-size:13px;line-height:1.8;color:#bbb;margin-bottom:10px;"><strong style="color:#ddd;">Dernière mise à jour :</strong> septembre 2026</p><p style="font-size:13px;line-height:1.8;color:#bbb;margin-bottom:10px;">En utilisant MonsterTracker, tu acceptes ces conditions. L'application est destinée aux utilisateurs de 13 ans et plus.</p><p style="font-size:13px;line-height:1.8;color:#bbb;">L'administrateur se réserve le droit de supprimer tout compte ne respectant pas ces règles.</p></div>
+      <div style="background:var(--c1);border:1px solid var(--br);padding:28px;margin-bottom:14px;"><h2 style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--g);margin-bottom:12px;">Politique de confidentialité</h2><p style="font-size:13px;line-height:1.8;color:#bbb;margin-bottom:10px;"><strong style="color:#ddd;">Données collectées :</strong> pseudo, email, mot de passe (haché bcrypt), collection, wishlist, amis, messages.</p><p style="font-size:13px;line-height:1.8;color:#bbb;margin-bottom:10px;"><strong style="color:#ddd;">Utilisation :</strong> tes données servent uniquement au fonctionnement de l'application et sont stockées sur le serveur de l'application.</p><p style="font-size:13px;line-height:1.8;color:#bbb;"><strong style="color:#ddd;">Sécurité :</strong> ton mot de passe est stocké sous forme hachée (bcrypt) et ta session utilise un cookie httpOnly.</p></div>
+      <div style="background:var(--c1);border:1px solid var(--br);padding:28px;"><h2 style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:var(--g);margin-bottom:12px;">Avertissement</h2><p style="font-size:13px;line-height:1.8;color:#bbb;">MonsterTracker est une application indépendante, <strong style="color:#ddd;">non officielle et non affiliée</strong> à Monster Energy Company. Version 2.0 — 2026.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN : CANETTES -->
+<div class="sec" id="sec-adm-cans">
+  <div class="adm-hdr"><div><h2>CANETTES</h2><p>Les nouvelles canettes sont en brouillon — Publie-les pour les rendre visibles</p></div><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div>
+  <input class="sinput" id="adm-search" type="text" placeholder="Rechercher une canette..." oninput="loadAdmCans()"/>
+  <div id="adm-cans-ct"></div>
+</div>
+
+<!-- ADMIN : ANNONCES -->
+<div class="sec" id="sec-adm-updates">
+  <div class="adm-hdr"><div><h2>ANNONCES</h2><p>Publie des annonces pour tous les utilisateurs</p></div><button class="btn-add" onclick="openUpdateModal()">+ NOUVELLE</button></div>
+  <div id="adm-updates-ct"></div>
+</div>
+
+<!-- ADMIN : UTILISATEURS -->
+<div class="sec" id="sec-adm-users">
+  <div class="adm-hdr"><div><h2>UTILISATEURS</h2><p>Gère les comptes</p></div></div>
+  <input class="sinput" id="user-search" type="text" placeholder="Rechercher par pseudo ou email..." oninput="loadAdmUsers()"/>
+  <div id="adm-users-ct"></div>
+</div>
+
+<!-- ADMIN : MA COLLECTION -->
+<div class="sec" id="sec-adm-col">
+  <div class="sec-hd"><h1>MA COLLECTION</h1><p>Suis ta collection (canettes publiées et brouillons)</p></div>
+  <div class="srow">
+    <div class="sbox"><div class="sval" id="adm-c-owned">-</div><div class="slbl2">Possédées</div></div>
+    <div class="sbox"><div class="sval" id="adm-c-total">-</div><div class="slbl2">Total</div></div>
+    <div class="sbox val"><div class="sval" id="adm-c-value">-</div><div class="slbl2">Valeur</div></div>
+  </div>
+  <div class="chart-wrap"><div class="chart-hd">Canettes ajoutées par mois</div><div id="adm-chart-ct"></div></div>
+  <div id="adm-col-ct"></div>
+</div>
+
+<!-- ADMIN : RÉCEPTION -->
+<div class="sec" id="sec-adm-inbox">
+  <div class="adm-hdr"><div><h2>RÉCEPTION</h2><p>Les demandes des utilisateurs</p></div></div>
+  <div id="inbox-ct"></div>
+</div>
+
+<!-- ADMIN : RÉGLAGES -->
+<div class="sec" id="sec-adm-settings">
+  <div class="sec-hd"><h1>RÉGLAGES</h1><p>Gère ton compte administrateur</p></div>
+  <div style="max-width:520px;">
+    <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">
+      <div class="mlbl" style="margin-top:0;">Profil</div>
+      <div class="field"><label>Pseudo</label><input type="text" id="adm-set-user" class="minput" placeholder="Ton pseudo admin"/></div>
+      <div class="field"><label>Email</label><input type="text" id="adm-set-email" class="minput" disabled style="opacity:.5;"/></div>
+      <div class="errmsg" id="adm-set-err"></div><div class="okmsg" id="adm-set-ok"></div>
+      <button class="btn-full" onclick="saveAdmProfile()">ENREGISTRER</button>
+    </div>
+    <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">
+      <div class="mlbl" style="margin-top:0;">Changer le mot de passe</div>
+      <div class="field"><label>Nouveau mot de passe</label><input type="password" id="adm-pw-new" class="minput" placeholder="Nouveau mot de passe" autocomplete="new-password"/></div>
+      <div class="field"><label>Confirmation</label><input type="password" id="adm-pw-conf" class="minput" placeholder="Confirmer" autocomplete="new-password"/></div>
+      <div class="errmsg" id="adm-pw-err"></div><div class="okmsg" id="adm-pw-ok"></div>
+      <button class="btn-full" onclick="saveAdmPassword()">CHANGER LE MOT DE PASSE</button>
+    </div>
+    <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">
+      <div class="mlbl" style="margin-top:0;">Thème</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="theme-btn" id="adm-th-dark" onclick="setTheme('dark')">&#9679; Sombre</button>
+        <button class="theme-btn" id="adm-th-green" onclick="setTheme('green')">&#9679; Vert</button>
+        <button class="theme-btn" id="adm-th-red" onclick="setTheme('red')">&#9679; Rouge</button>
+        <button class="theme-btn" id="adm-th-blue" onclick="setTheme('blue')">&#9679; Bleu</button>
+      </div>
+    </div>
+    <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">
+      <div class="mlbl" style="margin-top:0;">&#9888; Mode maintenance</div>
+      <p style="font-size:13px;color:#888;margin-bottom:16px;line-height:1.6;">Active la maintenance pour bloquer l'accès à tous les utilisateurs (sauf toi).</p>
+      <div id="maint-status" style="font-size:13px;margin-bottom:14px;"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="maint-on-btn" class="btn-full" onclick="setMaintenance(true)" style="background:rgba(255,150,0,.1);border:1px solid rgba(255,150,0,.3);color:#ff9600;">&#9888; ACTIVER LA MAINTENANCE</button>
+        <button id="maint-off-btn" class="btn-full" onclick="setMaintenance(false)" style="background:rgba(57,255,20,.08);border:1px solid rgba(57,255,20,.2);color:var(--g);">&#9654; RELANCER L'APPLICATION</button>
+      </div>
+    </div>
+    <button class="btn-full" onclick="doLogout()" style="background:rgba(255,53,53,.1);border:1px solid rgba(255,53,53,.3);color:var(--rd);">DÉCONNEXION</button>
   </div>
 </div>
 
@@ -250,7 +506,7 @@
 </div>
 </div>
 
-<!-- Édition canette -->
+<!-- Canette (admin) -->
 <div class="moverlay" id="modal-can">
 <div class="modal">
   <div class="mhdr"><h3 id="can-modal-title">AJOUTER UNE CANETTE</h3><button class="mclose" onclick="closeModal('can')">&#x2715;</button></div>
@@ -293,14 +549,27 @@
     <div class="img-zone" id="img-zone">
       <input type="file" accept="image/*" id="cm-img-file" onchange="handleImgFile(this)"/>
       <div class="img-lbl" id="img-lbl">Clique pour choisir une photo</div>
-      <div class="img-sub">Redimensionnée automatiquement pour économiser l'espace</div>
+      <div class="img-sub">JPG, PNG, WEBP — max 5 Mo</div>
       <img id="img-prev" class="img-prev" alt=""/>
     </div>
     <input class="minput" type="text" id="cm-img-url" placeholder="Ou colle une URL d'image..." oninput="previewUrl(this.value)" style="margin-top:6px;"/>
     <div class="mdiv"></div>
     <label class="chk"><input type="checkbox" id="cm-limited"/> <span>Édition limitée</span></label>
+    <p style="font-size:11px;color:#ff9600;margin-top:10px;">La canette sera enregistrée en brouillon. Publie-la pour la rendre visible aux utilisateurs.</p>
   </div>
   <div class="mfoot"><button class="btn-ghost" onclick="closeModal('can')">ANNULER</button><button class="btn-save" onclick="saveCan()">ENREGISTRER</button></div>
+</div>
+</div>
+
+<!-- Annonce (admin) -->
+<div class="moverlay" id="modal-update">
+<div class="modal">
+  <div class="mhdr"><h3>NOUVELLE ANNONCE</h3><button class="mclose" onclick="closeModal('update')">&#x2715;</button></div>
+  <div class="mbody">
+    <div class="field"><label>Titre *</label><input class="minput" type="text" id="um-title" placeholder="Nouvelles canettes..."/></div>
+    <div class="field"><label>Contenu *</label><textarea class="mta" id="um-content" placeholder="Décris la mise à jour..."></textarea></div>
+  </div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('update')">ANNULER</button><button class="btn-save" onclick="saveUpdate()">PUBLIER</button></div>
 </div>
 </div>
 
@@ -315,24 +584,31 @@
 </div>
 </div>
 
-<!-- Réinitialisation -->
-<div class="moverlay" id="modal-reset">
-<div class="modal" style="max-width:440px;">
-  <div class="mhdr"><h3 style="color:var(--rd);">&#9888; RÉINITIALISER</h3><button class="mclose" onclick="closeModal('reset')">&#x2715;</button></div>
+<!-- Réponse admin -->
+<div class="moverlay" id="modal-reply">
+<div class="modal" style="max-width:500px;">
+  <div class="mhdr"><h3>&#128140; RÉPONDRE AU MESSAGE</h3><button class="mclose" onclick="closeModal('reply')">&#x2715;</button></div>
   <div class="mbody">
-    <p style="font-size:13px;line-height:1.7;color:#bbb;margin-bottom:12px;">Cette action efface <strong style="color:var(--rd);">toutes tes données locales</strong> : collection, wishlist, favoris, canettes ajoutées et paramètres. Le catalogue de démonstration sera restauré.</p>
-    <p style="font-size:13px;color:var(--rd);margin-bottom:14px;">Irréversible — exporte tes données avant si tu veux les garder.</p>
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:8px;">Recopie ce code pour confirmer</div>
-    <div id="reset-code-display" style="background:var(--bk);border:2px dashed rgba(255,53,53,.4);padding:12px;text-align:center;font-family:monospace;font-size:24px;letter-spacing:8px;color:var(--rd);margin-bottom:12px;user-select:all;"></div>
-    <input type="text" id="reset-code-inp" class="minput" placeholder="Code de confirmation" maxlength="6" style="font-family:monospace;letter-spacing:4px;font-size:18px;text-align:center;"/>
-    <div class="errmsg" id="reset-err" style="margin-top:10px;"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--g);margin-bottom:6px;" id="reply-meta"></div>
+    <div style="font-size:13px;color:#aaa;background:var(--bk);border:1px solid var(--br);padding:12px;margin-bottom:10px;white-space:pre-wrap;max-height:160px;overflow-y:auto;word-break:break-word;" id="reply-msg"></div>
+    <img id="reply-attach" alt="" style="display:none;max-width:100%;max-height:200px;object-fit:contain;border:1px solid var(--br);margin-bottom:14px;cursor:pointer;" onclick="window.open(this.src)"/>
+    <div class="field"><label>Ta réponse *</label><textarea id="reply-txt" class="mta" style="min-height:120px;" placeholder="Écris ta réponse ici..."></textarea></div>
+    <input type="hidden" id="reply-id"/>
   </div>
-  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('reset')">ANNULER</button><button class="btn-add" style="background:rgba(255,53,53,.15);border:1px solid rgba(255,53,53,.4);color:var(--rd);" onclick="doReset()">TOUT EFFACER</button></div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('reply')">ANNULER</button><button class="btn-add" onclick="sendReply()">ENVOYER &#10148;</button></div>
 </div>
 </div>
 
 <div class="toasts" id="toasts"></div>
 
-<script src="js/app.js"></script>
+<!-- Overlay maintenance -->
+<div id="maintenance-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#080808;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;">
+  <img src="icon.png" alt="" width="60" height="60" style="margin-bottom:24px;opacity:.9;"/>
+  <h1 style="font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:6px;color:#fff;margin-bottom:10px;">MAINTENANCE</h1>
+  <p style="font-family:'Barlow Condensed',sans-serif;font-size:18px;color:#888;letter-spacing:2px;max-width:400px;">L'application est temporairement indisponible.<br/>Reviens dans quelques instants.</p>
+  <div style="margin-top:40px;width:60px;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);animation:maint-pulse 2s infinite;"></div>
+</div>
+
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -92,20 +92,21 @@ GET    /api/badges  /api/updates            POST /api/messages  /api/upload
 Admin: /api/admin/cans|updates|users|messages|maintenance|collection-stats
 ```
 
-## Version statique (GitHub Pages) — dossier `docs/`
+## Version déployée sur GitHub Pages — dossier `docs/`
 
-Une variante **100 % navigateur** de l'app vit dans `docs/` et est servie par
-GitHub Pages : https://batmanmiyuki.github.io/monstertracker/
+https://batmanmiyuki.github.io/monstertracker/ sert la **v3** : le frontend
+Firebase complet (mêmes collections Firestore que la v1 → comptes, canettes,
+amis, chats et données existantes conservés).
 
-- Aucun serveur : toutes les données (catalogue, collection, wishlist, favoris,
-  pseudo, thème, avatar) sont stockées dans le `localStorage` de l'appareil.
-- Les photos uploadées sont redimensionnées automatiquement (max 400 px, JPEG)
-  pour économiser l'espace.
-- **Export / Import JSON** dans Paramètres → Sauvegarde : de quoi déplacer ta
-  collection d'un appareil à l'autre.
-- Pas de comptes, d'amis, de chat ni d'admin (impossible sans serveur) — ces
-  fonctionnalités existent dans la version full-stack à la racine du dépôt.
-- PWA installable (manifest + service worker en chemins relatifs).
+- Comptes utilisateurs réels (Firebase Auth) + panel admin (rôle `admin`)
+- Amis, chat, annonces, contact avec pièce jointe, mode maintenance
+- Corrections v3 : anti-XSS, images compressées avant envoi (fini la limite
+  1 Mo/doc), code mort supprimé, plus d'authentification anonyme
+- PWA installable (manifest + service worker en chemins relatifs)
+
+⚠️ Sécurité Firebase : verrouille tes règles Firestore (lecture/écriture
+réservées aux utilisateurs connectés, écriture `users.role` interdite côté
+client) et active l'approbation des domaines d'authentification.
 
 ## Mise en production (checklist)
 
