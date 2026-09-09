@@ -116,12 +116,9 @@ window.sendForgotRequest = function () {
   err.textContent = ''; err.classList.remove('on'); ok.textContent = ''; ok.classList.remove('on');
   const email = document.getElementById('forgot-email').value.trim();
   if (!email) { err.textContent = 'Entre ton adresse email.'; err.classList.add('on'); return; }
-  getDocs(query(collection(db, 'users'), where('email', '==', email))).then((snap) => {
-    if (snap.empty) { err.textContent = 'Aucun compte inscrit avec cette adresse.'; err.classList.add('on'); return; }
-    const uname = snap.docs[0].data().username || 'Compte bloqué';
-    return addDoc(collection(db, 'messages'), { uid: null, username: uname, email, category: 'Mot de passe oublié', content: 'Mot de passe oublié — merci de m\'envoyer un lien de réinitialisation.', attachment_url: null, reply: null, replied_at: null, created_at: fst() })
-      .then(() => { ok.textContent = 'Demande envoyée à l\'admin ✓ Tu recevras le lien par email.'; ok.classList.add('on'); });
-  }).catch((e) => { err.textContent = (e && e.code === 'permission-denied') ? 'Envoi impossible : règles Firestore à mettre à jour (README, section Règle oubli).' : (e.message || 'Erreur'); err.classList.add('on'); });
+  addDoc(collection(db, 'messages'), { uid: null, username: 'Compte bloqué', email, category: 'Mot de passe oublié', content: 'Mot de passe oublié — merci de m\'envoyer un lien de réinitialisation.', attachment_url: null, reply: null, replied_at: null, created_at: fst() })
+    .then(() => { ok.textContent = 'Demande envoyée à l\'admin ✓ Tu recevras le lien par email.'; ok.classList.add('on'); })
+    .catch((e) => { err.textContent = (e && e.code === 'permission-denied') ? 'Envoi impossible : règles Firestore à mettre à jour (README, section Règle oubli).' : (e.message || 'Erreur'); err.classList.add('on'); });
 };
 window.hideForgot = () => { document.getElementById('forgot-panel').style.display = 'none'; };
 
@@ -1122,6 +1119,7 @@ window.viewMsg = function (id) {
   if (m.category === 'Mot de passe oublié' && m.email) {
     b += '<div style="margin-top:16px;background:var(--c1);border:1px solid var(--br);padding:14px;">'
       + '<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;">Compte concerné</div>'
+      + '<div style="font-size:13px;margin-bottom:8px;">Pseudo : <b id="forgot-pseudo-val">…</b></div>'
       + '<div style="font-size:13px;margin-bottom:8px;">Email : <b>' + escapeHtml(m.email) + '</b></div>'
       + '<div style="font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">Code utilisateur : <code id="forgot-code-val" style="font-family:monospace;font-size:14px;letter-spacing:2px;color:var(--g);">…</code>'
       + '<button class="btn-ghost" style="padding:7px 12px;" onclick="copyForgotCode()">Copier</button></div>'
@@ -1129,8 +1127,11 @@ window.viewMsg = function (id) {
     getDocs(query(collection(db, 'users'), where('email', '==', m.email))).then((snap) => {
       const el = document.getElementById('forgot-code-val');
       if (!el) return;
-      if (!snap.empty) { const c = snap.docs[0].data().user_code || '—'; window._forgotCode = c; el.textContent = c; }
-      else { window._forgotCode = ''; el.textContent = 'compte introuvable'; }
+      if (!snap.empty) {
+        const u = snap.docs[0].data();
+        const c = u.user_code || '—'; window._forgotCode = c; el.textContent = c;
+        const ps = document.getElementById('forgot-pseudo-val'); if (ps) ps.textContent = u.username || '—';
+      } else { window._forgotCode = ''; el.textContent = 'compte introuvable'; const ps = document.getElementById('forgot-pseudo-val'); if (ps) ps.textContent = 'compte introuvable'; }
     }).catch(() => {});
   }
   document.getElementById('mview-body').innerHTML = b;
