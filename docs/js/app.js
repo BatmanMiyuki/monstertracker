@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, deleteUser } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, getDocs, onSnapshot, serverTimestamp, writeBatch, limit } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, getDocs, onSnapshot, serverTimestamp, writeBatch, limit, Timestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyAlanpPYiUG8tg0P8prqMjYiHH2QmEqKcc',
@@ -134,9 +134,16 @@ function letterAvatar(letter, size) {
 function avatarHtml(u, size) {
   size = size || 40;
   const s = 'width:' + size + 'px;height:' + size + 'px;flex-shrink:0;border-radius:50%;object-fit:cover;';
-  if (u && u.avatar_url) return '<img src="' + escapeHtml(u.avatar_url) + '" alt="" style="' + s + '" onerror="this.outerHTML=\'' + letterAvatar(((u.username || '?')[0]).toUpperCase(), size).replace(/'/g, "\\'") + '\'">';
+  if (u && u.avatar_url) return '<img src="' + escapeHtml(u.avatar_url) + '" alt="" style="' + s + '" data-mt-letter="' + escapeHtml(((u.username || '?')[0]).toUpperCase()) + '" data-mt-size="' + size + '" onerror="mtAvatarFail(this)">';
   return letterAvatar((u && u.username ? u.username[0] : '?').toUpperCase(), size);
 }
+// Remplacement propre d'un avatar cassé (aucun guillemet dans les attributs)
+window.mtAvatarFail = function (img) {
+  var w = document.createElement('div');
+  w.innerHTML = letterAvatar(img.getAttribute('data-mt-letter') || '?', parseInt(img.getAttribute('data-mt-size'), 10) || 40);
+  if (img.parentNode && w.firstChild) img.parentNode.replaceChild(w.firstChild, img);
+};
+
 
 // ── Auth ──
 onAuthStateChanged(auth, (fbUser) => {
@@ -1036,15 +1043,28 @@ window.loadAdmUsers = function () {
   }).then((users) => {
     let rows = '';
     users.forEach((u) => {
-      const delBtn = u.role !== 'admin' ? '<button class="tdel" onclick="delUser(\'' + u.uid + '\',\'' + escapeHtml(u.username).replace(/'/g, '&#39;') + '\')">Suppr.</button>' : '—';
+      const escName = escapeHtml(u.username).replace(/'/g, '&#39;');
+      const dateBtn = '<button class="tedit" onclick="editUserDate(\'' + u.uid + '\',\'' + escName + '\')">Date</button>';
+      const delBtn = u.role !== 'admin' ? '<button class="tdel" onclick="delUser(\'' + u.uid + '\',\'' + escName + '\')">Suppr.</button>' : '';
       rows += '<tr><td><div style="display:flex;align-items:center;gap:9px;">' + avatarHtml(u, 30) + '<div class="tname">' + escapeHtml(u.username) + '</div></div></td>'
         + '<td style="font-family:monospace;font-size:11px;color:var(--mu);">' + escapeHtml(u.user_code || '—') + '</td>'
         + '<td><span class="tbadge ' + (u.role === 'admin' ? 'lim' : 'std') + '">' + escapeHtml(u.role) + '</span></td>'
         + '<td><span class="tstat">' + u.col_count + '</span></td>'
-        + '<td style="color:var(--mu);font-size:11px;">' + fmtDate(u.created_at) + '</td><td>' + delBtn + '</td></tr>';
+        + '<td style="color:var(--mu);font-size:11px;">' + fmtDate(u.created_at) + '</td><td><div class="tacts">' + dateBtn + delBtn + '</div></td></tr>';
     });
     document.getElementById('adm-users-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Utilisateur</th><th>Code</th><th>Rôle</th><th>Canettes</th><th>Inscrit le</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }).catch((e) => { document.getElementById('adm-users-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.editUserDate = function (uid, name) {
+  const v = prompt('Nouvelle date d\'inscription pour ' + name + ' (JJ/MM/AAAA) :');
+  if (!v) return;
+  const m = v.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (!m) { toast('Format attendu : JJ/MM/AAAA', 'err'); return; }
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), 12, 0, 0);
+  if (isNaN(d.getTime())) { toast('Date invalide', 'err'); return; }
+  updateDoc(doc(db, 'users', uid), { created_at: Timestamp.fromDate(d) })
+    .then(() => { toast('Date d\'inscription mise à jour ✓'); loadAdmUsers(); })
+    .catch((e) => toast('Erreur : ' + e.message, 'err'));
 };
 window.delUser = function (uid, name) {
   if (!confirm('Supprimer le compte de ' + name + ' et toutes ses données ?')) return;

@@ -145,9 +145,16 @@ function letterAvatar(letter, size) {
 function avatarHtml(u, size) {
   size = size || 40;
   var s = 'width:' + size + 'px;height:' + size + 'px;flex-shrink:0;border-radius:50%;object-fit:cover;';
-  if (u && u.avatar_url) return '<img src="' + escapeHtml(u.avatar_url) + '" alt="" style="' + s + '" onerror="this.outerHTML=\'' + letterAvatar(((u.username || '?')[0]).toUpperCase(), size).replace(/'/g, "\\'") + '\'">';
+  if (u && u.avatar_url) return '<img src="' + escapeHtml(u.avatar_url) + '" alt="" style="' + s + '" data-mt-letter="' + escapeHtml(((u.username || '?')[0]).toUpperCase()) + '" data-mt-size="' + size + '" onerror="mtAvatarFail(this)">';
   return letterAvatar((u && u.username ? u.username[0] : '?').toUpperCase(), size);
 }
+// Remplacement propre d'un avatar cassé (aucun guillemet dans les attributs)
+window.mtAvatarFail = function (img) {
+  var w = document.createElement('div');
+  w.innerHTML = letterAvatar(img.getAttribute('data-mt-letter') || '?', parseInt(img.getAttribute('data-mt-size'), 10) || 40);
+  if (img.parentNode && w.firstChild) img.parentNode.replaceChild(w.firstChild, img);
+};
+
 
 // ════════════════════════════════════════════════════════
 //  AUTH
