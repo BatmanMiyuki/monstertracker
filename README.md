@@ -92,6 +92,21 @@ GET    /api/badges  /api/updates            POST /api/messages  /api/upload
 Admin: /api/admin/cans|updates|users|messages|maintenance|collection-stats
 ```
 
+## Version statique (GitHub Pages) — dossier `docs/`
+
+Une variante **100 % navigateur** de l'app vit dans `docs/` et est servie par
+GitHub Pages : https://batmanmiyuki.github.io/monstertracker/
+
+- Aucun serveur : toutes les données (catalogue, collection, wishlist, favoris,
+  pseudo, thème, avatar) sont stockées dans le `localStorage` de l'appareil.
+- Les photos uploadées sont redimensionnées automatiquement (max 400 px, JPEG)
+  pour économiser l'espace.
+- **Export / Import JSON** dans Paramètres → Sauvegarde : de quoi déplacer ta
+  collection d'un appareil à l'autre.
+- Pas de comptes, d'amis, de chat ni d'admin (impossible sans serveur) — ces
+  fonctionnalités existent dans la version full-stack à la racine du dépôt.
+- PWA installable (manifest + service worker en chemins relatifs).
+
 ## Mise en production (checklist)
 
 - [ ] Changer le mot de passe admin

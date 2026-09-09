@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MonsterTracker">
+<meta name="theme-color" content="#080808">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Track ta collection de canettes Monster Energy — 100% local, installable, sans compte.">
+<title>MonsterTracker</title>
+<link rel="icon" type="image/png" href="icon.png"/>
+<link rel="apple-touch-icon" href="icon.png"/>
+<link rel="manifest" href="manifest.json"/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ══════════ LANDING ══════════ -->
+<div class="page active" id="page-landing">
+<nav class="ln-nav">
+  <div class="logo" onclick="go('landing')">
+    <img class="logo-icon" src="icon.png" alt="MonsterTracker"/>
+    <span class="logo-t">MONSTER<em>TRACKER</em></span>
+  </div>
+  <div style="display:flex;align-items:center;gap:15px;">
+    <button class="nav-cta" onclick="enterApp()">OUVRIR L'APP</button>
+  </div>
+</nav>
+<section class="hero">
+  <div class="hero-l">
+    <div class="hero-badge">&#129371; COLLECTION TRACKER</div>
+    <h1 class="hero-h1">LIBÈRE<em>LA BÊTE</em></h1>
+    <p class="hero-p">Suis ta collection de canettes Monster Energy. Catalogue, statistiques, wishlist — tout est stocké sur ton appareil, sans compte ni serveur.</p>
+    <div class="hero-btns">
+      <button class="btn-g" onclick="enterApp()">COMMENCER</button>
+    </div>
+  </div>
+  <div class="hero-r"><img src="icon.png" alt="MonsterTracker"/></div>
+</section>
+<section class="feats">
+  <h2 class="sec-title">FONCTIONNALITÉS</h2>
+  <p class="sec-sub">Tout ce qu'il faut pour suivre ta progression Monster Energy</p>
+  <div class="feats-grid">
+    <div class="feat"><div class="feat-ico">&#9638;</div><h3>Catalogue complet</h3><p>Toutes les séries, variantes et éditions limitées. Ajoute tes propres canettes avec photos.</p></div>
+    <div class="feat"><div class="feat-ico">&#9889;</div><h3>Suivi facile</h3><p>Ajoute tes canettes en un clic. Suis ta progression et la valeur de ta collection.</p></div>
+    <div class="feat"><div class="feat-ico">&#128274;</div><h3>100 % privé</h3><p>Aucun compte, aucun serveur : tes données restent sur ton appareil. Exporte-les en JSON à tout moment.</p></div>
+  </div>
+</section>
+<section class="cta-band">
+  <h2>PRÊT À COMMENCER ?</h2>
+  <p>Installe l'app sur ton téléphone pour l'avoir toujours avec toi.</p>
+  <button class="btn-g" onclick="enterApp()">OUVRIR MONSTERTRACKER</button>
+</section>
+<footer class="footer">
+  <div class="logo" onclick="go('landing')">
+    <img class="logo-icon" src="icon.png" alt="" style="width:17px;height:17px;"/>
+    <span class="logo-t" style="font-size:15px;">MONSTER<em>TRACKER</em></span>
+  </div>
+  <p>2026 MonsterTracker — Application indépendante, non affiliée à Monster Energy.</p>
+</footer>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div class="page" id="page-app">
+<nav class="app-nav">
+  <div class="logo" onclick="goTab('home',document.getElementById('tab-home'))">
+    <img class="logo-icon" src="icon.png" alt="" style="width:18px;height:18px;"/>
+    <span class="logo-t" style="font-size:20px;">MONSTER<em>TRACKER</em></span>
+  </div>
+  <div class="ntabs" id="user-tabs">
+    <button class="ntab on" id="tab-home"       onclick="goTab('home',this)">&#127968; Accueil</button>
+    <button class="ntab"    id="tab-catalogue"  onclick="goTab('catalogue',this)">Catalogue</button>
+    <button class="ntab"    id="tab-collection" onclick="goTab('collection',this)">Ma Collection</button>
+    <button class="ntab"    id="tab-manage"     onclick="goTab('manage',this)">&#9881; Gérer</button>
+    <button class="ntab"    id="tab-settings"   onclick="goTab('settings',this)">Paramètres</button>
+  </div>
+  <div class="app-nav-r">
+    <div class="nav-who">Salut, <b id="nav-name">-</b></div>
+    <button id="pwa-install-btn" onclick="doInstall()">&#11015; INSTALLER</button>
+  </div>
+</nav>
+<div class="app-main">
+
+<!-- ACCUEIL -->
+<div class="sec on" id="sec-home">
+  <div class="sec-hd"><h1>TABLEAU DE BORD</h1><p>Ta progression Monster Energy</p></div>
+  <div class="srow">
+    <div class="sbox"><div class="sval" id="h-owned">-</div><div class="slbl2">Possédées</div></div>
+    <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total catalogue</div></div>
+    <div class="sbox val"><div class="sval" id="h-value">-</div><div class="slbl2">Valeur €</div></div>
+    <div class="sbox"><div class="sval" id="h-wish">-</div><div class="slbl2">Wishlist</div></div>
+  </div>
+  <div class="prog-wrap">
+    <div class="prog-lbl"><span>Complétion</span><b id="h-pct">0%</b></div>
+    <div class="prog-bar"><div class="prog-fill" id="h-prog" style="width:0%"></div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;" id="home-charts">
+    <div class="chart-wrap" style="margin-bottom:0;"><div class="chart-hd">Par série</div><div id="chart-series"></div></div>
+    <div class="chart-wrap" style="margin-bottom:0;"><div class="chart-hd">Par langue</div><div id="chart-lang"></div></div>
+  </div>
+  <div class="home-grid">
+    <div class="home-card"><div class="hc-t">Ajouts récents</div><div id="h-recent"></div></div>
+    <div class="home-card"><div class="hc-t">Wishlist</div><div id="h-wishlist"></div></div>
+  </div>
+</div>
+
+<!-- CATALOGUE -->
+<div class="sec" id="sec-catalogue">
+  <div class="sec-hd"><h1>CATALOGUE</h1><p>Toutes les canettes</p></div>
+  <input class="sinput" id="search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="renderCatalogue()"/>
+  <div id="cat-ct"></div>
+</div>
+
+<!-- MA COLLECTION -->
+<div class="sec" id="sec-collection">
+  <div class="sec-hd"><h1>MA COLLECTION</h1><p>Les canettes que tu possèdes</p></div>
+  <div class="srow">
+    <div class="sbox"><div class="sval" id="c-owned">-</div><div class="slbl2">Possédées</div></div>
+    <div class="sbox"><div class="sval" id="c-total">-</div><div class="slbl2">Total</div></div>
+    <div class="sbox"><div class="sval" id="c-pct">-</div><div class="slbl2">Complétion</div></div>
+    <div class="sbox val"><div class="sval" id="c-value">-</div><div class="slbl2">Valeur</div></div>
+  </div>
+  <div id="col-ct"></div>
+</div>
+
+<!-- GÉRER LE CATALOGUE -->
+<div class="sec" id="sec-manage">
+  <div class="adm-hdr"><div><h2>GÉRER LE CATALOGUE</h2><p>Ajoute et modifie tes canettes — tout est stocké sur cet appareil</p></div><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div>
+  <input class="sinput" id="manage-search" type="text" placeholder="Rechercher une canette..." oninput="renderManage()"/>
+  <div id="manage-ct"></div>
+</div>
+
+<!-- PARAMÈTRES -->
+<div class="sec" id="sec-settings">
+  <div class="sec-hd"><h1>PARAMÈTRES</h1><p>Personnalise ton expérience</p></div>
+  <div class="sg">
+    <div class="scard">
+      <div class="scard-t">Photo de profil</div>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap;">
+        <div id="avatar-current" style="width:64px;height:64px;flex-shrink:0;"></div>
+        <div style="font-size:13px;color:var(--mu);">Stockée uniquement sur cet appareil</div>
+      </div>
+      <input type="file" id="avatar-file" accept="image/*" style="background:var(--bk);border:1px solid var(--br);padding:10px;color:var(--tx);width:100%;cursor:pointer;margin-bottom:10px;"/>
+      <button class="btn-g" onclick="saveAvatar()" style="width:100%;">METTRE À JOUR LA PHOTO</button>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Mon profil</div>
+      <div class="errmsg" id="set-err"></div><div class="okmsg" id="set-ok"></div>
+      <div class="field"><label>Pseudo</label><input type="text" id="set-user"/></div>
+      <button class="btn-g" style="width:100%;margin-top:4px;" onclick="saveProfile()">ENREGISTRER</button>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Thème</div>
+      <div class="theme-btns">
+        <button class="theme-btn on" id="th-dark" onclick="setTheme('dark')">Sombre</button>
+        <button class="theme-btn" id="th-green" onclick="setTheme('green')">Vert</button>
+        <button class="theme-btn" id="th-red" onclick="setTheme('red')">Rouge</button>
+        <button class="theme-btn" id="th-blue" onclick="setTheme('blue')">Bleu</button>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Canettes favorites</div>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:11px;">Tes 3 canettes préférées</p>
+      <div class="fav-slots" id="fav-slots">
+        <div class="fav-slot" id="fav-1"><span class="fav-num">1</span></div>
+        <div class="fav-slot" id="fav-2"><span class="fav-num">2</span></div>
+        <div class="fav-slot" id="fav-3"><span class="fav-num">3</span></div>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Wishlist</div>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:11px;">3 canettes que tu recherches</p>
+      <div class="fav-slots" id="wish-slots">
+        <div class="fav-slot" id="wish-1"><span class="fav-num">1</span></div>
+        <div class="fav-slot" id="wish-2"><span class="fav-num">2</span></div>
+        <div class="fav-slot" id="wish-3"><span class="fav-num">3</span></div>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Sauvegarde des données</div>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:11px;line-height:1.6;">Tes données vivent dans ce navigateur. Exporte-les pour les sauvegarder ou les importer sur un autre appareil.</p>
+      <button class="btn-g" style="width:100%;margin-bottom:8px;" onclick="exportData()">&#11015; EXPORTER (JSON)</button>
+      <label class="btn-o" style="display:block;text-align:center;margin-bottom:8px;cursor:pointer;">&#11014; IMPORTER UN FICHIER
+        <input type="file" id="import-file" accept=".json,application/json" style="display:none;" onchange="importData(this)"/>
+      </label>
+      <button class="btn-rd" style="width:100%;padding:12px;font-size:13px;letter-spacing:2px;" onclick="confirmReset()">&#9888; RÉINITIALISER LES DONNÉES</button>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Mentions légales</div>
+      <p style="font-size:12px;color:#bbb;line-height:1.8;">MonsterTracker est une application indépendante, <strong style="color:#ddd;">non officielle et non affiliée</strong> à Monster Energy Company.<br/><br/>Version 2.1 statique — 2026. Toutes les données sont stockées localement dans ton navigateur (localStorage) : aucune donnée n'est envoyée sur un serveur.</p>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Installer l'app</div>
+      <p style="font-size:12px;color:var(--mu);margin-bottom:11px;line-height:1.6;">Sur Android/Chrome : bouton ci-dessous. Sur iPhone/Safari : Partager &#11014; puis « Sur l'écran d'accueil ».</p>
+      <button class="btn-g" style="width:100%;" onclick="doInstall()">&#11015; INSTALLER</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /app-main -->
+</div><!-- /page-app -->
+
+<!-- ══════════ MODALES ══════════ -->
+
+<!-- Détail canette -->
+<div class="moverlay" id="modal-can-detail">
+<div class="modal" style="max-width:520px;">
+  <div class="mhdr"><h3 id="cd-title">DÉTAILS</h3><button class="mclose" onclick="closeModal('can-detail')">&#x2715;</button></div>
+  <div class="mbody" style="padding:0;">
+    <div class="cd-layout">
+      <div id="cd-img-wrap" style="width:160px;min-height:180px;flex-shrink:0;background:var(--bk);display:flex;align-items:center;justify-content:center;font-size:60px;">&#129371;</div>
+      <div style="flex:1;padding:18px;min-width:200px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:3px;color:var(--mu);margin-bottom:4px;" id="cd-series"></div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;margin-bottom:10px;line-height:1.1;" id="cd-name"></div>
+        <div id="cd-limited" style="display:none;"><span class="tbadge lim" style="margin-bottom:10px;display:inline-block;">Édition limitée</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:12px;" id="cd-meta"></div>
+      </div>
+    </div>
+    <div style="padding:16px 18px;border-top:1px solid var(--br);" id="cd-desc-wrap">
+      <div style="font-size:12px;color:var(--mu);margin-bottom:6px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Description</div>
+      <div style="font-size:13px;color:#bbb;line-height:1.6;" id="cd-desc"></div>
+    </div>
+  </div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('can-detail')">FERMER</button><button id="cd-add-btn" class="btn-add" onclick="openAddModal()">+ MA COLLECTION</button></div>
+</div>
+</div>
+
+<!-- Ajout à la collection -->
+<div class="moverlay" id="modal-add-col">
+<div class="modal" style="max-width:400px;">
+  <div class="mhdr"><h3>AJOUTER À MA COLLECTION</h3><button class="mclose" onclick="closeModal('add-col')">&#x2715;</button></div>
+  <div class="mbody">
+    <div id="ac-can-name" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:16px;color:var(--g);"></div>
+    <div class="field"><label>Prix payé (€) <span style="color:var(--mu);font-weight:400;">(optionnel)</span></label><input type="number" step="0.01" min="0" id="ac-price" class="minput" placeholder="ex : 2.50"/></div>
+    <div class="field">
+      <label>Achetée où ?</label>
+      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+        <button id="ac-btn-store" class="btn-ghost" onclick="selectPurchase('store')" style="flex:1;padding:12px;font-size:13px;">&#127978; Magasin</button>
+        <button id="ac-btn-online" class="btn-ghost" onclick="selectPurchase('online')" style="flex:1;padding:12px;font-size:13px;">&#127760; En ligne</button>
+        <button id="ac-btn-gift" class="btn-ghost" onclick="selectPurchase('gift')" style="flex:1;padding:12px;font-size:13px;">&#127873; Cadeau</button>
+      </div>
+    </div>
+    <input type="hidden" id="ac-can-id"/>
+    <input type="hidden" id="ac-purchase-type"/>
+  </div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('add-col')">ANNULER</button><button class="btn-add" onclick="confirmAddCol()">AJOUTER &#10148;</button></div>
+</div>
+</div>
+
+<!-- Édition canette -->
+<div class="moverlay" id="modal-can">
+<div class="modal">
+  <div class="mhdr"><h3 id="can-modal-title">AJOUTER UNE CANETTE</h3><button class="mclose" onclick="closeModal('can')">&#x2715;</button></div>
+  <div class="mbody">
+    <input type="hidden" id="cm-id"/>
+    <div class="mlbl">Identification</div>
+    <div class="mrow">
+      <div class="field"><label>Nom *</label><input class="minput" type="text" id="cm-name" placeholder="Monster Original"/></div>
+      <div class="field"><label>Série</label><input class="minput" type="text" id="cm-series" placeholder="Ultra, Juice, Rehab..."/></div>
+    </div>
+    <div class="mrow">
+      <div class="field"><label>Variante</label><input class="minput" type="text" id="cm-variant" placeholder="ex : Mango Loco"/></div>
+      <div class="field"><label>Langue</label><input class="minput" type="text" id="cm-lang" placeholder="FR, EN, DE..."/></div>
+    </div>
+    <div class="mdiv"></div>
+    <div class="mlbl">Apparence</div>
+    <div class="mrow">
+      <div class="field"><label>Couleur capsule</label><input class="minput" type="text" id="cm-cap" placeholder="Noir, Vert..."/></div>
+      <div class="field"><label>Couleur dominante</label><input class="minput" type="text" id="cm-fc" placeholder="Noir, Rouge..."/></div>
+    </div>
+    <div class="mrow">
+      <div class="field"><label>Volume</label><input class="minput" type="text" id="cm-vol" placeholder="500ml, 355ml..."/></div>
+      <div class="field"><label>Pays</label><input class="minput" type="text" id="cm-country" placeholder="France, USA..."/></div>
+    </div>
+    <div class="field">
+      <label>Couleur d'accent de la carte</label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <input type="color" id="cm-color" value="#39ff14" style="width:52px;height:42px;border:1px solid var(--br);background:var(--c1);padding:3px;cursor:pointer;flex-shrink:0;"/>
+        <div style="font-size:12px;color:var(--mu);line-height:1.5;">Couleur affichée en bas de la carte et derrière l'image.</div>
+      </div>
+    </div>
+    <div class="mdiv"></div>
+    <div class="mlbl">Infos</div>
+    <div class="mrow">
+      <div class="field"><label>Année</label><input class="minput" type="number" id="cm-year" placeholder="2024"/></div>
+      <div class="field"><label>Description</label><input class="minput" type="text" id="cm-desc" placeholder="Notes..."/></div>
+    </div>
+    <div class="mdiv"></div>
+    <div class="mlbl">Image</div>
+    <div class="img-zone" id="img-zone">
+      <input type="file" accept="image/*" id="cm-img-file" onchange="handleImgFile(this)"/>
+      <div class="img-lbl" id="img-lbl">Clique pour choisir une photo</div>
+      <div class="img-sub">Redimensionnée automatiquement pour économiser l'espace</div>
+      <img id="img-prev" class="img-prev" alt=""/>
+    </div>
+    <input class="minput" type="text" id="cm-img-url" placeholder="Ou colle une URL d'image..." oninput="previewUrl(this.value)" style="margin-top:6px;"/>
+    <div class="mdiv"></div>
+    <label class="chk"><input type="checkbox" id="cm-limited"/> <span>Édition limitée</span></label>
+  </div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('can')">ANNULER</button><button class="btn-save" onclick="saveCan()">ENREGISTRER</button></div>
+</div>
+</div>
+
+<!-- Picker favoris/wishlist -->
+<div class="moverlay" id="modal-picker">
+<div class="modal">
+  <div class="mhdr"><h3 id="picker-title">CHOISIR</h3><button class="mclose" onclick="closeModal('picker')">&#x2715;</button></div>
+  <div class="mbody">
+    <input class="sinput" type="text" id="picker-search" placeholder="Rechercher..." oninput="filterPicker()" style="margin-bottom:13px;"/>
+    <div class="pk-grid" id="picker-grid"></div>
+  </div>
+</div>
+</div>
+
+<!-- Réinitialisation -->
+<div class="moverlay" id="modal-reset">
+<div class="modal" style="max-width:440px;">
+  <div class="mhdr"><h3 style="color:var(--rd);">&#9888; RÉINITIALISER</h3><button class="mclose" onclick="closeModal('reset')">&#x2715;</button></div>
+  <div class="mbody">
+    <p style="font-size:13px;line-height:1.7;color:#bbb;margin-bottom:12px;">Cette action efface <strong style="color:var(--rd);">toutes tes données locales</strong> : collection, wishlist, favoris, canettes ajoutées et paramètres. Le catalogue de démonstration sera restauré.</p>
+    <p style="font-size:13px;color:var(--rd);margin-bottom:14px;">Irréversible — exporte tes données avant si tu veux les garder.</p>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:8px;">Recopie ce code pour confirmer</div>
+    <div id="reset-code-display" style="background:var(--bk);border:2px dashed rgba(255,53,53,.4);padding:12px;text-align:center;font-family:monospace;font-size:24px;letter-spacing:8px;color:var(--rd);margin-bottom:12px;user-select:all;"></div>
+    <input type="text" id="reset-code-inp" class="minput" placeholder="Code de confirmation" maxlength="6" style="font-family:monospace;letter-spacing:4px;font-size:18px;text-align:center;"/>
+    <div class="errmsg" id="reset-err" style="margin-top:10px;"></div>
+  </div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('reset')">ANNULER</button><button class="btn-add" style="background:rgba(255,53,53,.15);border:1px solid rgba(255,53,53,.4);color:var(--rd);" onclick="doReset()">TOUT EFFACER</button></div>
+</div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
