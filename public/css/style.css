@@ -144,8 +144,8 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-items:stretch;}
 .ccard{background:#0d0d0d;border:1px solid var(--br);overflow:hidden;transition:all .25s;position:relative;cursor:pointer;display:flex;flex-direction:column;min-height:260px;height:100%;}
 .ccard:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.7);}
-.cthumb{height:140px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:52px;position:relative;overflow:hidden;padding:14px;}
-.cthumb img{width:100%;height:100%;object-fit:contain;transition:transform .3s;filter:drop-shadow(0 4px 14px rgba(0,0,0,.6));}
+.cthumb{aspect-ratio:2/3;height:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:52px;position:relative;overflow:hidden;padding:0;}
+.cthumb img{width:100%;height:100%;object-fit:cover;transition:transform .3s;}
 .ccard:hover .cthumb img{transform:scale(1.06);}
 .badge{display:inline-flex;align-items:center;justify-content:center;background:var(--rd);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:900;min-width:16px;height:16px;border-radius:8px;padding:0 4px;margin-left:5px;vertical-align:middle;line-height:1;}
 .lim-tag{position:absolute;top:6px;right:6px;background:rgba(255,150,0,.92);color:#000;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:800;letter-spacing:1px;padding:1px 6px;text-transform:uppercase;z-index:2;}
@@ -323,7 +323,7 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 @media(max-width:480px){
   .hero-h1{font-size:clamp(38px,14vw,56px);}
   .cgrid{grid-template-columns:repeat(2,1fr);gap:6px;}
-  .ccard{min-height:220px;}.cthumb{height:120px;font-size:40px;}
+  .ccard{min-height:220px;}.cthumb{font-size:40px;}
   .cname{font-size:11px;}
   .atitle{font-size:28px;}
   .btn-g,.btn-o{font-size:12px;padding:10px 18px;letter-spacing:2px;}
