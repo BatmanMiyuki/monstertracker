@@ -126,18 +126,18 @@
   </div>
   <span id="nav-tabs-anchor" style="display:none;"></span>
   <div class="ntabs" id="user-tabs">
-    <button class="ntab on" id="tab-home"       onclick="goTab('home',this)">&#127968; Accueil</button>
+    <button class="ntab on" id="tab-home"       onclick="goTab('home',this)">Accueil</button>
     <button class="ntab"    id="tab-catalogue"  onclick="goTab('catalogue',this)">Catalogue</button>
     <button class="ntab"    id="tab-collection" onclick="goTab('collection',this)">Ma Collection</button>
     <button class="ntab"    id="tab-friends"    onclick="goTab('friends',this)">Amis<span class="badge" id="friends-badge" style="display:none;background:#ff9600;">0</span><span class="badge" id="chat-badge" style="display:none;">0</span></button>
-    <button class="ntab"    id="tab-updates"    onclick="goTab('updates',this)">&#128276; Notifications</button>
+    <button class="ntab"    id="tab-updates"    onclick="goTab('updates',this)">Notifications<span class="badge" id="updates-badge" style="display:none;">0</span></button>
     <button class="ntab"    id="tab-settings"   onclick="goTab('settings',this)">Paramètres</button>
   </div>
   <div class="ntabs" id="admin-tabs" style="display:none;">
     <button class="ntab on" id="tab-adm-cans"     onclick="goTab('adm-cans',this)">Canettes</button>
     <button class="ntab"    id="tab-adm-updates"  onclick="goTab('adm-updates',this)">Annonces</button>
     <button class="ntab"    id="tab-adm-users"    onclick="goTab('adm-users',this)">Utilisateurs</button>
-    <button class="ntab"    id="tab-adm-inbox"    onclick="goTab('adm-inbox',this)">&#128140; Réception<span class="badge" id="inbox-badge" style="display:none;"></span></button>
+    <button class="ntab"    id="tab-adm-inbox"    onclick="goTab('adm-inbox',this)">Réception<span class="badge" id="inbox-badge" style="display:none;"></span></button>
     <button class="ntab"    id="tab-adm-settings" onclick="goTab('adm-settings',this)">&#9881; Réglages</button>
   </div>
   <div class="app-nav-r">
@@ -145,7 +145,7 @@
     <button id="support-btn" class="btn-rd" style="display:none;border-color:rgba(0,161,0,.4);color:var(--g);" onclick="location.href='support.html'">&#128272; SUPPORT</button>
     <button id="pwa-install-btn" onclick="doInstall()">&#11015; INSTALLER</button>
     <button class="btn-rd" onclick="doLogout()">Déconnexion</button>
-    <button class="nav-burger" id="nav-burger" onclick="toggleNavMenu()" aria-label="Menu">&#9776;</button>
+    <button class="nav-burger" id="nav-burger" onclick="toggleNavMenu()" aria-label="Menu"><span class="burger-badge" id="burger-badge" style="display:none;">0</span>&#9776;</button>
   </div>
 </nav>
 <div class="nav-drop" id="nav-drop">
@@ -183,6 +183,7 @@
 <div class="sec" id="sec-catalogue">
   <div class="sec-hd"><h1>CATALOGUE</h1><p>Toutes les canettes disponibles</p></div>
   <input class="sinput" id="search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
+  <div class="serie-chips" id="cat-series"></div>
   <div id="cat-ct"></div>
 </div>
 
@@ -201,7 +202,7 @@
 <!-- AMIS -->
 <div class="sec" id="sec-friends">
   <div class="sec-hd"><h1>AMIS</h1><p>Ajoute des collectionneurs par pseudo</p></div>
-  <div class="fr-add"><input type="text" id="friend-input" placeholder="Rechercher quelqu'un..." oninput="friendSearch()"/></div>
+  <div class="fr-add"><input type="text" id="friend-input" placeholder="Pseudo ou code ami..." oninput="friendSearch()"/></div>
   <div class="errmsg" id="friend-err" style="margin-bottom:13px;"></div>
   <div class="okmsg" id="friend-ok" style="margin-bottom:13px;"></div>
   <div id="friends-ct"></div>
@@ -259,6 +260,7 @@
       <div class="errmsg" id="set-err"></div><div class="okmsg" id="set-ok"></div>
       <div class="field"><label>Pseudo</label><input type="text" id="set-user"/></div>
       <div class="field"><label>Email</label><input type="text" id="set-email" disabled style="opacity:.4;cursor:not-allowed;"/></div>
+      <div class="field"><label>Code ami</label><div style="display:flex;gap:8px;align-items:center;"><code id="set-code" style="flex:1;background:var(--bk);border:1px solid var(--br);padding:10px 12px;font-family:monospace;font-size:14px;letter-spacing:2px;color:var(--g);">—</code><button class="btn-ghost" onclick="copyMyCode()" style="padding:10px 12px;">Copier</button></div><div style="font-size:11px;color:var(--mu);margin-top:6px;line-height:1.5;">Partage ce code : tes amis peuvent t'ajouter en le saisissant dans la page Amis. L'admin s'en sert aussi pour identifier ton compte (récupération d'accès).</div></div>
       <button class="btn-g" style="width:100%;margin-top:4px;" onclick="saveProfile()">ENREGISTRER</button>
     </div>
     <div class="scard">
@@ -384,7 +386,7 @@
 
 <!-- ADMIN : CANETTES -->
 <div class="sec" id="sec-adm-cans">
-  <div class="adm-hdr"><div><h2>CANETTES</h2><p>Les nouvelles canettes sont en brouillon — Publie-les pour les rendre visibles</p></div><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div>
+  <div class="adm-hdr"><div><h2>CANETTES</h2><p>Les nouvelles canettes sont en brouillon — Publie-les pour les rendre visibles</p><p id="adm-cans-total" style="margin-top:6px;font-size:12px;font-weight:800;letter-spacing:1px;color:var(--g);text-transform:uppercase;"></p></div><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div>
   <input class="sinput" id="adm-search" type="text" placeholder="Rechercher une canette..." oninput="loadAdmCans()"/>
   <div id="adm-cans-ct"></div>
 </div>
@@ -575,6 +577,12 @@
 </div>
 
 <!-- Réponse admin -->
+<div class="moverlay" id="modal-view">
+  <div class="modal" style="max-width:560px;">
+    <div class="mhdr"><h3 id="mview-title">DÉTAIL</h3><button class="mclose" onclick="closeModal('view')">&#x2715;</button></div>
+    <div style="padding:22px;max-height:64vh;overflow-y:auto;" id="mview-body"></div>
+  </div>
+</div>
 <div class="moverlay" id="modal-reply">
 <div class="modal" style="max-width:500px;">
   <div class="mhdr"><h3>&#128140; RÉPONDRE AU MESSAGE</h3><button class="mclose" onclick="closeModal('reply')">&#x2715;</button></div>

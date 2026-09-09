@@ -141,8 +141,8 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .rec-ago{margin-left:auto;font-size:10px;color:var(--mu);white-space:nowrap;}
 
 /* ── Cartes canettes ── */
-.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-items:start;}
-.ccard{background:#0d0d0d;border:1px solid var(--br);overflow:hidden;transition:all .25s;position:relative;cursor:pointer;display:flex;flex-direction:column;min-height:260px;}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-items:stretch;}
+.ccard{background:#0d0d0d;border:1px solid var(--br);overflow:hidden;transition:all .25s;position:relative;cursor:pointer;display:flex;flex-direction:column;min-height:260px;height:100%;}
 .ccard:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.7);}
 .cthumb{height:140px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:52px;position:relative;overflow:hidden;padding:14px;}
 .cthumb img{width:100%;height:100%;object-fit:contain;transition:transform .3s;filter:drop-shadow(0 4px 14px rgba(0,0,0,.6));}
@@ -152,7 +152,7 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .owned-ov{position:absolute;inset:0;background:rgba(var(--g-r),var(--g-g),var(--g-b),.09);border:2px solid var(--g);display:flex;align-items:center;justify-content:center;z-index:1;}
 .owned-tag{background:var(--g);color:#000;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:900;letter-spacing:1px;padding:2px 7px;text-transform:uppercase;}
 .cbody{padding:9px 11px 8px;flex:1;display:flex;flex-direction:column;overflow:hidden;}
-.cname{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;letter-spacing:.5px;line-height:1.2;text-transform:uppercase;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
+.cname{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;letter-spacing:.5px;line-height:1.2;text-transform:uppercase;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;min-height:2.4em;}
 .csub{font-size:10px;color:var(--mu);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .cprice{font-family:'Bebas Neue',sans-serif;font-size:13px;color:#ffc800;margin-top:2px;}
 .cbtns{display:flex;gap:4px;margin-top:auto;padding-top:7px;}
@@ -401,3 +401,13 @@ body.light .btn-ghost:hover{border-color:#333;color:#333;}
 .nav-drop .ntab{width:100%;height:auto;text-align:left;padding:13px 10px;font-size:14px;letter-spacing:1.5px;border-bottom:none;color:var(--tx);flex-shrink:0;}
 .nav-drop .ntab.on{color:var(--g);background:var(--c2);}
 .nav-drop .badge{margin-left:6px;}
+
+/* ═══ Catalogue : bibliothèques par série ═══ */
+.serie-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:12px 0 16px;padding-bottom:2px;}
+.serie-chips::-webkit-scrollbar{display:none;}
+.schip{border:1px solid var(--br);background:var(--c1);color:var(--mu);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:7px 13px;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .2s;}
+.schip:hover{border-color:var(--g);color:var(--g);}
+.schip.on{border-color:var(--g);color:var(--g);background:rgba(var(--g-r),var(--g-g),var(--g-b),.08);}
+/* ═══ Badge burger (mobile) ═══ */
+.nav-burger{position:relative;}
+.burger-badge{position:absolute;top:-7px;right:-7px;background:var(--rd);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:900;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;line-height:1;}

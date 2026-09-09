@@ -252,7 +252,11 @@ function updateBadges() {
     setBadge('friends-badge', s.size, '#ff9600');
     setBadge('notif-badge', s.size);
   }).catch(() => {});
-  getDocs(query(collection(db, 'chats'), where('to_uid', '==', user.uid), where('read', '==', false))).then((s) => setBadge('chat-badge', s.size)).catch(() => {});
+  getDocs(query(collection(db, 'chats'), where('participants', 'array-contains', user.uid), limit(500))).then((s) => {
+    let n = 0; s.docs.forEach((d) => { const m = d.data(); if (m.to_uid === user.uid && !m.read) n++; });
+    setBadge('chat-badge', n);
+  }).catch(() => {});
+  updateUpdatesBadge();
   if (user.role === 'admin') {
     getDocs(query(collection(db, 'messages'), where('reply', '==', null))).then((s) => setBadge('inbox-badge', s.size)).catch(() => {});
   }
@@ -369,13 +373,28 @@ window.loadCatalogue = function () {
   }).then((snap) => {
     allCans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data(), { in_collection: colIds.has(d.id), in_wishlist: wlIds.has(d.id) }));
     allCans.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    renderSerieChips();
     renderCat(allCans);
   }).catch((e) => { document.getElementById('cat-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
+let _catSerie = 'Toutes';
+window.setCatSerie = function (serie) { _catSerie = serie; window.filterCans(); };
 window.filterCans = function () {
-  const q = document.getElementById('search').value.toLowerCase();
-  renderCat(allCans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q) || (c.variant || '').toLowerCase().includes(q)));
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  let list = allCans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q) || (c.variant || '').toLowerCase().includes(q));
+  if (_catSerie !== 'Toutes') list = list.filter((c) => (c.series || 'Autres') === _catSerie);
+  renderCat(list);
 };
+function renderSerieChips() {
+  const el = document.getElementById('cat-series'); if (!el) return;
+  const map = {};
+  allCans.forEach((c) => { const sr = c.series || 'Autres'; map[sr] = (map[sr] || 0) + 1; });
+  let html = '<button class="schip' + (_catSerie === 'Toutes' ? ' on' : '') + '" onclick="setCatSerie(\'Toutes\')">Toutes (' + allCans.length + ')</button>';
+  Object.keys(map).sort((a, b) => a.localeCompare(b, 'fr')).forEach((sr) => {
+    html += '<button class="schip' + (_catSerie === sr ? ' on' : '') + '" onclick="setCatSerie(\'' + sr.replace(/'/g, "\\'") + '\')">' + escapeHtml(sr) + ' (' + map[sr] + ')</button>';
+  });
+  el.innerHTML = html;
+}
 function renderCat(cans) {
   const el = document.getElementById('cat-ct');
   if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE TROUVÉE', 'Aucun résultat.'); return; }
@@ -488,19 +507,21 @@ window.loadFriends = function () {
   Promise.all([
     getDocs(query(collection(db, 'friends'), where('uid', '==', user.uid), where('status', '==', 'accepted'))),
     getDocs(query(collection(db, 'friend_requests'), where('to_uid', '==', user.uid), where('status', '==', 'pending'))),
+    getDocs(query(collection(db, 'chats'), where('participants', 'array-contains', user.uid), limit(500))),
   ]).then((results) => {
     const frSnap = results[0], reqSnap = results[1];
+    const myChats = results[2].docs.map((d) => d.data());
     const requests = reqSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
     const friendUids = frSnap.docs.map((d) => d.data().friendUid);
     const p1 = requests.map((r) => getDoc(doc(db, 'users', r.from_uid)).then((fd) => Object.assign({}, r, { fromName: fd.exists() ? fd.data().username : '?' })));
     const p2 = friendUids.map((uid) => Promise.all([
       getDoc(doc(db, 'users', uid)),
       getDocs(query(collection(db, 'collection'), where('uid', '==', uid))),
-      getDocs(query(collection(db, 'chats'), where('to_uid', '==', user.uid), where('from_uid', '==', uid), where('read', '==', false))),
     ]).then((res) => {
       if (!res[0].exists()) return null;
       const f = res[0].data();
-      return { uid, username: f.username, avatar_url: f.avatar_url, collection_count: res[1].size, unread_count: res[2].size };
+      const unread = myChats.filter((m) => m.from_uid === uid && m.to_uid === user.uid && !m.read).length;
+      return { uid, username: f.username, avatar_url: f.avatar_url, collection_count: res[1].size, unread_count: unread };
     }));
     return Promise.all([Promise.all(p1), Promise.all(p2)]);
   }).then((res) => {
@@ -541,8 +562,14 @@ function doFriendSearch() {
   const ok = document.getElementById('friend-ok');
   ok.classList.remove('on'); ok.innerHTML = '';
   if (!pseudo) return;
-  getDocs(query(collection(db, 'users'), where('username', '==', pseudo))).then((snap) => {
-    if (snap.empty) { setErr('friend-err', 'Aucun utilisateur trouvé avec ce pseudo.'); return; }
+  const _isCode = /^[A-Za-z0-9]{6,10}$/.test(pseudo);
+  getDocs(_isCode ? query(collection(db, 'users'), where('user_code', '==', pseudo.toUpperCase())) : query(collection(db, 'users'), where('username', '==', pseudo))).then((snap) => {
+    if (snap.empty && _isCode) return getDocs(query(collection(db, 'users'), where('username', '==', pseudo))).then(_friendResult);
+    return _friendResult(snap);
+  }).catch((e) => setErr('friend-err', e.message));
+}
+function _friendResult(snap) {
+    if (snap.empty) { setErr('friend-err', 'Aucun utilisateur trouvé avec ce pseudo ou ce code ami.'); return; }
     const uDoc = snap.docs[0];
     const u = Object.assign({ uid: uDoc.id }, uDoc.data());
     if (u.uid === user.uid) { setErr('friend-err', 'C\'est toi !'); return; }
@@ -559,7 +586,6 @@ function doFriendSearch() {
       else preview += '<button class="btn-add" onclick="sendFriendRequest(\'' + u.uid + '\')" style="padding:8px 16px;">+ Envoyer une demande</button>';
       ok.innerHTML = preview + '</div>'; ok.classList.add('on');
     });
-  }).catch((e) => setErr('friend-err', e.message));
 }
 window.sendFriendRequest = (toUid) => addDoc(collection(db, 'friend_requests'), { from_uid: user.uid, to_uid: toUid, status: 'pending', created_at: fst() }).then(() => { toast('Demande envoyée ✓'); document.getElementById('friend-input').value = ''; document.getElementById('friend-ok').classList.remove('on'); loadFriends(); }).catch((e) => toast(e.message, 'err'));
 window.acceptRequest = function (reqId, fromUid) {
@@ -647,6 +673,7 @@ function startChatPoll() { stopChatPoll(); _chatPoll = setInterval(loadChatMessa
 function stopChatPoll() { if (_chatPoll) { clearInterval(_chatPoll); _chatPoll = null; } }
 
 // ════════════════════ NOTIFICATIONS ════════════════════
+let _viewUpdates = [], _viewReplies = [];
 window.loadUpdates = function () {
   document.getElementById('updates-ct').innerHTML = lHtml();
   Promise.all([
@@ -655,11 +682,12 @@ window.loadUpdates = function () {
   ]).then((res) => {
     const updates = res[0].docs.map((d) => Object.assign({ id: d.id }, d.data()));
     const replies = res[1].docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((m) => !!m.reply);
+    _viewUpdates = updates; _viewReplies = replies;
     let html = '';
     if (replies.length) {
       html += '<div style="margin-bottom:22px;"><div style="font-family:\'Barlow Condensed\',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#4af;margin-bottom:12px;">RÉPONSES À TES MESSAGES</div>';
       replies.forEach((r) => {
-        html += '<div style="background:rgba(68,170,255,.07);border:1px solid rgba(68,170,255,.2);padding:18px;margin-bottom:10px;">'
+        html += '<div style="background:rgba(68,170,255,.07);border:1px solid rgba(68,170,255,.2);padding:18px;margin-bottom:10px;cursor:pointer;" onclick="viewReply(\'' + r.id + '\')">'
           + '<div style="font-size:11px;color:#4af;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">' + escapeHtml(r.category) + '</div>'
           + '<div style="font-size:13px;color:#999;margin-bottom:12px;padding:12px;background:rgba(0,0,0,.3);border-left:3px solid #333;white-space:pre-wrap;word-break:break-word;">' + escapeHtml(r.content) + '</div>';
         if (r.attachment_url) html += '<div style="margin-bottom:12px;"><img src="' + escapeHtml(r.attachment_url) + '" alt="" style="max-width:100%;max-height:300px;object-fit:contain;border:1px solid var(--br);cursor:pointer;" onclick="window.open(this.src)"/></div>';
@@ -669,11 +697,28 @@ window.loadUpdates = function () {
     }
     if (updates.length) {
       html += '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;">ANNONCES</div>';
-      updates.forEach((u) => { html += '<div class="upd-card" style="margin-bottom:10px;"><div class="upd-title">' + escapeHtml(u.title) + '</div><div class="upd-content">' + escapeHtml(u.content) + '</div><div class="upd-meta">' + fmtDate(u.created_at) + '</div></div>'; });
+      updates.forEach((u) => { html += '<div class="upd-card" style="margin-bottom:10px;cursor:pointer;" onclick="viewUpdate(\'' + u.id + '\')"><div class="upd-title">' + escapeHtml(u.title) + '</div><div class="upd-content">' + escapeHtml(u.content) + '</div><div class="upd-meta">' + fmtDate(u.created_at) + '</div></div>'; });
     }
     if (!html) html = eHtml('🔔', 'AUCUNE NOTIFICATION', 'Rien de neuf pour le moment.');
     document.getElementById('updates-ct').innerHTML = html;
   }).catch((e) => { document.getElementById('updates-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+window.viewUpdate = function (id) {
+  const u = _viewUpdates.find((x) => x.id === id); if (!u) return;
+  document.getElementById('mview-title').textContent = u.title || 'ANNONCE';
+  document.getElementById('mview-body').innerHTML = '<div style="font-size:11px;color:var(--mu);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Annonce · ' + fmtDate(u.created_at) + '</div>'
+    + '<div style="font-size:14px;line-height:1.75;color:var(--tx);white-space:pre-wrap;word-break:break-word;">' + escapeHtml(u.content) + '</div>';
+  document.getElementById('modal-view').classList.add('on');
+};
+window.viewReply = function (id) {
+  const r = _viewReplies.find((x) => x.id === id); if (!r) return;
+  document.getElementById('mview-title').textContent = 'RÉPONSE — ' + (r.category || '');
+  let b = '<div style="font-size:11px;color:var(--mu);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Répondu le ' + fmtDate(r.replied_at) + '</div>';
+  b += '<div style="font-size:12px;color:#999;margin-bottom:12px;padding:12px;background:rgba(0,0,0,.3);border-left:3px solid #333;white-space:pre-wrap;word-break:break-word;">' + escapeHtml(r.content) + '</div>';
+  if (r.attachment_url) b += '<img src="' + escapeHtml(r.attachment_url) + '" style="max-width:100%;max-height:260px;object-fit:contain;border:1px solid var(--br);margin-bottom:12px;cursor:pointer;" onclick="window.open(this.src)"/>';
+  b += '<div style="font-size:14px;line-height:1.7;color:var(--tx);white-space:pre-wrap;word-break:break-word;border-left:3px solid #4af;padding-left:14px;">' + escapeHtml(r.reply) + '</div>';
+  document.getElementById('mview-body').innerHTML = b;
+  document.getElementById('modal-view').classList.add('on');
 };
 
 // ════════════════════ PARAMÈTRES ════════════════════
@@ -681,6 +726,7 @@ window.loadSettings = function () {
   document.getElementById('set-name').textContent = (user && user.username) || '';
   document.getElementById('set-user').value = (user && user.username) || '';
   document.getElementById('set-email').value = (user && user.email) || '';
+  const scEl = document.getElementById('set-code'); if (scEl) scEl.textContent = (user && user.user_code) || '—';
   const avEl = document.getElementById('avatar-current'); if (avEl) avEl.innerHTML = avatarHtml(user, 64);
   const ap = document.getElementById('avatar-preview'); if (ap) ap.style.display = 'none';
   Promise.all([
@@ -860,8 +906,7 @@ window.confirmDelete = function () {
   const p = colls.map((c) => getDocs(query(collection(db, c), where('uid', '==', uid))).then((snap) => { snap.forEach((d) => batch.delete(d.ref)); }));
   p.push(getDocs(query(collection(db, 'friend_requests'), where('from_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
   p.push(getDocs(query(collection(db, 'friend_requests'), where('to_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
-  p.push(getDocs(query(collection(db, 'chats'), where('from_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
-  p.push(getDocs(query(collection(db, 'chats'), where('to_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'chats'), where('participants', 'array-contains', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
   p.push(getDocs(query(collection(db, 'friends'), where('friendUid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
   Promise.all(p).then(() => { batch.delete(doc(db, 'users', uid)); return batch.commit(); })
     .then(() => auth.currentUser.delete())
@@ -875,6 +920,8 @@ window.loadAdmCans = function () {
   const q = ((document.getElementById('adm-search') || {}).value || '').toLowerCase();
   getDocs(query(collection(db, 'cans'), orderBy('name'))).then((snap) => {
     let cans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const _totEl = document.getElementById('adm-cans-total');
+    if (_totEl) { const _np = cans.filter((c) => c.is_published).length; _totEl.textContent = cans.length + ' canette' + (cans.length > 1 ? 's' : '') + ' au total — ' + _np + ' publiée' + (_np > 1 ? 's' : '') + ' · ' + (cans.length - _np) + ' brouillon' + ((cans.length - _np) > 1 ? 's' : ''); }
     if (q) cans = cans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q));
     if (!cans.length) { document.getElementById('adm-cans-ct').innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Ajoute ta première canette !'); return; }
     let rows = '';
@@ -950,10 +997,11 @@ window.loadAdmUpdates = function () {
   document.getElementById('adm-updates-ct').innerHTML = lHtml();
   getDocs(query(collection(db, 'updates'), orderBy('created_at', 'desc'))).then((snap) => {
     const upds = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    _viewUpdates = upds;
     if (!upds.length) { document.getElementById('adm-updates-ct').innerHTML = eHtml('📢', 'AUCUNE ANNONCE', 'Crée ta première annonce !'); return; }
     let rows = '';
     upds.forEach((u) => {
-      rows += '<tr><td><div class="tname">' + escapeHtml(u.title) + '</div></td><td style="color:var(--mu);font-size:12px;max-width:300px;">' + escapeHtml(u.content.substring(0, 100)) + (u.content.length > 100 ? '...' : '') + '</td><td style="color:var(--mu);font-size:11px;">' + fmtDate(u.created_at) + '</td><td><button class="tdel" onclick="delUpdate(\'' + u.id + '\')">Suppr.</button></td></tr>';
+      rows += '<tr style="cursor:pointer;" onclick="if(event.target.closest(\'button\'))return;viewUpdate(\'' + u.id + '\')"><td><div class="tname">' + escapeHtml(u.title) + '</div></td><td style="color:var(--mu);font-size:12px;max-width:300px;">' + escapeHtml(u.content.substring(0, 100)) + (u.content.length > 100 ? '...' : '') + '</td><td style="color:var(--mu);font-size:11px;">' + fmtDate(u.created_at) + '</td><td><button class="tdel" onclick="delUpdate(\'' + u.id + '\')">Suppr.</button></td></tr>';
     });
     document.getElementById('adm-updates-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Titre</th><th>Contenu</th><th>Date</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }).catch((e) => { document.getElementById('adm-updates-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
@@ -996,8 +1044,7 @@ window.delUser = function (uid, name) {
   p.push(getDocs(query(collection(db, 'friends'), where('friendUid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
   p.push(getDocs(query(collection(db, 'friend_requests'), where('from_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
   p.push(getDocs(query(collection(db, 'friend_requests'), where('to_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
-  p.push(getDocs(query(collection(db, 'chats'), where('from_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
-  p.push(getDocs(query(collection(db, 'chats'), where('to_uid', '==', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
+  p.push(getDocs(query(collection(db, 'chats'), where('participants', 'array-contains', uid))).then((s) => { s.forEach((d) => batch.delete(d.ref)); }));
   Promise.all(p).then(() => { batch.delete(doc(db, 'users', uid)); return batch.commit(); })
     .then(() => { toast('Utilisateur supprimé ✓'); loadAdmUsers(); }).catch((e) => toast(e.message, 'err'));
 };
@@ -1023,12 +1070,22 @@ window.loadAdmInbox = function () {
       const badge = '<span class="tbadge" style="background:rgba(' + rgb + ',0.12);color:' + col + ';border:1px solid ' + col + '44;">' + escapeHtml(m.category) + '</span>';
       const statusBadge = m.reply ? '<span class="tbadge pub">Répondu</span>' : '<span class="tbadge draft">En attente</span>';
       const attachIcon = m.attachment_url ? '<span title="Photo jointe" style="margin-left:4px;font-size:12px;">📎</span>' : '';
-      rows += '<tr><td><div class="tname">' + escapeHtml(m.username || 'Invité') + '</div></td><td>' + badge + '</td><td style="max-width:220px;font-size:12px;color:#bbb;word-break:break-word;">' + escapeHtml(m.content.substring(0, 80)) + (m.content.length > 80 ? '...' : '') + attachIcon + '</td><td style="color:var(--mu);font-size:11px;white-space:nowrap;">' + fmtDate(m.created_at) + '</td><td>' + statusBadge + '</td><td><div class="tacts"><button class="tedit" onclick="openReply(\'' + m.id + '\')">Répondre</button><button class="tdel" onclick="delMsg(\'' + m.id + '\')">Suppr.</button></div></td></tr>';
+      rows += '<tr style="cursor:pointer;" onclick="if(event.target.closest(\'button\'))return;viewMsg(\'' + m.id + '\')"><td><div class="tname">' + escapeHtml(m.username || 'Invité') + '</div></td><td>' + badge + '</td><td style="max-width:220px;font-size:12px;color:#bbb;word-break:break-word;">' + escapeHtml(m.content.substring(0, 80)) + (m.content.length > 80 ? '...' : '') + attachIcon + '</td><td style="color:var(--mu);font-size:11px;white-space:nowrap;">' + fmtDate(m.created_at) + '</td><td>' + statusBadge + '</td><td><div class="tacts"><button class="tedit" onclick="openReply(\'' + m.id + '\')">Répondre</button><button class="tdel" onclick="delMsg(\'' + m.id + '\')">Suppr.</button></div></td></tr>';
     });
     document.getElementById('inbox-ct').innerHTML = filterHtml + '<div class="atbl-w"><table class="atbl"><thead><tr><th>Pseudo</th><th>Objet</th><th>Message</th><th>Date</th><th>Statut</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }).catch((e) => { document.getElementById('inbox-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
 window.setInboxFilter = (f) => { _inboxFilter = f; loadAdmInbox(); };
+window.viewMsg = function (id) {
+  const m = _admMsgs.find((x) => x.id === id); if (!m) return;
+  document.getElementById('mview-title').textContent = 'MESSAGE — ' + (m.category || '');
+  let b = '<div style="font-size:12px;color:var(--mu);margin-bottom:12px;">De <b style="color:var(--tx);">' + escapeHtml(m.username || 'Invité') + '</b> · ' + fmtDate(m.created_at) + '</div>';
+  b += '<div style="font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;background:var(--c1);border:1px solid var(--br);padding:14px;margin-bottom:12px;">' + escapeHtml(m.content) + '</div>';
+  if (m.attachment_url) b += '<img src="' + escapeHtml(m.attachment_url) + '" style="max-width:100%;max-height:280px;object-fit:contain;border:1px solid var(--br);margin-bottom:12px;cursor:pointer;" onclick="window.open(this.src)"/>';
+  if (m.reply) b += '<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--g);margin-bottom:6px;">Réponse envoyée</div><div style="font-size:13px;line-height:1.6;white-space:pre-wrap;border-left:3px solid var(--g);padding:10px 14px;background:var(--c1);">' + escapeHtml(m.reply) + '</div>';
+  document.getElementById('mview-body').innerHTML = b;
+  document.getElementById('modal-view').classList.add('on');
+};
 window.openReply = function (id) {
   const m = _admMsgs.find((x) => x.id === id);
   if (!m) { toast('Message introuvable', 'err'); return; }
@@ -1111,6 +1168,27 @@ document.querySelectorAll('.moverlay').forEach((ov) => ov.addEventListener('clic
 // ── Démarrage : landing par défaut ──
 go('landing');
 
+// ════════════════════ BADGE ANNONCES (NOTIFICATIONS) ════════════════════
+function updSeenKey() { return 'mt_upd_seen_' + ((user && user.uid) || 'anon'); }
+window.updateUpdatesBadge = function () {
+  if (!user || !user.uid) return;
+  let seen = localStorage.getItem(updSeenKey());
+  if (!seen) { seen = new Date().toISOString(); localStorage.setItem(updSeenKey(), seen); }
+  getDocs(query(collection(db, 'updates'), orderBy('created_at', 'desc'))).then((s) => {
+    let n = 0;
+    s.docs.forEach((d) => { const dt = tsToDate(d.data().created_at); if (dt && dt.toISOString() > seen) n++; });
+    setBadge('updates-badge', n);
+    const bb = document.getElementById('burger-badge');
+    if (bb) { bb.textContent = n; bb.style.display = n > 0 ? 'flex' : 'none'; }
+  }).catch(() => {});
+};
+window.copyMyCode = function () {
+  const c = (user && user.user_code) || '';
+  if (!c) return;
+  if (navigator.clipboard) navigator.clipboard.writeText(c).then(() => toast('Code copié ✓')).catch(() => toast('Copie impossible', 'err'));
+  else toast(c, 'ok');
+};
+
 // ════════════════════ MENU MOBILE (BURGER) ════════════════════
 window.toggleNavMenu = function () {
   var d = document.getElementById('nav-drop');
@@ -1138,5 +1216,9 @@ window.addEventListener('resize', function () { if (window.innerWidth > 860) win
 // Ferme le menu après sélection d'un onglet
 (function () {
   var _gt = window.goTab;
-  if (typeof _gt === 'function') window.goTab = function (t, b) { _gt(t, b); window.closeNavMenu(); };
+  if (typeof _gt === 'function') window.goTab = function (t, b) {
+    _gt(t, b);
+    window.closeNavMenu();
+    if (t === 'updates') { localStorage.setItem(updSeenKey(), new Date().toISOString()); window.updateUpdatesBadge(); }
+  };
 })();

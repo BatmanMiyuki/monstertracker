@@ -358,16 +358,31 @@ window.loadCatalogue = function () {
   document.getElementById('cat-ct').innerHTML = lHtml();
   api('GET', '/api/cans').then(function (d) {
     allCans = d.cans;
+    renderSerieChips();
     renderCat(allCans);
   }).catch(function (e) { document.getElementById('cat-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
 
+var _catSerie = 'Toutes';
+window.setCatSerie = function (serie) { _catSerie = serie; window.filterCans(); };
 window.filterCans = function () {
-  var q = document.getElementById('search').value.toLowerCase();
-  renderCat(allCans.filter(function (c) {
+  var q = (document.getElementById('search').value || '').toLowerCase();
+  var list = allCans.filter(function (c) {
     return (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q) || (c.variant || '').toLowerCase().includes(q);
-  }));
+  });
+  if (_catSerie !== 'Toutes') list = list.filter(function (c) { return (c.series || 'Autres') === _catSerie; });
+  renderCat(list);
 };
+function renderSerieChips() {
+  var el = document.getElementById('cat-series'); if (!el) return;
+  var map = {};
+  allCans.forEach(function (c) { var sr = c.series || 'Autres'; map[sr] = (map[sr] || 0) + 1; });
+  var html = '<button class="schip' + (_catSerie === 'Toutes' ? ' on' : '') + '" onclick="setCatSerie(\'Toutes\')">Toutes (' + allCans.length + ')</button>';
+  Object.keys(map).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (sr) {
+    html += '<button class="schip' + (_catSerie === sr ? ' on' : '') + '" onclick="setCatSerie(\'' + sr.replace(/'/g, "\\'") + '\')">' + escapeHtml(sr) + ' (' + map[sr] + ')</button>';
+  });
+  el.innerHTML = html;
+}
 
 function renderCat(cans) {
   var el = document.getElementById('cat-ct');

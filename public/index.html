@@ -120,18 +120,18 @@
   </div>
   <span id="nav-tabs-anchor" style="display:none;"></span>
   <div class="ntabs" id="user-tabs">
-    <button class="ntab on" id="tab-home"       onclick="goTab('home',this)">&#127968; Accueil</button>
+    <button class="ntab on" id="tab-home"       onclick="goTab('home',this)">Accueil</button>
     <button class="ntab"    id="tab-catalogue"  onclick="goTab('catalogue',this)">Catalogue</button>
     <button class="ntab"    id="tab-collection" onclick="goTab('collection',this)">Ma Collection</button>
     <button class="ntab"    id="tab-friends"    onclick="goTab('friends',this)">Amis<span class="badge" id="friends-badge" style="display:none;background:#ff9600;">0</span><span class="badge" id="chat-badge" style="display:none;">0</span></button>
-    <button class="ntab"    id="tab-updates"    onclick="goTab('updates',this)">&#128276; Notifications</button>
+    <button class="ntab"    id="tab-updates"    onclick="goTab('updates',this)">Notifications</button>
     <button class="ntab"    id="tab-settings"   onclick="goTab('settings',this)">Paramètres</button>
   </div>
   <div class="ntabs" id="admin-tabs" style="display:none;">
     <button class="ntab on" id="tab-adm-cans"     onclick="goTab('adm-cans',this)">Canettes</button>
     <button class="ntab"    id="tab-adm-updates"  onclick="goTab('adm-updates',this)">Annonces</button>
     <button class="ntab"    id="tab-adm-users"    onclick="goTab('adm-users',this)">Utilisateurs</button>
-    <button class="ntab"    id="tab-adm-inbox"    onclick="goTab('adm-inbox',this)">&#128140; Réception<span class="badge" id="inbox-badge" style="display:none;"></span></button>
+    <button class="ntab"    id="tab-adm-inbox"    onclick="goTab('adm-inbox',this)">Réception<span class="badge" id="inbox-badge" style="display:none;"></span></button>
     <button class="ntab"    id="tab-adm-settings" onclick="goTab('adm-settings',this)">&#9881; Réglages</button>
   </div>
   <div class="app-nav-r">
@@ -175,6 +175,7 @@
 <div class="sec" id="sec-catalogue">
   <div class="sec-hd"><h1>CATALOGUE</h1><p>Toutes les canettes disponibles</p></div>
   <input class="sinput" id="search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
+  <div class="serie-chips" id="cat-series"></div>
   <div id="cat-ct"></div>
 </div>
 
