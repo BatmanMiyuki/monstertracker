@@ -133,11 +133,10 @@ window.spUnlock = async function () {
 // ── Recherche par email ──
 window.spSearch = async function () {
   setErr('sp-search-err', '');
-  const q = document.getElementById('sp-search').value.trim();
-  if (!q) return setErr('sp-search-err', 'Entre une adresse email.');
-  let snap = await getDocs(query(collection(db, 'users'), where('email', '==', q)));
-  if (snap.empty && q !== q.toLowerCase()) snap = await getDocs(query(collection(db, 'users'), where('email', '==', q.toLowerCase())));
-  if (snap.empty) return setErr('sp-search-err', 'Aucun compte inscrit avec cette adresse email.');
+  const q = document.getElementById('sp-search').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!q) return setErr('sp-search-err', 'Entre un code utilisateur.');
+  let snap = await getDocs(query(collection(db, 'users'), where('user_code', '==', q)));
+  if (snap.empty) return setErr('sp-search-err', 'Aucun compte associé à ce code.');
   const d = snap.docs[0];
   _found = Object.assign({ uid: d.id }, d.data());
   // Stats

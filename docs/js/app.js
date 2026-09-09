@@ -26,6 +26,16 @@ let user = null, allCans = [], pickerMode = null, pickerCans = [];
 let _detailCan = null, _cfCat = '', _admMsgs = [], _delCode = '';
 let _inboxFilter = 'all', _isMaint = false, _maintUnsub = null;
 let _chatPoll = null, _badgePoll = null, _currentChatFriend = null;
+
+// Lien QR ami : ?add=CODE → ajout automatique après connexion
+try {
+  const _addParam = new URLSearchParams(location.search).get('add');
+  if (_addParam) {
+    const _clean = _addParam.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (_clean) sessionStorage.setItem('mt_pending_add', _clean);
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
+} catch (e) {}
 let _friendSearchTimer = null, _pseudoTimer = null, _installPrompt = null;
 
 // ── Helpers ─
@@ -228,6 +238,7 @@ function showApp() {
   startMaintListen();
   if (user.role === 'admin') goTab('adm-cans', document.getElementById('tab-adm-cans'));
   else goTab('home', document.getElementById('tab-home'));
+  processPendingAdd();
 }
 
 // ── Maintenance ─
@@ -1026,7 +1037,7 @@ window.loadAdmUsers = function () {
     let rows = '';
     users.forEach((u) => {
       const delBtn = u.role !== 'admin' ? '<button class="tdel" onclick="delUser(\'' + u.uid + '\',\'' + escapeHtml(u.username).replace(/'/g, '&#39;') + '\')">Suppr.</button>' : '—';
-      rows += '<tr><td><div style="display:flex;align-items:center;gap:9px;">' + avatarHtml(u, 30) + '<div class="tname">' + escapeHtml(u.username) + '</div></div><div style="font-size:10px;color:var(--mu);">' + escapeHtml(u.email) + '</div></td>'
+      rows += '<tr><td><div style="display:flex;align-items:center;gap:9px;">' + avatarHtml(u, 30) + '<div class="tname">' + escapeHtml(u.username) + '</div></div></td>'
         + '<td style="font-family:monospace;font-size:11px;color:var(--mu);">' + escapeHtml(u.user_code || '—') + '</td>'
         + '<td><span class="tbadge ' + (u.role === 'admin' ? 'lim' : 'std') + '">' + escapeHtml(u.role) + '</span></td>'
         + '<td><span class="tstat">' + u.col_count + '</span></td>'
@@ -1222,3 +1233,46 @@ window.addEventListener('resize', function () { if (window.innerWidth > 860) win
     if (t === 'updates') { localStorage.setItem(updSeenKey(), new Date().toISOString()); window.updateUpdatesBadge(); }
   };
 })();
+
+// ════════════════════ QR CODE AMI (AJOUT DIRECT) ════════════════════
+window.showMyQR = function () {
+  const c = (user && user.user_code) || '';
+  if (!c) { toast('Code introuvable', 'err'); return; }
+  const link = location.origin + location.pathname + '?add=' + encodeURIComponent(c);
+  let svg = '<div style="color:var(--rd);font-size:13px;">QR indisponible</div>';
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(link);
+    qr.make();
+    svg = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  } catch (e) { console.error('QR', e); }
+  document.getElementById('mview-title').textContent = 'MON QR CODE AMI';
+  document.getElementById('mview-body').innerHTML = '<div style="text-align:center;">'
+    + '<div style="background:#fff;display:inline-block;padding:16px;width:250px;border:1px solid var(--br);">' + svg + '</div>'
+    + '<p style="font-size:13px;color:var(--tx);margin-top:16px;line-height:1.6;">Fais scanner ce QR par un ami : la demande d\'amitié part toute seule.</p>'
+    + '<p style="font-size:11px;color:var(--mu);word-break:break-all;margin-top:10px;">' + escapeHtml(link) + '</p></div>';
+  document.getElementById('modal-view').classList.add('on');
+};
+function processPendingAdd() {
+  let code = null;
+  try { code = sessionStorage.getItem('mt_pending_add'); if (code) sessionStorage.removeItem('mt_pending_add'); } catch (e) {}
+  if (!code || !user || !user.uid) return;
+  getDocs(query(collection(db, 'users'), where('user_code', '==', code))).then((snap) => {
+    if (snap.empty) { toast('Code ami introuvable', 'err'); return; }
+    const u = Object.assign({ uid: snap.docs[0].id }, snap.docs[0].data());
+    if (u.uid === user.uid) { toast('C\'est ton propre code !', 'err'); return; }
+    return getDocs(query(collection(db, 'friends'), where('uid', '==', user.uid), where('friendUid', '==', u.uid))).then((fr) => {
+      if (!fr.empty) { toast(u.username + ' est déjà ton ami ✓'); return; }
+      // Demande reçue de sa part ? → acceptation directe
+      return getDocs(query(collection(db, 'friend_requests'), where('to_uid', '==', user.uid), where('from_uid', '==', u.uid), where('status', '==', 'pending'))).then((inc) => {
+        if (!inc.empty) { window.acceptRequest(inc.docs[0].id, u.uid); return; }
+        // Demande déjà envoyée ?
+        return getDocs(query(collection(db, 'friend_requests'), where('from_uid', '==', user.uid), where('to_uid', '==', u.uid), where('status', '==', 'pending'))).then((out) => {
+          if (!out.empty) { toast('Demande déjà envoyée à ' + u.username); return; }
+          return addDoc(collection(db, 'friend_requests'), { from_uid: user.uid, to_uid: u.uid, status: 'pending', created_at: fst() })
+            .then(() => { toast('Demande d\'ami envoyée à ' + u.username + ' ✓'); updateBadges(); });
+        });
+      });
+    });
+  }).catch((e) => toast(e.message, 'err'));
+}

@@ -260,7 +260,7 @@
       <div class="errmsg" id="set-err"></div><div class="okmsg" id="set-ok"></div>
       <div class="field"><label>Pseudo</label><input type="text" id="set-user"/></div>
       <div class="field"><label>Email</label><input type="text" id="set-email" disabled style="opacity:.4;cursor:not-allowed;"/></div>
-      <div class="field"><label>Code ami</label><div style="display:flex;gap:8px;align-items:center;"><code id="set-code" style="flex:1;background:var(--bk);border:1px solid var(--br);padding:10px 12px;font-family:monospace;font-size:14px;letter-spacing:2px;color:var(--g);">—</code><button class="btn-ghost" onclick="copyMyCode()" style="padding:10px 12px;">Copier</button></div><div style="font-size:11px;color:var(--mu);margin-top:6px;line-height:1.5;">Partage ce code : tes amis peuvent t'ajouter en le saisissant dans la page Amis. L'admin s'en sert aussi pour identifier ton compte (récupération d'accès).</div></div>
+      <div class="field"><label>Code ami</label><div style="display:flex;gap:8px;align-items:center;"><code id="set-code" style="flex:1;background:var(--bk);border:1px solid var(--br);padding:10px 12px;font-family:monospace;font-size:14px;letter-spacing:2px;color:var(--g);">—</code><button class="btn-ghost" onclick="copyMyCode()" style="padding:10px 12px;">Copier</button><button class="btn-ghost" onclick="showMyQR()" style="padding:10px 12px;border-color:var(--g);color:var(--g);">QR</button></div><div style="font-size:11px;color:var(--mu);margin-top:6px;line-height:1.5;">Partage ce code : tes amis peuvent t'ajouter en le saisissant dans la page Amis. L'admin s'en sert aussi pour identifier ton compte (récupération d'accès).</div></div>
       <button class="btn-g" style="width:100%;margin-top:4px;" onclick="saveProfile()">ENREGISTRER</button>
     </div>
     <div class="scard">
@@ -607,6 +607,7 @@
   <div style="margin-top:40px;width:60px;height:2px;background:linear-gradient(90deg,transparent,var(--g),transparent);animation:maint-pulse 2s infinite;"></div>
 </div>
 
+<script src="js/qrcode.min.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

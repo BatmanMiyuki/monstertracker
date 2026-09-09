@@ -125,8 +125,9 @@ https://batmanmiyuki.github.io/monstertracker/support.html
   stocké en clair et ne peut pas être relu.
 - À chaque ouverture : saisie du code (verrou anti brute-force : 5 essais,
   puis blocage 5 minutes).
-- Recherche d'un compte par **adresse email** → fiche : pseudo, avatar, date
+- Recherche d'un compte par **code utilisateur** (celui affiché dans Paramètres) → fiche : pseudo, **adresse email associée**, avatar, date
   d'inscription, code interne, nb de canettes/wishlist/amis, rôle.
+- Côté utilisateurs : bouton **QR** dans Paramètres → le QR du code ami ajoute directement en ami (lien ?add=CODE)
 - ⚠ Le mot de passe n'est **jamais affichable** : Firebase ne stocke qu'un
   hash. La récupération se fait par le bouton « Envoyer l'email de
   réinitialisation » (email officiel Firebase ; l'utilisateur choisit son

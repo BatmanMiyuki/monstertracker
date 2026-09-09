@@ -1061,7 +1061,7 @@ window.loadAdmUsers = function () {
       d.users.forEach(function (u) {
         var delBtn = u.role !== 'admin' ? '<button class="tdel" onclick="delUser(' + u.id + ')">Suppr.</button>' : '—';
         rows += '<tr>'
-          + '<td><div style="display:flex;align-items:center;gap:9px;">' + avatarHtml(u, 30) + '<div class="tname">' + escapeHtml(u.username) + '</div></div><div class="tsub" style="font-size:10px;color:var(--mu);">' + escapeHtml(u.email) + '</div></td>'
+          + '<td><div style="display:flex;align-items:center;gap:9px;">' + avatarHtml(u, 30) + '<div class="tname">' + escapeHtml(u.username) + '</div></div></td>'
           + '<td style="font-family:monospace;font-size:11px;color:var(--mu);">' + escapeHtml(u.user_code || '—') + '</td>'
           + '<td><span class="tbadge ' + (u.role === 'admin' ? 'lim' : 'std') + '">' + escapeHtml(u.role) + '</span></td>'
           + '<td><span class="tstat">' + u.col_count + '</span></td>'
