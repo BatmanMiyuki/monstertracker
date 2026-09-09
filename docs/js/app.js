@@ -115,20 +115,13 @@ window.sendForgotRequest = function () {
   const err = document.getElementById('forgot-err'), ok = document.getElementById('forgot-ok');
   err.textContent = ''; err.classList.remove('on'); ok.textContent = ''; ok.classList.remove('on');
   const email = document.getElementById('forgot-email').value.trim();
-  const pseudo = document.getElementById('forgot-pseudo').value.trim();
   if (!email) { err.textContent = 'Entre ton adresse email.'; err.classList.add('on'); return; }
-  addDoc(collection(db, 'messages'), { uid: null, username: pseudo || 'Compte bloqué', email, category: 'Mot de passe oublié', content: 'Mot de passe oublié — merci de m\'envoyer un lien de réinitialisation.', attachment_url: null, reply: null, replied_at: null, created_at: fst() })
-    .then(() => { ok.textContent = 'Demande envoyée à l\'admin ✓ Tu recevras un lien par email.'; ok.classList.add('on'); })
-    .catch((e) => { err.textContent = (e && e.code === 'permission-denied') ? 'Envoi impossible : les règles Firestore n\'autorisent pas encore les demandes oublié (voir README, section Règle oubli).' : (e.message || 'Erreur'); err.classList.add('on'); });
-};
-window.sendForgotLink = function () {
-  const err = document.getElementById('forgot-err'), ok = document.getElementById('forgot-ok');
-  err.textContent = ''; err.classList.remove('on'); ok.textContent = ''; ok.classList.remove('on');
-  const email = document.getElementById('forgot-email').value.trim();
-  if (!email) { err.textContent = 'Entre ton adresse email.'; err.classList.add('on'); return; }
-  sendPasswordResetEmail(auth, email)
-    .then(() => { ok.textContent = 'Lien officiel envoyé à ' + email + ' ✓ Vérifie ta boîte mail.'; ok.classList.add('on'); })
-    .catch((e) => { err.textContent = e.code === 'auth/user-not-found' ? 'Aucun compte avec cette adresse.' : (e.message || 'Erreur'); err.classList.add('on'); });
+  getDocs(query(collection(db, 'users'), where('email', '==', email))).then((snap) => {
+    if (snap.empty) { err.textContent = 'Aucun compte inscrit avec cette adresse.'; err.classList.add('on'); return; }
+    const uname = snap.docs[0].data().username || 'Compte bloqué';
+    return addDoc(collection(db, 'messages'), { uid: null, username: uname, email, category: 'Mot de passe oublié', content: 'Mot de passe oublié — merci de m\'envoyer un lien de réinitialisation.', attachment_url: null, reply: null, replied_at: null, created_at: fst() })
+      .then(() => { ok.textContent = 'Demande envoyée à l\'admin ✓ Tu recevras le lien par email.'; ok.classList.add('on'); });
+  }).catch((e) => { err.textContent = (e && e.code === 'permission-denied') ? 'Envoi impossible : règles Firestore à mettre à jour (README, section Règle oubli).' : (e.message || 'Erreur'); err.classList.add('on'); });
 };
 window.hideForgot = () => { document.getElementById('forgot-panel').style.display = 'none'; };
 
@@ -1115,22 +1108,23 @@ window.loadAdmInbox = function () {
 window.setInboxFilter = (f) => { _inboxFilter = f; loadAdmInbox(); };
 function forgotEmailTemplate(m) {
   const pseudo = (m.username && m.username !== 'Compte bloqué') ? m.username : '(pseudo du compte)';
-  return 'Bonjour,\n\nVous avez demandé la récupération de votre mot de passe pour votre compte sur notre application Monster Tracker.\n\nVoici vos informations de connexion :\n\nPseudo : ' + pseudo + '\nEmail : ' + (m.email || '') + '\n\nMot de passe : cliquez sur le lien de réinitialisation envoyé à l\'adresse ci-dessus pour définir votre nouveau mot de passe.\n\nVous aurez toujours la possibilité de changer votre mot de passe directement sur l\'application.\n\nSi vous n\'êtes pas à l\'origine de cette demande, vous pouvez ignorer cet email.\n\nMerci d\'utiliser notre application.\n\nL\'équipe administrative.';
+  return 'Bonjour,\n\nVous avez demandé la récupération de votre mot de passe pour votre compte sur notre application Monster Tracker.\n\nVoici vos informations de connexion :\n\nPseudo : ' + pseudo + '\nEmail : ' + (m.email || '') + '\n\nMot de passe : un lien sécurisé de réinitialisation vient de vous être envoyé dans un email séparé (objet : « Réinitialisation du mot de passe »). Cliquez sur ce lien pour définir votre nouveau mot de passe.\n\nVous aurez toujours la possibilité de changer votre mot de passe directement sur l\'application.\n\nSi vous n\'êtes pas à l\'origine de cette demande, vous pouvez ignorer cet email.\n\nMerci d\'utiliser notre application.\n\nL\'équipe administrative.';
 }
-window.sendResetLinkTo = function (id) {
-  const m = _admMsgs.find((x) => x.id === id); if (!m || !m.email) return;
-  sendPasswordResetEmail(auth, m.email)
-    .then(() => toast('Lien de réinitialisation envoyé à ' + m.email + ' ✓'))
-    .catch((e) => toast('Erreur : ' + e.message, 'err'));
-};
+function sendOfficialLink(m) {
+  return sendPasswordResetEmail(auth, m.email)
+    .then(() => { toast('Lien officiel envoyé à ' + m.email + ' ✓'); return true; })
+    .catch((e) => { toast('Lien officiel non envoyé : ' + e.message, 'err'); return false; });
+}
 window.copyForgotEmail = function (id) {
   const m = _admMsgs.find((x) => x.id === id); if (!m) return;
+  sendOfficialLink(m);
   const txt = forgotEmailTemplate(m);
   if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast('Email type copié ✓ (joins le logo à l\'envoi)')).catch(() => toast('Copie impossible', 'err'));
   else toast('Copie impossible', 'err');
 };
 window.mailtoForgot = function (id) {
   const m = _admMsgs.find((x) => x.id === id); if (!m) return;
+  sendOfficialLink(m);
   location.href = 'mailto:' + encodeURIComponent(m.email || '') + '?subject=' + encodeURIComponent('Récupération de votre mot de passe — Monster Tracker') + '&body=' + encodeURIComponent(forgotEmailTemplate(m));
 };
 window.viewMsg = function (id) {
@@ -1142,9 +1136,8 @@ window.viewMsg = function (id) {
   if (m.reply) b += '<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--g);margin-bottom:6px;">Réponse envoyée</div><div style="font-size:13px;line-height:1.6;white-space:pre-wrap;border-left:3px solid var(--g);padding:10px 14px;background:var(--c1);">' + escapeHtml(m.reply) + '</div>';
   if (m.category === 'Mot de passe oublié' && m.email) {
     b += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">'
-      + '<button class="btn-g" style="flex:1;min-width:160px;font-size:12px;padding:11px;" onclick="sendResetLinkTo(\'' + m.id + '\')">ENVOYER LE LIEN DE RÉINITIALISATION</button>'
-      + '<button class="btn-o" style="flex:1;min-width:160px;font-size:12px;padding:10px;" onclick="copyForgotEmail(\'' + m.id + '\')">COPIER L\'EMAIL TYPE</button>'
-      + '<button class="btn-ghost" style="flex:1;min-width:160px;padding:10px;" onclick="mailtoForgot(\'' + m.id + '\')">OUVRIR DANS MA MESSAGERIE</button></div>';
+      + '<button class="btn-g" style="flex:1;min-width:160px;font-size:12px;padding:11px;" onclick="copyForgotEmail(\'' + m.id + '\')">COPIER L\'EMAIL TYPE (+ ENVOIE LE LIEN)</button>'
+      + '<button class="btn-o" style="flex:1;min-width:160px;font-size:12px;padding:10px;" onclick="mailtoForgot(\'' + m.id + '\')">OUVRIR DANS MA MESSAGERIE (+ ENVOIE LE LIEN)</button></div>';
   }
   document.getElementById('mview-body').innerHTML = b;
   document.getElementById('modal-view').classList.add('on');

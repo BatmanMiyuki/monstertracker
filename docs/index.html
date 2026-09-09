@@ -87,12 +87,9 @@
     <div id="forgot-panel" style="display:none;margin-top:14px;background:var(--c1);border:1px solid var(--br);padding:16px;">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:2px;color:var(--g);margin-bottom:8px;">MOT DE PASSE PERDU</div>
       <div class="field"><label>Ton email</label><input type="email" id="forgot-email" placeholder="ton@email.com" autocomplete="email"/></div>
-      <div class="field"><label>Ton pseudo (optionnel)</label><input type="text" id="forgot-pseudo" placeholder="TonPseudo" autocomplete="username"/></div>
       <div class="errmsg" id="forgot-err"></div><div class="okmsg" id="forgot-ok"></div>
-      <button class="btn-full" onclick="sendForgotRequest()">PRÉVENIR L'ADMIN</button>
-      <div style="text-align:center;margin:10px 0 8px;font-size:11px;color:var(--mu);letter-spacing:2px;">— OU —</div>
-      <button class="btn-o" style="width:100%;" onclick="sendForgotLink()">RECEVOIR LE LIEN DIRECTEMENT</button>
-      <p style="font-size:11px;line-height:1.6;color:var(--mu);margin-top:10px;">« Prévenir l'admin » dépose ta demande dans sa boîte Réception (catégorie Mot de passe oublié). « Recevoir le lien » envoie immédiatement l'email officiel de réinitialisation.</p>
+      <button class="btn-full" onclick="sendForgotRequest()">ENVOYER</button>
+      <p style="font-size:11px;line-height:1.6;color:var(--mu);margin-top:10px;">Ta demande part dans la boîte Réception de l'admin (catégorie « Mot de passe oublié »). Il t'enverra le lien de réinitialisation par email.</p>
       <div style="text-align:center;margin-top:10px;"><a onclick="hideForgot()" style="font-size:12px;color:var(--mu);cursor:pointer;">&#8592; Retour à la connexion</a></div>
     </div>
   </div></div>
