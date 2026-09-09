@@ -1118,7 +1118,7 @@ window.toggleNavMenu = function () {
   if (d.classList.contains('open')) { window.closeNavMenu(); return; }
   var anchor = document.getElementById('drop-tabs-anchor');
   document.querySelectorAll('.app-nav .ntabs').forEach(function (t) {
-    if (getComputedStyle(t).display !== 'none') d.insertBefore(t, anchor);
+    if (t.style.display !== 'none') d.insertBefore(t, anchor);
   });
   d.classList.add('open');
 };

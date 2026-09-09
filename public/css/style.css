@@ -1,7 +1,7 @@
 /* ════════════════════════════════════════════════════════
    MonsterTracker v2 — Styles (design original conservé)
    ════════════════════════════════════════════════════════ */
-:root{--g:#39ff14;--glow:rgba(57,255,20,.18);--g-r:57;--g-g:255;--g-b:20;--g-hov:#50ff2a;--bk:#080808;--dk:#0f0f0f;--c1:#111;--c2:#1a1a1a;--br:#222;--tx:#f0f0f0;--mu:#555;--rd:#ff3535;}
+:root{--g:#39ff14;--glow:rgba(57,255,20,.18);--g-r:57;--g-g:255;--g-b:20;--g-hov:#50ff2a;--bk:#000000;--dk:#000000;--c1:#111;--c2:#1a1a1a;--br:#222;--tx:#f0f0f0;--mu:#555;--rd:#ff3535;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{-webkit-text-size-adjust:100%;}
 img{display:block;max-width:100%;height:auto;}
@@ -43,7 +43,7 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .logo-icon{width:40px;height:40px;flex-shrink:0;object-fit:contain;transition:filter .3s;}
 .logo-t{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
 .logo-t em{color:var(--g);font-style:normal;}
-.ln-nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 48px;background:linear-gradient(to bottom,rgba(8,8,8,.97),transparent);}
+.ln-nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 48px;background:linear-gradient(to bottom,rgba(0,0,0,.97),transparent);}
 .nav-cta{background:var(--g);color:#000;border:none;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;letter-spacing:2px;padding:8px 20px;cursor:pointer;text-transform:uppercase;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);transition:all .2s;touch-action:manipulation;}
 .nav-l2{background:none;border:none;color:rgba(240,240,240,.7);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;text-transform:uppercase;transition:color .2s;touch-action:manipulation;}
 .nav-l2:hover{color:var(--tx);}
@@ -79,7 +79,7 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .split{min-height:100vh;display:grid;grid-template-columns:45% 55%;}
 .svis{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:55px;}
 .svis > img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(.28) saturate(.5);}
-.svis-over{position:absolute;inset:0;background:linear-gradient(to right,transparent,rgba(8,8,8,.5));}
+.svis-over{position:absolute;inset:0;background:linear-gradient(to right,transparent,rgba(0,0,0,.5));}
 .svis-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(var(--g-r),var(--g-g),var(--g-b),.05) 1px,transparent 1px),linear-gradient(90deg,rgba(var(--g-r),var(--g-g),var(--g-b),.05) 1px,transparent 1px);background-size:44px 44px;}
 .svis-scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(transparent,rgba(var(--g-r),var(--g-g),var(--g-b),.4),transparent);animation:scan 3s linear infinite;}
 @keyframes scan{0%{top:-2px;}100%{top:100%;}}
@@ -96,7 +96,7 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .pst-ok{color:var(--g);}.pst-err{color:var(--rd);}.pst-chk{color:var(--mu);}
 
 /* ── Nav de l'app ── */
-.app-nav{position:sticky;top:0;z-index:100;height:56px;background:rgba(8,8,8,.97);backdrop-filter:blur(14px);border-bottom:1px solid var(--br);display:flex;align-items:center;padding:0 24px;gap:8px;}
+.app-nav{position:sticky;top:0;z-index:100;height:56px;background:rgba(0,0,0,.97);backdrop-filter:blur(14px);border-bottom:1px solid var(--br);display:flex;align-items:center;padding:0 24px;gap:8px;}
 .app-nav .logo{margin-right:20px;flex-shrink:0;}
 .ntabs{display:flex;flex:1;overflow-x:auto;scrollbar-width:none;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;position:relative;}
 .ntabs::-webkit-scrollbar{display:none;}
@@ -283,18 +283,23 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 @media(max-width:860px){
   .hero{grid-template-columns:1fr;position:relative;min-height:100vh;min-height:100svh;}
   .hero-r{display:block;position:absolute;inset:0;z-index:0;}
-  .hero-r::before{background:linear-gradient(to top,rgba(8,8,8,.94) 4%,rgba(8,8,8,.55) 45%,rgba(8,8,8,.7));}
+  .hero-r::before{background:linear-gradient(to top,rgba(0,0,0,.94) 4%,rgba(0,0,0,.55) 45%,rgba(0,0,0,.7));}
   body.light .hero-r::before{background:linear-gradient(to top,rgba(242,242,242,.95) 4%,rgba(242,242,242,.55) 45%,rgba(242,242,242,.7));}
   .hero-l{position:relative;z-index:1;padding:96px 20px 56px;}
   .feats{padding:50px 15px;}.feats-grid{grid-template-columns:1fr;}
   .cta-band,.footer{padding:50px 15px 30px;}
   .ln-nav{padding:12px 15px;}
   .ln-nav .logo-t{font-size:14px;}
-  .split{grid-template-columns:1fr;}.svis{display:none;}
-  .sform{padding:28px 15px;min-height:100vh;align-items:flex-start;padding-top:40px;}
+  .split{grid-template-columns:1fr;position:relative;min-height:100vh;min-height:100svh;}
+  .svis{display:block;position:absolute;inset:0;z-index:0;padding:0;}
+  .svis > img{filter:brightness(.3) saturate(.6);}
+  .svis-over{background:linear-gradient(to top,rgba(0,0,0,.93) 4%,rgba(0,0,0,.45) 55%,rgba(0,0,0,.65));}
+  body.light .svis-over{background:linear-gradient(to top,rgba(242,242,242,.95) 4%,rgba(242,242,242,.5) 55%,rgba(242,242,242,.7));}
+  .svis-body{display:none;}
+  .sform{position:relative;z-index:1;background:transparent;padding:28px 15px;min-height:100vh;min-height:100svh;align-items:flex-start;padding-top:48px;}
   .app-nav{padding:0 12px;height:56px;flex-wrap:nowrap;gap:6px;}
   .app-nav .logo{padding:8px 0;}
-  .app-nav .logo-t{max-width:120px;font-size:13px;}
+  .app-nav .logo-t{max-width:none;font-size:16px;}
   .nav-who{display:none;}
   .app-nav .ntabs{display:none !important;}
   .ntab{font-size:10px;letter-spacing:.5px;padding:0 7px;height:42px;}
@@ -313,7 +318,6 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
   .chart-wrap{padding:12px;}
 }
 @media(max-width:640px){
-  .app-nav .logo-t{display:none;}
   .ntab{padding:0 8px;font-size:10px;}
 }
 @media(max-width:480px){
