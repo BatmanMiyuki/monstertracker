@@ -133,6 +133,19 @@ https://batmanmiyuki.github.io/monstertracker/support.html
   réinitialisation » (email officiel Firebase ; l'utilisateur choisit son
   nouveau mot de passe).
 
+## Règle Firestore « Mot de passe oublié » (à coller une fois)
+
+Console Firebase → Firestore Database → Règles : dans le bloc `match /messages/{...}`,
+remplacer la ligne `allow create:` par :
+
+```
+allow create: if request.auth != null || (request.resource.data.category == 'Mot de passe oublié'
+  && request.resource.data.content.size() <= 300 && request.resource.data.email.size() <= 60);
+```
+
+Cela autorise UNIQUEMENT les demandes « Mot de passe oublié » anonymes, courtes et
+catégorisées (anti-spam). Tout le reste reste inchangé.
+
 ## Mise en production (checklist)
 
 - [ ] Changer le mot de passe admin
