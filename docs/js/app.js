@@ -325,6 +325,7 @@ function drawPieChart(data, cid) {
 }
 
 // ── Carte canette ──
+const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {
   color = color || getComputedStyle(document.documentElement).getPropertyValue('--g').trim() || '#39ff14';
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color);
@@ -341,7 +342,7 @@ function canCardHtml(can, btnsHtml) {
   const sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
   const cardBorder = can.is_limited ? 'border:2px solid #ff9600;border-bottom:3px solid #ff9600;' : 'border-bottom:3px solid ' + accent + ';';
   return '<div class="ccard" style="' + cardBorder + '">'
-    + '<div class="cthumb" style="background:' + (can.image_url ? '#000' : accentBg(accent)) + (can.image_url ? ';padding:0;' : '') + '">' + img + lim + owned + '</div>'
+    + '<div class="cthumb' + (can.image_url ? ' has-img' + (MT_BAKED.test(can.image_url) ? ' baked' : '') : '') + '" style="' + (can.image_url ? '' : 'background:' + accentBg(accent)) + '">' + img + lim + owned + '</div>'
     + '<div class="cbody"><div class="cname">' + escapeHtml(can.name) + '</div><div class="csub">' + sub + '</div>' + price
     + (btnsHtml ? '<div class="cbtns">' + btnsHtml + '</div>' : '')
     + '</div></div>';
@@ -493,8 +494,9 @@ function openCanDetail(can) {
   document.getElementById('cd-series').textContent = [can.series, can.variant].filter(Boolean).join(' · ') || '';
   document.getElementById('cd-limited').style.display = can.is_limited ? 'block' : 'none';
   const imgWrap = document.getElementById('cd-img-wrap');
+  imgWrap.style.backgroundImage = can.image_url ? 'radial-gradient(ellipse 60% 18% at 50% 87%,rgba(255,255,255,.16),rgba(255,255,255,.05) 55%,transparent 78%)' : '';
   imgWrap.innerHTML = can.image_url
-    ? '<img src="' + escapeHtml(can.image_url) + '" alt="" style="width:160px;height:180px;object-fit:contain;background:' + accentBg(can.accent_color) + '" onerror="this.parentElement.innerHTML=\'&#129371;\'">'
+    ? '<img src="' + escapeHtml(can.image_url) + '" alt="" class="' + (MT_BAKED.test(can.image_url) ? '' : 'cut-refl') + '" style="width:160px;height:180px;object-fit:contain;background:transparent;" onerror="this.parentElement.innerHTML=\'&#129371;\'">'
     : "<span style='font-size:60px;'>&#129371;</span>";
   const fields = [{ label: 'Pays', val: can.country }, { label: 'Année', val: can.year }, { label: 'Volume', val: can.volume }, { label: 'Langue', val: can.language }, { label: 'Couleur capsule', val: can.cap_color }, { label: 'Couleur dominante', val: can.full_color }];
   let mh = '';

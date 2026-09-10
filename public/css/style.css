@@ -145,6 +145,10 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .ccard{background:#0d0d0d;border:1px solid var(--br);overflow:hidden;transition:all .25s;position:relative;cursor:pointer;display:flex;flex-direction:column;min-height:260px;height:100%;}
 .ccard:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.7);}
 .cthumb{aspect-ratio:2/3;height:auto;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:52px;position:relative;overflow:hidden;padding:0;}
+.cthumb.has-img{background:radial-gradient(ellipse 60% 20% at 50% 87%,rgba(255,255,255,.16),rgba(255,255,255,.05) 55%,transparent 78%) #000;}
+.cthumb.has-img:not(.baked) img{height:88%;object-fit:contain;object-position:50% 0;-webkit-box-reflect:below 0 linear-gradient(transparent 55%,rgba(0,0,0,.3));}
+.cut-refl{-webkit-box-reflect:below 0 linear-gradient(transparent 60%,rgba(0,0,0,.3));}
+
 .cthumb img{width:100%;height:100%;object-fit:cover;transition:transform .3s;}
 .ccard:hover .cthumb img{transform:scale(1.06);}
 .badge{display:inline-flex;align-items:center;justify-content:center;background:var(--rd);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:900;min-width:16px;height:16px;border-radius:8px;padding:0 4px;margin-left:5px;vertical-align:middle;line-height:1;}
