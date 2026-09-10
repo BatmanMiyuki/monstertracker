@@ -194,6 +194,7 @@ window.doLogout = function () {
   stopChatPoll();
   api('POST', '/api/auth/logout').catch(function () { }).finally(function () {
     me = null;
+    document.body.classList.remove('adminwall');
     stopPolling();
     hideMaintOverlay();
     go('landing');
@@ -212,6 +213,7 @@ function enterApp() {
 function _setupAppUI() {
   if (!me) return;
   var isAdmin = me.role === 'admin';
+  document.body.classList.toggle('adminwall', isAdmin);
   document.getElementById('user-tabs').style.display = isAdmin ? 'none' : 'flex';
   document.getElementById('admin-tabs').style.display = isAdmin ? 'flex' : 'none';
   document.getElementById('nav-name').textContent = isAdmin ? 'Admin' : (me.username || '');
@@ -458,7 +460,7 @@ function openCanDetail(can) {
   document.getElementById('cd-series').textContent = [can.series, can.variant].filter(Boolean).join(' · ') || '';
   document.getElementById('cd-limited').style.display = can.is_limited ? 'block' : 'none';
   var imgWrap = document.getElementById('cd-img-wrap');
-  imgWrap.style.backgroundImage = can.image_url ? 'radial-gradient(ellipse 60% 18% at 50% 87%,rgba(255,255,255,.16),rgba(255,255,255,.05) 55%,transparent 78%)' : '';
+  imgWrap.style.backgroundImage = can.image_url ? 'radial-gradient(ellipse 42% 12% at 50% 84%,rgba(255,255,255,.30),rgba(255,255,255,.12) 55%,transparent 78%),radial-gradient(ellipse 75% 30% at 50% 93%,rgba(255,255,255,.10),transparent 72%)' : '';
   imgWrap.innerHTML = can.image_url
     ? '<img src="' + escapeHtml(can.image_url) + '" alt="" class="' + (MT_BAKED.test(can.image_url) ? '' : 'cut-refl') + '" style="width:160px;height:180px;object-fit:contain;background:transparent;" onerror="this.parentElement.innerHTML=\'&#129371;\'">'
     : "<span style='font-size:60px;'>&#129371;</span>";
