@@ -359,10 +359,16 @@ function canCardHtml(can, btnsHtml) {
   const owned = can.in_collection ? '<div class="owned-ov"><div class="owned-tag">✓ Possédée</div></div>' : '';
   const price = can.price ? '<div class="cprice">' + fmtPrice(can.price) + '</div>' : '';
   const sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
+  const infos = [];
+  if (can.volume) infos.push('<span class="cinfo"><b>VOL</b> ' + escapeHtml(can.volume) + '</span>');
+  if (can.language) infos.push('<span class="cinfo"><b>LANG</b> ' + escapeHtml(can.language) + '</span>');
+  if (can.cap_color) infos.push('<span class="cinfo"><b>CAP</b> ' + escapeHtml(can.cap_color) + '</span>');
+  if (can.full_color) infos.push('<span class="cinfo"><b>FULL</b> ' + escapeHtml(can.full_color) + '</span>');
+  const infosHtml = infos.length ? '<div class="cinfs">' + infos.join('') + '</div>' : '';
   const cardBorder = can.is_limited ? 'border:2px solid #ff9600;border-bottom:3px solid #ff9600;' : 'border-bottom:3px solid ' + accent + ';';
   return '<div class="ccard" style="' + cardBorder + '">'
     + '<div class="cthumb' + (can.image_url ? ' has-img' + (MT_BAKED.test(can.image_url) ? ' baked' : '') : '') + '" style="' + (can.image_url ? '' : 'background:' + accentBg(accent)) + '">' + img + eband + lim + owned + '</div>'
-    + '<div class="cbody"><div class="cname">' + escapeHtml(can.name) + '</div><div class="csub">' + sub + '</div>' + price
+    + '<div class="cbody"><div class="cname">' + escapeHtml(can.name) + '</div><div class="csub">' + sub + '</div>' + infosHtml + price
     + (btnsHtml ? '<div class="cbtns">' + btnsHtml + '</div>' : '')
     + '</div></div>';
 }
