@@ -151,7 +151,7 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .cthumb img.eband{width:100% !important;height:auto !important;object-fit:initial !important;transform:translateY(-50%) !important;-webkit-box-reflect:none !important;transition:none !important;}
 .serlib{margin-bottom:34px;}
 .serhead{display:flex;align-items:center;gap:12px;margin:6px 0 14px;border-bottom:1px solid var(--br);padding-bottom:10px;}
-.serlogo{height:46px;width:auto;max-width:280px;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.65));}
+.serlogo{height:58px;width:auto;max-width:320px;object-fit:contain;}
 .sername{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:3px;}
 .sercount{margin-left:auto;color:var(--mu);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
 #cd-img-wrap{position:relative;}
