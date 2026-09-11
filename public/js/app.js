@@ -299,6 +299,7 @@ function drawPieChart(data, cid) {
 //  CARTE CANETTE
 // ════════════════════════════════════════════════════════
 const MT_ED = { blackops7: 'BLACK OPS 7', blackops6: 'BLACK OPS 6', apex: 'APEX' };
+const MT_EDCLS = { blackops7: 'bo', blackops6: 'bo', apex: 'apx' };
 const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {
   color = color || getComputedStyle(document.documentElement).getPropertyValue('--g').trim() || '#39ff14';
@@ -313,7 +314,7 @@ function canCardHtml(can, btnsHtml) {
     ? '<img src="' + escapeHtml(can.image_url) + '" alt="' + escapeHtml(can.name) + '" onerror="this.style.display=\'none\'">'
     : '<span style="font-size:52px;">&#129371;</span>';
   var lim = can.is_limited ? '<div class="lim-tag">Limitée</div>' : '';
-  const eband = (can.edition && MT_ED[can.edition]) ? '<div class="eband">' + MT_ED[can.edition] + '</div>' : '';
+  const eband = (can.edition && MT_ED[can.edition]) ? '<div class="eband ' + (MT_EDCLS[can.edition] || '') + '">' + MT_ED[can.edition] + '</div>' : '';
   var owned = can.in_collection ? '<div class="owned-ov"><div class="owned-tag">✓ Possédée</div></div>' : '';
   var price = can.price ? '<div class="cprice">' + fmtPrice(can.price) + '</div>' : '';
   var sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
@@ -466,7 +467,7 @@ function openCanDetail(can) {
   imgWrap.innerHTML = can.image_url
     ? '<img src="' + escapeHtml(can.image_url) + '" alt="" class="' + (MT_BAKED.test(can.image_url) ? '' : 'cut-refl') + '" style="width:160px;height:180px;object-fit:contain;background:transparent;" onerror="this.parentElement.innerHTML=\'&#129371;\'">'
     : "<span style='font-size:60px;'>&#129371;</span>";
-  if (can.edition && MT_ED[can.edition]) imgWrap.innerHTML += '<div class="eband">' + MT_ED[can.edition] + '</div>';
+  if (can.edition && MT_ED[can.edition]) imgWrap.innerHTML += '<div class="eband ' + (MT_EDCLS[can.edition] || '') + '">' + MT_ED[can.edition] + '</div>';
   var meta = document.getElementById('cd-meta');
   var fields = [
     { label: 'Pays', val: can.country }, { label: 'Année', val: can.year },
