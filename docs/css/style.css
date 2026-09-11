@@ -148,6 +148,7 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .cthumb.has-img img{width:100%;height:80%;object-fit:contain;object-position:50% 50%;}
 .cthumb.has-img:not(.baked) img{-webkit-box-reflect:below 1px linear-gradient(transparent 55%,rgba(0,0,0,.32));}
 .eband{position:absolute;left:0;top:50%;transform:translateY(-50%);width:100%;height:auto;z-index:2;pointer-events:none;}
+.cthumb img.eband{width:100% !important;height:auto !important;object-fit:initial !important;transform:translateY(-50%) !important;-webkit-box-reflect:none !important;transition:none !important;}
 #cd-img-wrap{position:relative;}
 .cut-refl{-webkit-box-reflect:below 0 linear-gradient(transparent 60%,rgba(0,0,0,.3));}
 
