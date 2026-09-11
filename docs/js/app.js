@@ -327,6 +327,7 @@ function drawPieChart(data, cid) {
 }
 
 // ── Carte canette ──
+const MT_ED = { blackops7: 'BLACK OPS 7', blackops6: 'BLACK OPS 6', apex: 'APEX' };
 const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {
   color = color || getComputedStyle(document.documentElement).getPropertyValue('--g').trim() || '#39ff14';
@@ -339,12 +340,13 @@ function canCardHtml(can, btnsHtml) {
   const accent = can.is_limited ? '#ff9600' : (can.accent_color || '#39ff14');
   const img = can.image_url ? '<img src="' + escapeHtml(can.image_url) + '" alt="' + escapeHtml(can.name) + '" onerror="this.style.display=\'none\'">' : '<span style="font-size:52px;">&#129371;</span>';
   const lim = can.is_limited ? '<div class="lim-tag">Limitée</div>' : '';
+  const eband = (can.edition && MT_ED[can.edition]) ? '<div class="eband">' + MT_ED[can.edition] + '</div>' : '';
   const owned = can.in_collection ? '<div class="owned-ov"><div class="owned-tag">✓ Possédée</div></div>' : '';
   const price = can.price ? '<div class="cprice">' + fmtPrice(can.price) + '</div>' : '';
   const sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
   const cardBorder = can.is_limited ? 'border:2px solid #ff9600;border-bottom:3px solid #ff9600;' : 'border-bottom:3px solid ' + accent + ';';
   return '<div class="ccard" style="' + cardBorder + '">'
-    + '<div class="cthumb' + (can.image_url ? ' has-img' + (MT_BAKED.test(can.image_url) ? ' baked' : '') : '') + '" style="' + (can.image_url ? '' : 'background:' + accentBg(accent)) + '">' + img + lim + owned + '</div>'
+    + '<div class="cthumb' + (can.image_url ? ' has-img' + (MT_BAKED.test(can.image_url) ? ' baked' : '') : '') + '" style="' + (can.image_url ? '' : 'background:' + accentBg(accent)) + '">' + img + eband + lim + owned + '</div>'
     + '<div class="cbody"><div class="cname">' + escapeHtml(can.name) + '</div><div class="csub">' + sub + '</div>' + price
     + (btnsHtml ? '<div class="cbtns">' + btnsHtml + '</div>' : '')
     + '</div></div>';
@@ -500,6 +502,7 @@ function openCanDetail(can) {
   imgWrap.innerHTML = can.image_url
     ? '<img src="' + escapeHtml(can.image_url) + '" alt="" class="' + (MT_BAKED.test(can.image_url) ? '' : 'cut-refl') + '" style="width:160px;height:180px;object-fit:contain;background:transparent;" onerror="this.parentElement.innerHTML=\'&#129371;\'">'
     : "<span style='font-size:60px;'>&#129371;</span>";
+  if (can.edition && MT_ED[can.edition]) imgWrap.innerHTML += '<div class="eband">' + MT_ED[can.edition] + '</div>';
   const fields = [{ label: 'Pays', val: can.country }, { label: 'Année', val: can.year }, { label: 'Volume', val: can.volume }, { label: 'Langue', val: can.language }, { label: 'Couleur capsule', val: can.cap_color }, { label: 'Couleur dominante', val: can.full_color }];
   let mh = '';
   fields.forEach((f) => { if (f.val) mh += '<div><span style="color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:1px;">' + f.label + '</span><div style="font-weight:700;font-size:13px;margin-top:2px;">' + escapeHtml(f.val) + '</div></div>'; });
@@ -978,6 +981,7 @@ window.openCanModal = function (canId) {
     Object.keys(map).forEach((f) => { document.getElementById('cm-' + f).value = (c && c[map[f]]) || ''; });
     document.getElementById('cm-color').value = (c && c.accent_color) || '#39ff14';
     document.getElementById('cm-limited').checked = !!(c && c.is_limited);
+    document.getElementById('cm-edition').value = (c && c.edition) || '';
     document.getElementById('cm-img-file').value = '';
     const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
     if (c && c.image_url) { prev.src = c.image_url; prev.style.display = 'block'; lbl.style.display = 'none'; }
@@ -1015,6 +1019,7 @@ window.saveCan = function () {
     year: document.getElementById('cm-year').value ? parseInt(document.getElementById('cm-year').value, 10) : null,
     description: document.getElementById('cm-desc').value || null,
     is_limited: document.getElementById('cm-limited').checked,
+    edition: document.getElementById('cm-edition').value || null,
     image_url: imageUrl || null,
     accent_color: document.getElementById('cm-color').value || '#39ff14',
     updated_at: fst(),
