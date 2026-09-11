@@ -150,6 +150,11 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 .cthumb.has-img:not(.baked) img{-webkit-box-reflect:below 1px linear-gradient(transparent 55%,rgba(0,0,0,.32));}
 .eband{position:absolute;left:0;top:50%;transform:translateY(-50%);width:100%;height:auto;z-index:2;pointer-events:none;}
 .cthumb img.eband{width:100% !important;height:auto !important;object-fit:initial !important;transform:translateY(-50%) !important;-webkit-box-reflect:none !important;transition:none !important;}
+.serlib{margin-bottom:34px;}
+.serhead{display:flex;align-items:center;gap:12px;margin:6px 0 14px;border-bottom:1px solid var(--br);padding-bottom:10px;}
+.serlogo{height:46px;width:auto;max-width:280px;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.65));}
+.sername{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:3px;}
+.sercount{margin-left:auto;color:var(--mu);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
 #cd-img-wrap{position:relative;}
 .cut-refl{-webkit-box-reflect:below 0 linear-gradient(transparent 60%,rgba(0,0,0,.3));}
 

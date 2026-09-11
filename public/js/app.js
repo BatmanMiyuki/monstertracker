@@ -299,6 +299,8 @@ function drawPieChart(data, cid) {
 //  CARTE CANETTE
 // ════════════════════════════════════════════════════════
 const MT_EDIMG = { blackops7: 'img/bandes/blackops7.png', blackops6: 'img/bandes/blackops6.png', apex: 'img/bandes/apex.png' };
+const MT_SERLOGO = { ultra: 'img/series/ultra.png', juice: 'img/series/juice.png', punch: 'img/series/punch.png', rehab: 'img/series/rehab.png', recover: 'img/series/recover.png', classic: 'img/series/classic.png' };
+const MT_SERALIAS = { 'rehab recover': 'rehab', 'original': 'classic', 'classic ': 'classic' };
 const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {
   color = color || getComputedStyle(document.documentElement).getPropertyValue('--g').trim() || '#39ff14';
@@ -399,13 +401,20 @@ function renderSerieChips() {
 function renderCat(cans) {
   var el = document.getElementById('cat-ct');
   if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE TROUVÉE', 'Aucun résultat.'); return; }
-  var html = '<div class="cgrid">';
-  cans.forEach(function (can) {
-    var colBtn = '<button class="cbtn ' + (can.in_collection ? 'on' : '') + '" onclick="event.stopPropagation();toggleCol(' + can.id + ',' + can.in_collection + ')">' + (can.in_collection ? '✓ Possédée' : '+ Collection') + '</button>';
-    var wlBtn = '<button class="cbtn wl ' + (can.in_wishlist ? 'on' : '') + '" onclick="event.stopPropagation();toggleWl(' + can.id + ',' + can.in_wishlist + ')">' + (can.in_wishlist ? '♥' : '♡') + ' Wish</button>';
-    html += '<div onclick="openCanDetailById(' + can.id + ')">' + canCardHtml(can, colBtn + wlBtn) + '</div>';
+  var groups = {};
+  cans.forEach(function (c) { var sr = c.series || 'Autres'; (groups[sr] = groups[sr] || []).push(c); });
+  var html = '';
+  Object.keys(groups).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (sr) {
+    var logo = MT_SERLOGO[MT_SERALIAS[sr.toLowerCase()] || sr.toLowerCase()];
+    html += '<div class="serlib"><div class="serhead">' + (logo ? '<img class="serlogo" src="' + logo + '" alt="">' : '<span class="sername">' + escapeHtml(sr) + '</span>') + '<span class="sercount">' + groups[sr].length + ' canette' + (groups[sr].length > 1 ? 's' : '') + '</span></div><div class="cgrid">';
+    groups[sr].forEach(function (can) {
+      var colBtn = '<button class="cbtn ' + (can.in_collection ? 'on' : '') + '" onclick="event.stopPropagation();toggleCol(' + can.id + ',' + can.in_collection + ')">' + (can.in_collection ? '✓ Possédée' : '+ Collection') + '</button>';
+      var wlBtn = '<button class="cbtn wl ' + (can.in_wishlist ? 'on' : '') + '" onclick="event.stopPropagation();toggleWl(' + can.id + ',' + can.in_wishlist + ')">' + (can.in_wishlist ? '♥' : '♡') + ' Wish</button>';
+      html += '<div onclick="openCanDetailById(' + can.id + ')">' + canCardHtml(can, colBtn + wlBtn) + '</div>';
+    });
+    html += '</div></div>';
   });
-  el.innerHTML = html + '</div>';
+  el.innerHTML = html;
 }
 
 window.openCanDetailById = function (id) { openCanDetail(allCans.find(function (x) { return x.id === id; })); };
