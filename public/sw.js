@@ -1,7 +1,7 @@
 // MonsterTracker — Service Worker
 // Stratégie : network-first pour l'app shell, cache en secours (mode hors-ligne basique).
 // Les appels API ne sont jamais mis en cache.
-const CACHE = 'mt-v20';
+const CACHE = 'mt-v21';
 const SHELL = ['/', '/index.html', '/css/style.css', '/js/app.js', '/icon.png', '/manifest.json'];
 
 self.addEventListener('install', (e) => {

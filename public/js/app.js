@@ -206,18 +206,21 @@ function enterApp() {
   _setupAppUI();
   go('app');
   startPolling();
-  if (me.role === 'admin') goTab('adm-cans', document.getElementById('tab-adm-cans'));
+  if (me.role === 'admin' && !MT_SIM) goTab('adm-cans', document.getElementById('tab-adm-cans'));
   else goTab('home', document.getElementById('tab-home'));
 }
 
 function _setupAppUI() {
   if (!me) return;
   var isAdmin = me.role === 'admin';
-  document.body.classList.toggle('adminwall', isAdmin);
-  document.getElementById('user-tabs').style.display = isAdmin ? 'none' : 'flex';
-  document.getElementById('admin-tabs').style.display = isAdmin ? 'flex' : 'none';
-  document.getElementById('nav-name').textContent = isAdmin ? 'Admin' : (me.username || '');
-  var nnd = document.getElementById('nav-name-drop'); if (nnd) nnd.textContent = isAdmin ? 'Admin' : (me.username || '');
+  var sim = isAdmin && MT_SIM;
+  document.body.classList.toggle('adminwall', isAdmin && !sim);
+  document.body.classList.toggle('simming', sim);
+  var sbn = document.getElementById('sim-banner'); if (sbn) sbn.style.display = sim ? 'flex' : 'none';
+  document.getElementById('user-tabs').style.display = (isAdmin && !sim) ? 'none' : 'flex';
+  document.getElementById('admin-tabs').style.display = (isAdmin && !sim) ? 'flex' : 'none';
+  document.getElementById('nav-name').textContent = (isAdmin && !sim) ? 'Admin' : (me.username || '');
+  var nnd = document.getElementById('nav-name-drop'); if (nnd) nnd.textContent = (isAdmin && !sim) ? 'Admin' : (me.username || '');
   document.getElementById('set-name').textContent = me.username || '';
   document.getElementById('set-user').value = me.username || '';
   document.getElementById('set-email').value = me.email || '';
@@ -228,7 +231,7 @@ function _setupAppUI() {
 
 // Vérification de la maintenance côté utilisateur connecté
 function checkMaintenance() {
-  if (!me || me.role === 'admin') return;
+  if (!me || (me.role === 'admin' && !MT_SIM)) return;
   fetch('/api/auth/me', { credentials: 'same-origin' }).then(function (r) { return r.json(); })
     .then(function (d) { if (d && d.maintenance) showMaintOverlay(); else hideMaintOverlay(); })
     .catch(function () { });
@@ -300,6 +303,19 @@ function drawPieChart(data, cid) {
 // ════════════════════════════════════════════════════════
 const MT_EDIMG = { blackops7: 'img/bandes/blackops7.png', blackops6: 'img/bandes/blackops6.png', apex: 'img/bandes/apex.png' };
 const MT_SERLOGO = { ultra: 'img/series/ultra.png', juice: 'img/series/juice.png', punch: 'img/series/punch.png', rehab: 'img/series/rehab.png', recover: 'img/series/recover.png', classic: 'img/series/classic.png', java: 'img/series/java.png', reserve: 'img/series/reserve.png', maxx: 'img/series/maxx.png', espresso: 'img/series/espresso.png', hydrosport: 'img/series/hydrosport.png', 'dragon tea': 'img/series/dragontea.png', 'extra strenght': 'img/series/extrastrenght.png' };
+<<<<<<< HEAD
+=======
+
+var MT_SIM = sessionStorage.getItem('mt_sim') === '1';
+window.toggleSimUser = function () {
+  MT_SIM = !MT_SIM;
+  sessionStorage.setItem('mt_sim', MT_SIM ? '1' : '0');
+  _setupAppUI();
+  if (window.closeNavMenu) window.closeNavMenu();
+  if (MT_SIM) goTab('home', document.getElementById('tab-home'));
+  else goTab('adm-cans', document.getElementById('tab-adm-cans'));
+};
+>>>>>>> 63322d8 (Admin: mode simulation vue user (banniere + onglets user + collection + maintenance visible))
 const MT_SERALIAS = { 'rehab recover': 'rehab', 'original': 'classic', 'classic ': 'classic', 'extra strength': 'extra strenght', 'hydro sport': 'hydrosport' };
 const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {

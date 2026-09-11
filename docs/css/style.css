@@ -425,3 +425,7 @@ body.light .btn-ghost:hover{border-color:#333;color:#333;}
 /* ═══ Badge burger (mobile) ═══ */
 .nav-burger{position:relative;}
 .burger-badge{position:absolute;top:-7px;right:-7px;background:var(--rd);color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:900;min-width:17px;height:17px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;line-height:1;}
+
+#sim-banner{position:fixed;top:0;left:0;right:0;z-index:999;align-items:center;justify-content:center;gap:14px;background:var(--g);color:#000;font-family:'Barlow Condensed',sans-serif;font-weight:900;letter-spacing:2px;padding:6px 10px;font-size:14px;display:none;}
+#sim-banner button{background:#000;color:var(--g);border:1px solid #000;font-family:'Barlow Condensed',sans-serif;font-weight:900;letter-spacing:2px;padding:3px 12px;cursor:pointer;}
+body.simming{padding-top:32px;}

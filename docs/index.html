@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
 
 <!-- ══════════ LANDING ══════════ -->
 <div class="page active" id="page-landing">
@@ -137,6 +138,7 @@
     <button class="ntab"    id="tab-settings"   onclick="goTab('settings',this)">Paramètres</button>
   </div>
   <div class="ntabs" id="admin-tabs" style="display:none;">
+    <button class="ntab" onclick="toggleSimUser()">&#128065; Vue user</button>
     <button class="ntab on" id="tab-adm-cans"     onclick="goTab('adm-cans',this)">Canettes</button>
     <button class="ntab"    id="tab-adm-updates"  onclick="goTab('adm-updates',this)">Annonces</button>
     <button class="ntab"    id="tab-adm-users"    onclick="goTab('adm-users',this)">Utilisateurs</button>

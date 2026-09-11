@@ -236,14 +236,17 @@ window.checkPseudo = () => {
 function _setupAppUI() {
   if (!user) return;
   const isAdmin = user.role === 'admin';
-  document.body.classList.toggle('adminwall', isAdmin);
-  document.getElementById('user-tabs').style.display = isAdmin ? 'none' : 'flex';
-  document.getElementById('admin-tabs').style.display = isAdmin ? 'flex' : 'none';
-  const sb = document.getElementById('support-btn'); if (sb) sb.style.display = isAdmin ? 'inline-block' : 'none';
-  const dsb = document.getElementById('drop-support'); if (dsb) dsb.style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('nav-name').textContent = isAdmin ? 'Admin' : (user.username || '');
-  const nnd = document.getElementById('nav-name-drop'); if (nnd) nnd.textContent = isAdmin ? 'Admin' : (user.username || '');
-  if (!isAdmin) {
+  const sim = isAdmin && MT_SIM;
+  document.body.classList.toggle('adminwall', isAdmin && !sim);
+  document.body.classList.toggle('simming', sim);
+  const sbn = document.getElementById('sim-banner'); if (sbn) sbn.style.display = sim ? 'flex' : 'none';
+  document.getElementById('user-tabs').style.display = (isAdmin && !sim) ? 'none' : 'flex';
+  document.getElementById('admin-tabs').style.display = (isAdmin && !sim) ? 'flex' : 'none';
+  const sb = document.getElementById('support-btn'); if (sb) sb.style.display = (isAdmin && !sim) ? 'inline-block' : 'none';
+  const dsb = document.getElementById('drop-support'); if (dsb) dsb.style.display = (isAdmin && !sim) ? 'block' : 'none';
+  document.getElementById('nav-name').textContent = (isAdmin && !sim) ? 'Admin' : (user.username || '');
+  const nnd = document.getElementById('nav-name-drop'); if (nnd) nnd.textContent = (isAdmin && !sim) ? 'Admin' : (user.username || '');
+  if (!isAdmin || sim) {
     document.getElementById('set-name').textContent = user.username || '';
     document.getElementById('set-user').value = user.username || '';
     document.getElementById('set-email').value = user.email || '';
@@ -257,7 +260,7 @@ function showApp() {
   go('app');
   startPolling();
   startMaintListen();
-  if (user.role === 'admin') goTab('adm-cans', document.getElementById('tab-adm-cans'));
+  if (user.role === 'admin' && !MT_SIM) goTab('adm-cans', document.getElementById('tab-adm-cans'));
   else goTab('home', document.getElementById('tab-home'));
   processPendingAdd();
 }
@@ -267,7 +270,7 @@ function startMaintListen() {
   stopMaintListen();
   _maintUnsub = onSnapshot(doc(db, 'settings', 'maintenance'), (snap) => {
     const active = snap.exists() ? snap.data().active : false;
-    if (user && user.role === 'admin') return;
+    if (user && user.role === 'admin' && !MT_SIM) return;
     if (active && !_isMaint) { _isMaint = true; document.getElementById('maintenance-overlay').style.display = 'flex'; }
     else if (!active && _isMaint) { _isMaint = false; document.getElementById('maintenance-overlay').style.display = 'none'; }
   }, () => {});
@@ -329,6 +332,19 @@ function drawPieChart(data, cid) {
 // ── Carte canette ──
 const MT_EDIMG = { blackops7: 'img/bandes/blackops7.png', blackops6: 'img/bandes/blackops6.png', apex: 'img/bandes/apex.png' };
 const MT_SERLOGO = { ultra: 'img/series/ultra.png', juice: 'img/series/juice.png', punch: 'img/series/punch.png', rehab: 'img/series/rehab.png', recover: 'img/series/recover.png', classic: 'img/series/classic.png', java: 'img/series/java.png', reserve: 'img/series/reserve.png', maxx: 'img/series/maxx.png', espresso: 'img/series/espresso.png', hydrosport: 'img/series/hydrosport.png', 'dragon tea': 'img/series/dragontea.png', 'extra strenght': 'img/series/extrastrenght.png' };
+<<<<<<< HEAD
+=======
+
+let MT_SIM = sessionStorage.getItem('mt_sim') === '1';
+window.toggleSimUser = function () {
+  MT_SIM = !MT_SIM;
+  sessionStorage.setItem('mt_sim', MT_SIM ? '1' : '0');
+  _setupAppUI();
+  if (window.closeNavMenu) window.closeNavMenu();
+  if (MT_SIM) goTab('home', document.getElementById('tab-home'));
+  else goTab('adm-cans', document.getElementById('tab-adm-cans'));
+};
+>>>>>>> 63322d8 (Admin: mode simulation vue user (banniere + onglets user + collection + maintenance visible))
 const MT_SERALIAS = { 'rehab recover': 'rehab', 'original': 'classic', 'classic ': 'classic', 'extra strength': 'extra strenght', 'hydro sport': 'hydrosport' };
 const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {
