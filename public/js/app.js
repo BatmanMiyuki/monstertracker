@@ -303,8 +303,6 @@ function drawPieChart(data, cid) {
 // ════════════════════════════════════════════════════════
 const MT_EDIMG = { blackops7: 'img/bandes/blackops7.png', blackops6: 'img/bandes/blackops6.png', apex: 'img/bandes/apex.png' };
 const MT_SERLOGO = { ultra: 'img/series/ultra.png', juice: 'img/series/juice.png', punch: 'img/series/punch.png', rehab: 'img/series/rehab.png', recover: 'img/series/recover.png', classic: 'img/series/classic.png', java: 'img/series/java.png', reserve: 'img/series/reserve.png', maxx: 'img/series/maxx.png', espresso: 'img/series/espresso.png', hydrosport: 'img/series/hydrosport.png', 'dragon tea': 'img/series/dragontea.png', 'extra strenght': 'img/series/extrastrenght.png' };
-<<<<<<< HEAD
-=======
 
 var MT_SIM = sessionStorage.getItem('mt_sim') === '1';
 window.toggleSimUser = function () {
@@ -315,7 +313,6 @@ window.toggleSimUser = function () {
   if (MT_SIM) goTab('home', document.getElementById('tab-home'));
   else goTab('adm-cans', document.getElementById('tab-adm-cans'));
 };
->>>>>>> 63322d8 (Admin: mode simulation vue user (banniere + onglets user + collection + maintenance visible))
 const MT_SERALIAS = { 'rehab recover': 'rehab', 'original': 'classic', 'classic ': 'classic', 'extra strength': 'extra strenght', 'hydro sport': 'hydrosport' };
 const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {
