@@ -328,7 +328,7 @@ function drawPieChart(data, cid) {
 
 // ── Carte canette ──
 const MT_EDIMG = { blackops7: 'img/bandes/blackops7.png', blackops6: 'img/bandes/blackops6.png', apex: 'img/bandes/apex.png' };
-const MT_SERLOGO = { ultra: 'img/series/ultra.png', juice: 'img/series/juice.png', punch: 'img/series/punch.png', rehab: 'img/series/rehab.png', recover: 'img/series/recover.png', classic: 'img/series/classic.png' };
+const MT_SERLOGO = { ultra: 'img/series/ultra.png', juice: 'img/series/juice.png', punch: 'img/series/punch.png', rehab: 'img/series/rehab.png', recover: 'img/series/recover.png', classic: 'img/series/classic.png', java: 'img/series/java.png', reserve: 'img/series/reserve.png' };
 const MT_SERALIAS = { 'rehab recover': 'rehab', 'original': 'classic', 'classic ': 'classic' };
 const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {
