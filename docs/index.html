@@ -496,6 +496,23 @@
 </div>
 </div>
 
+<!-- Classement rapide dans une famille (admin) -->
+<div class="moverlay" id="modal-fam">
+<div class="modal" style="max-width:440px;">
+  <div class="mhdr"><h3>CLASSER DANS UNE FAMILLE</h3><button class="mclose" onclick="closeModal('fam')">&#x2715;</button></div>
+  <div class="mbody">
+    <div id="fm-can" style="font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1.5px;color:var(--g);margin-bottom:14px;"></div>
+    <div class="field">
+      <label>Famille</label>
+      <input class="minput" type="text" id="fm-name" list="fm-list" oninput="mtFamQuickPreview()" placeholder="Choisis dans la liste ou tape un nouveau nom"/>
+      <datalist id="fm-list"></datalist>
+    </div>
+    <div class="famprev" id="fm-prev"></div>
+  </div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('fam')">ANNULER</button><button class="btn-save" onclick="saveFamQuick()">CLASSER</button></div>
+</div>
+</div>
+
 <!-- Ajout à la collection -->
 <div class="moverlay" id="modal-add-col">
 <div class="modal" style="max-width:400px;">
@@ -527,15 +544,16 @@
     <div class="mlbl">Identification</div>
     <div class="mrow">
       <div class="field"><label>Nom *</label><input class="minput" type="text" id="cm-name" placeholder="Monster Original"/></div>
-      <div class="field"><label>Série &nbsp;=&nbsp; famille</label><input class="minput" type="text" id="cm-series" list="fam-series-list" oninput="mtAdmFamPreview()" placeholder="Ultra, Juice, Rehab..."/></div>
+      <div class="field"><label>Série (étiquette, ne regroupe rien)</label><input class="minput" type="text" id="cm-series" placeholder="Ultra, Juice, Rehab..."/></div>
+      <div class="field"><label>Famille — c'est toi qui choisis</label><input class="minput" type="text" id="cm-family" list="fam-families-list" oninput="mtAdmFamPreview()" placeholder="Choisis ou tape un nouveau nom"/></div>
     </div>
     <div class="mrow">
-      <div class="field"><label>Variante &nbsp;=&nbsp; modèle</label><input class="minput" type="text" id="cm-variant" list="fam-variant-list" oninput="mtAdmFamPreview()" placeholder="ex : Mango Loco"/></div>
+      <div class="field"><label>Modèle (dans la famille)</label><input class="minput" type="text" id="cm-variant" list="fam-variant-list" oninput="mtAdmFamPreview()" placeholder="ex : White, Red, Mean Bean"/></div>
       <div class="field"><label>Édition (bande auto)</label><select class="minput" id="cm-edition"><option value="">Aucune</option><option value="blackops7">Black Ops 7</option><option value="blackops6">Black Ops 6</option><option value="apex">Apex</option></select></div>
       <div class="field"><label>Langue</label><input class="minput" type="text" id="cm-lang" placeholder="FR, EN, DE..."/></div>
     </div>
     <div class="famprev" id="cm-fam-prev"></div>
-    <datalist id="fam-series-list"></datalist>
+    <datalist id="fam-families-list"></datalist>
     <datalist id="fam-variant-list"></datalist>
     <div class="mdiv"></div>
     <div class="mlbl">Apparence</div>
