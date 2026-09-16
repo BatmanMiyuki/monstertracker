@@ -1199,15 +1199,10 @@ window.loadAdmCans = function () {
       const badge = c.is_published ? '<span class="tbadge pub">Publiée</span>' : '<span class="tbadge draft">Brouillon</span>';
       const lim = c.is_limited ? ' <span class="tbadge lim">Limitée</span>' : '';
       const pubBtn = c.is_published ? '<button class="tedit" onclick="publishCan(\'' + c.id + '\',false)">Dépublier</button>' : '<button class="tedit" onclick="publishCan(\'' + c.id + '\',true)">Publier</button>';
-      const _fk = mtFamilyKey(c);
-      const _famN = _fk ? _admCansAll.filter((x) => mtFamilyKey(x) === _fk).length : 0;
-      const _modN = c.variant ? _admCansAll.filter((x) => mtModelKey(x) === mtModelKey(c)).length : 0;
-      const famCell = !_fk
-        ? '<span class="fam-miss">sans famille</span> <button class="fam-btn" onclick="openFamAssign(\'' + c.id + '\')">+ Famille</button>'
-        : '<div class="fam-t">' + escapeHtml(c.family) + (c.variant ? ' · ' + escapeHtml(c.variant) : ' <i>sans modèle</i>') + '</div>'
-          + '<div class="fam-n">' + _famN + ' canette' + (_famN > 1 ? 's' : '') + ' · '
-          + (_modN > 1 ? '<b>' + _modN + ' versions</b>' : 'modèle unique') + '</div>'
-          + '<button class="fam-btn mini" onclick="openFamAssign(\'' + c.id + '\')">changer</button>';
+      // Colonne Famille : simple indicateur — le classement se fait dans la page Familles
+      const famCell = mtFamilyKey(c)
+        ? '<span class="fam-ok">&#10003; ' + escapeHtml(c.family) + '</span>'
+        : '<span class="fam-miss">sans famille</span>';
       const serCell = '<div style="color:var(--mu);font-size:12px;">' + escapeHtml(c.series || '—') + '</div>';
       rows += '<tr><td>' + img + '</td><td><div class="tname">' + escapeHtml(c.name) + accentDot + '</div></td><td class="tdfam">' + famCell + '</td><td>' + serCell + lim + '</td><td>' + badge + '</td><td><div class="tacts"><button class="tedit" onclick="openCanModal(\'' + c.id + '\')">Éditer</button>' + pubBtn + '<button class="tdel" onclick="deleteCan(\'' + c.id + '\')">Suppr.</button></div></td></tr>';
     });

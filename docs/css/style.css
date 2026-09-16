@@ -498,6 +498,10 @@ body.light .vbadge{background:rgba(255,255,255,.92);}
 .libwarn{border:1px solid rgba(255,150,0,.35);background:rgba(255,150,0,.06);color:#e8c48a;font-size:12.5px;line-height:1.65;padding:11px 14px;margin-bottom:14px;}
 .libwarn b{color:#ff9600;}
 
+
+.fam-ok{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--g);border:1px solid rgba(var(--g-r),var(--g-g),var(--g-b),.3);background:rgba(var(--g-r),var(--g-g),var(--g-b),.07);padding:3px 8px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+td.tdfam{width:150px;}
+
 /* ══════════ ADMIN — classement en famille ══════════ */
 td.tdfam{min-width:190px;}
 .fam-btn{background:none;border:1px solid rgba(var(--g-r),var(--g-g),var(--g-b),.35);color:var(--g);font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;padding:3px 8px;cursor:pointer;margin-top:5px;transition:all .2s;touch-action:manipulation;}
