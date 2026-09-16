@@ -558,6 +558,14 @@ td.tdfam{min-width:190px;}
 .fp-none{padding:22px;text-align:center;color:var(--mu);font-size:13px;}
 #fp-save:disabled{opacity:.45;cursor:not-allowed;}
 
+/* v39 : champs vides et fiches à compléter */
+.cinfo.none{opacity:.42;border-style:dashed;}
+.cinfo.warn{color:#ff9600;border-color:rgba(255,150,0,.45);background:rgba(255,150,0,.12);font-weight:700;}
+.tot-warn{color:#ff9600;font-weight:700;}
+.tot-build{color:#4a4a4a;font-size:10px;letter-spacing:1px;}
+.fc-rowact{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+.fc-edit{width:30px;height:30px;background:var(--c2);border:1px solid var(--br);color:#8a8a8a;cursor:pointer;font-size:13px;}
+.fc-edit:hover{color:var(--g);border-color:var(--g);}
 /* Infos détaillées des canettes (page Familles) */
 .famgrid{grid-template-columns:repeat(auto-fill,minmax(430px,1fr));}
 .fc-list{max-height:520px;}

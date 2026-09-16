@@ -1225,20 +1225,38 @@ function mtFamThumb(c, w) {
     : '<span style="font-size:16px;">&#129371;</span>';
 }
 const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
-// Toutes les infos d'une canette, en pastilles (comme les cartes du catalogue)
+const MT_BUILD = 'mt-v39';
+window.MT_BUILD = MT_BUILD;
+// Champs d'identité d'une canette, dans l'ordre d'affichage
+const MT_FCH = [['VOL', 'volume'], ['PAYS', 'country'], ['ANNÉE', 'year'], ['LANGUE', 'language'], ['CAP', 'cap_color'], ['FULL', 'full_color']];
+function mtIsVoid(v) { return v === null || v === undefined || v === ''; }
+// Liste des infos absentes de la fiche (pour le compteur « à compléter »)
+function mtFamMissing(c) {
+  const m = [];
+  MT_FCH.forEach((p) => { if (mtIsVoid(c[p[1]])) m.push(p[0]); });
+  if (mtIsVoid(c.series)) m.push('SÉRIE');
+  if (mtIsVoid(c.variant)) m.push('MODÈLE');
+  if (mtIsVoid(c.edition)) m.push('ÉDITION');
+  if (mtIsVoid(c.description)) m.push('DESCRIPTION');
+  if (mtIsVoid(c.accent_color)) m.push('ACCENT');
+  if (mtIsVoid(c.image_url)) m.push('PHOTO');
+  return m;
+}
+// TOUTES les infos d'une canette, toujours affichées : un champ vide montre « — »
 function mtFamFields(c) {
   const ch = [];
-  const push = (l, v) => { if (v !== null && v !== undefined && v !== '') ch.push('<span class="cinfo"><b>' + l + '</b> ' + escapeHtml(String(v)) + '</span>'); };
-  push('VOL', c.volume);
-  push('PAYS', c.country);
-  push('ANNÉE', c.year);
-  push('LANGUE', c.language);
-  push('CAP', c.cap_color);
-  push('FULL', c.full_color);
-  if (c.edition) push('ÉDITION', MT_EDLBL[c.edition] || c.edition);
-  if (c.is_limited) ch.push('<span class="cinfo lim">ÉDITION LIMITÉE</span>');
+  MT_FCH.forEach((p) => {
+    if (mtIsVoid(c[p[1]])) ch.push('<span class="cinfo none"><b>' + p[0] + '</b> —</span>');
+    else ch.push('<span class="cinfo"><b>' + p[0] + '</b> ' + escapeHtml(String(c[p[1]])) + '</span>');
+  });
+  ch.push(mtIsVoid(c.edition)
+    ? '<span class="cinfo none"><b>ÉDITION</b> —</span>'
+    : '<span class="cinfo"><b>ÉDITION</b> ' + escapeHtml(MT_EDLBL[c.edition] || c.edition) + '</span>');
+  ch.push(c.is_limited ? '<span class="cinfo lim">ÉDITION LIMITÉE</span>' : '<span class="cinfo">STANDARD</span>');
   ch.push(c.is_published ? '<span class="cinfo pubx">PUBLIÉE</span>' : '<span class="cinfo draftx">BROUILLON</span>');
-  if (c.accent_color) ch.push('<span class="cinfo"><b>ACCENT</b><i class="swatch" style="background:' + escapeHtml(c.accent_color) + '"></i></span>');
+  if (!mtIsVoid(c.accent_color)) ch.push('<span class="cinfo"><b>ACCENT</b><i class="swatch" style="background:' + escapeHtml(c.accent_color) + '"></i></span>');
+  const miss = mtFamMissing(c);
+  if (miss.length) ch.push('<span class="cinfo warn" title="Champs vides dans la fiche de cette canette : ' + escapeHtml(miss.join(', ')) + '">&#9888; ' + miss.length + ' à compléter</span>');
   return ch.join('');
 }
 // Bloc complet : identité + toutes les infos + description + modèles
@@ -1282,7 +1300,12 @@ function renderAdmFams() {
   if (!el) return;
   const s = mtFamStats();
   const tot = document.getElementById('adm-fams-total');
-  if (tot) tot.textContent = s.nbFams + ' famille' + (s.nbFams > 1 ? 's' : '') + ' · ' + s.cansIn + ' canette' + (s.cansIn > 1 ? 's' : '') + ' classée' + (s.cansIn > 1 ? 's' : '') + ' · ' + s.free + ' sans famille';
+  if (tot) {
+    const inc = _admCansAll.filter((c) => mtFamMissing(c).length).length;
+    tot.innerHTML = s.nbFams + ' famille' + (s.nbFams > 1 ? 's' : '') + ' · ' + s.cansIn + ' canette' + (s.cansIn > 1 ? 's' : '') + ' classée' + (s.cansIn > 1 ? 's' : '') + ' · ' + s.free + ' sans famille'
+      + (inc ? ' · <span class="tot-warn">' + inc + ' fiche' + (inc > 1 ? 's' : '') + ' à compléter</span>' : ' · toutes les fiches sont complètes ✓')
+      + ' <span class="tot-build">build ' + MT_BUILD + '</span>';
+  }
   const fams = mtFamList();
   let keys = Object.keys(fams).sort((a, b) => fams[b].length - fams[a].length || a.localeCompare(b, 'fr'));
   if (_famQuery) keys = keys.filter((k) => mtNorm(k).indexOf(_famQuery) !== -1);
@@ -1310,8 +1333,10 @@ function renderAdmFams() {
         html += '<div class="fc-row">'
           + '<div class="fc-thumb">' + mtFamThumb(c) + '</div>'
           + mtFamFull(c)
+          + '<div class="fc-rowact">'
+          + '<button class="fc-edit" title="Modifier la fiche de cette canette" onclick="openCanModal(\'' + c.id + '\')">&#9998;</button>'
           + '<button class="fc-out" title="Retirer de la famille" onclick="removeFromFamily(\'' + c.id + '\', \'' + mtJsq(name) + '\')">&#10005;</button>'
-          + '</div>';
+          + '</div></div>';
       });
       html += '</div><button class="fc-add" onclick="openFamPicker(\'' + mtJsq(name) + '\')">＋ Ajouter des canettes</button></div>';
     });
@@ -1534,7 +1559,11 @@ window.saveCan = function () {
   };
   const id = document.getElementById('cm-id').value;
   const p = id ? updateDoc(doc(db, 'cans', id), body) : addDoc(collection(db, 'cans'), Object.assign({}, body, { is_published: false, created_at: fst() }));
-  p.then(() => { toast(id ? 'Modifiée ✓' : 'Ajoutée (brouillon)'); fi.dataset.compressed = ''; closeModal('can'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
+  p.then(() => {
+    toast(id ? 'Modifiée ✓' : 'Ajoutée (brouillon)'); fi.dataset.compressed = ''; closeModal('can'); loadAdmCans();
+    const fs = document.getElementById('sec-adm-fams');
+    if (fs && fs.classList.contains('on')) loadAdmFams();
+  }).catch((e) => toast(e.message, 'err'));
 };
 window.publishCan = (id, pub) => updateDoc(doc(db, 'cans', id), { is_published: pub }).then(() => { toast(pub ? 'Publiée ✓' : 'Dépubliée'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
 window.deleteCan = (id) => { if (!confirm('Supprimer cette canette ?')) return; deleteDoc(doc(db, 'cans', id)).then(() => { toast('Supprimée ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err')); };
@@ -1742,7 +1771,10 @@ function loadMaintStatus() {
 }
 
 // ── PWA ──
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=39', { updateViaCache: 'none' })
+    .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
+}
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
 window.addEventListener('appinstalled', () => { _installPrompt = null; const btn = document.getElementById('pwa-install-btn'); if (btn) btn.style.display = 'none'; toast('Application installée ✓'); });
 window.doInstall = function () {

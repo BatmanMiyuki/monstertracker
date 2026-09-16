@@ -1,7 +1,7 @@
 // MonsterTracker statique — Service Worker
 // Cache d'abord (network-first en ligne, cache en secours) → fonctionne hors-ligne une fois visité.
-const CACHE = 'mt-v38';
-const SHELL = ['./', './index.html', './support.html', './css/style.css', './js/app.js', './js/support.js', './js/qrcode.min.js', './icon.png', './manifest.json'];
+const CACHE = 'mt-v39';
+const SHELL = ['./', './index.html', './support.html', './css/style.css?v=39', './js/app.js?v=39', './js/support.js', './js/qrcode.min.js', './icon.png', './manifest.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -18,7 +18,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();
@@ -26,6 +26,6 @@ self.addEventListener('fetch', (e) => {
         }
         return res;
       })
-      .catch(() => caches.match(e.request).then((m) => m || caches.match('./index.html')))
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then((m) => m || caches.match('./index.html')))
   );
 });
