@@ -527,13 +527,16 @@
     <div class="mlbl">Identification</div>
     <div class="mrow">
       <div class="field"><label>Nom *</label><input class="minput" type="text" id="cm-name" placeholder="Monster Original"/></div>
-      <div class="field"><label>Série</label><input class="minput" type="text" id="cm-series" placeholder="Ultra, Juice, Rehab..."/></div>
+      <div class="field"><label>Série &nbsp;=&nbsp; famille</label><input class="minput" type="text" id="cm-series" list="fam-series-list" oninput="mtAdmFamPreview()" placeholder="Ultra, Juice, Rehab..."/></div>
     </div>
     <div class="mrow">
-      <div class="field"><label>Variante</label><input class="minput" type="text" id="cm-variant" placeholder="ex : Mango Loco"/></div>
+      <div class="field"><label>Variante &nbsp;=&nbsp; modèle</label><input class="minput" type="text" id="cm-variant" list="fam-variant-list" oninput="mtAdmFamPreview()" placeholder="ex : Mango Loco"/></div>
       <div class="field"><label>Édition (bande auto)</label><select class="minput" id="cm-edition"><option value="">Aucune</option><option value="blackops7">Black Ops 7</option><option value="blackops6">Black Ops 6</option><option value="apex">Apex</option></select></div>
       <div class="field"><label>Langue</label><input class="minput" type="text" id="cm-lang" placeholder="FR, EN, DE..."/></div>
     </div>
+    <div class="famprev" id="cm-fam-prev"></div>
+    <datalist id="fam-series-list"></datalist>
+    <datalist id="fam-variant-list"></datalist>
     <div class="mdiv"></div>
     <div class="mlbl">Apparence</div>
     <div class="mrow">

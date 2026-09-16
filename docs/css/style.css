@@ -473,3 +473,27 @@ body.light .vbadge{background:rgba(255,255,255,.92);}
   .btn-lib{order:3;flex:1;text-align:center;}
   .catbar .schip.grp{flex:1;text-align:center;}
 }
+
+/* ══════════ ADMIN — familles (classement manuel) ══════════ */
+.famprev{border:1px solid var(--br);background:var(--c1);padding:10px 12px;margin-top:11px;}
+.famprev.warn{border-color:rgba(255,150,0,.4);background:rgba(255,150,0,.06);}
+.fp-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.fp-tag{font-family:'Barlow Condensed',sans-serif;font-size:9.5px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;padding:2px 7px;border:1px solid;}
+.fp-tag.ok{color:var(--g);border-color:rgba(var(--g-r),var(--g-g),var(--g-b),.35);background:rgba(var(--g-r),var(--g-g),var(--g-b),.08);}
+.fp-tag.new{color:#ff9600;border-color:rgba(255,150,0,.35);background:rgba(255,150,0,.08);}
+.fp-fam{font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1.5px;}
+.fp-fam i{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;color:var(--mu);font-style:normal;}
+.fp-n{font-family:'Barlow Condensed',sans-serif;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--mu);margin-left:auto;}
+.fp-hint{font-size:11.5px;color:#a8a8a8;line-height:1.6;margin-top:7px;}
+.fp-hint b{color:var(--g);}
+.famprev.warn .fp-hint b{color:#ff9600;}
+.fp-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
+.fp-t{width:38px;height:38px;border:1px solid var(--br);background:var(--bk);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;}
+.fp-t img{width:100%;height:100%;object-fit:contain;}
+.fam-t{font-size:12.5px;color:var(--tx);}
+.fam-t i{font-style:normal;color:var(--mu);font-size:11px;}
+.fam-n{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--mu);margin-top:2px;}
+.fam-n b{color:var(--g);}
+.fam-miss{font-family:'Barlow Condensed',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#ff9600;border:1px solid rgba(255,150,0,.3);background:rgba(255,150,0,.07);padding:2px 7px;}
+.libwarn{border:1px solid rgba(255,150,0,.35);background:rgba(255,150,0,.06);color:#e8c48a;font-size:12.5px;line-height:1.65;padding:11px 14px;margin-bottom:14px;}
+.libwarn b{color:#ff9600;}

@@ -523,10 +523,13 @@ function openCanDetail(can) {
   document.getElementById('cd-add-btn').style.display = can.in_collection ? 'none' : 'inline-flex';
   const _libBtn = document.getElementById('cd-lib-btn');
   if (_libBtn) {
+    const _cls = mtNorm(can.series);
     const _n = mtVersionCount(can), _own = mtFamilyCans(can).filter((c) => c.in_collection).length;
     const _cn = _libBtn.querySelector('.cd-lib-n');
-    if (_cn) _cn.textContent = _n > 1 ? '(' + _n + ' versions)' : '(1 version)';
-    _libBtn.title = 'Voir les ' + _n + ' versions de la série ' + mtFamilyLabel(can) + ' — ' + _own + ' dans ta collection';
+    if (_cn) _cn.textContent = _cls ? '(' + _n + ' version' + (_n > 1 ? 's' : '') + ')' : '(à classer)';
+    _libBtn.title = _cls
+      ? 'Voir les ' + _n + ' versions de la série ' + mtFamilyLabel(can) + ' — ' + _own + ' dans ta collection'
+      : 'Cette canette n\'a pas de série : classe-la dans l\'admin (Canettes → Éditer → Série)';
   }
   document.getElementById('modal-can-detail').classList.add('on');
 }
@@ -543,24 +546,22 @@ function mtNorm(s) {
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 }
 function mtFamilyKey(can) {
-  const raw = mtNorm(can.series) || 'autres';
+  // 100 % manuel : la famille, c'est la « Série » choisie par l'admin — aucune devinette.
+  const raw = mtNorm(can.series);
+  if (!raw) return '';
   return MT_SERALIAS[raw] || raw;
 }
-function mtFamilyLabel(can) { return can.series || 'Autres'; }
+function mtFamilyLabel(can) { return mtNorm(can.series) ? can.series : 'Non classées'; }
 function mtModelKey(can) {
   const fam = mtFamilyKey(can);
   const v = mtNorm(can.variant);
+  // 100 % manuel : sans variante renseignée, AUCUNE fusion automatique.
   if (v) return fam + '|' + v;
-  let n = mtNorm(can.name).replace(/\bmonster\b/g, ' ').replace(/\benergy\b/g, ' ');
-  if (fam && fam !== 'autres') n = n.split(fam).join(' ');
-  if (can.series) n = n.split(mtNorm(can.series)).join(' ');
-  n = n.replace(/\b\d+([.,]\d+)?\s?(ml|cl|l|fl oz)\b/g, ' ').replace(/[·|/,;-]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return fam + '|' + (n || mtNorm(can.name) || 'autres');
+  return fam + '|solo:' + (can.id || mtNorm(can.name));
 }
 function mtModelLabel(can) {
   if (can.variant) return can.variant;
-  const k = (mtModelKey(can).split('|')[1] || '').trim();
-  return k ? k.replace(/\b\w/g, (c) => c.toUpperCase()) : mtFamilyLabel(can);
+  return can.name || 'Sans modèle';
 }
 function mtFamilyCans(can) { return allCans.filter((c) => mtFamilyKey(c) === mtFamilyKey(can)); }
 function mtVersionCount(can) { return mtFamilyCans(can).length; }
@@ -645,7 +646,11 @@ function renderLibrary() {
     const sub = document.getElementById('lib-sub');
     if (sub) sub.textContent = fam.length + ' version' + (fam.length > 1 ? 's' : '') + ' · ' + keys.length + ' modèle' + (keys.length > 1 ? 's' : '') + ' · ' + owned + ' possédée' + (owned > 1 ? 's' : '');
     if (headEl) {
-      headEl.innerHTML = '<div class="libhero">' + (logo ? '<img src="' + logo + '" alt="">' : '')
+      const warn = _libFam === ''
+        ? '<div class="libwarn">&#9888; Ces canettes n\'ont pas encore de <b>série</b> : elles ne sont donc regroupées avec rien. '
+          + 'Classe-les dans l\'admin (<b>Canettes → Éditer</b>) en leur donnant la <b>série</b> et la <b>variante</b> de leurs sœurs.</div>'
+        : '';
+      headEl.innerHTML = warn + '<div class="libhero">' + (logo ? '<img src="' + logo + '" alt="">' : '')
         + '<div class="libhero-s"><div class="libhero-p"><i style="width:' + pct + '%"></i></div>'
         + '<div class="libhero-t">' + pct + '% de cette série · ' + owned + ' / ' + fam.length + ' versions possédées · '
         + '<b style="color:var(--g)">' + (fam.length - owned) + '</b> à trouver</div></div></div>';
@@ -1182,6 +1187,8 @@ window.loadAdmCans = function () {
   const q = ((document.getElementById('adm-search') || {}).value || '').toLowerCase();
   getDocs(query(collection(db, 'cans'), orderBy('name'))).then((snap) => {
     let cans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    _admCansAll = cans.slice(0);
+    if (window.mtAdmFamPreview) mtAdmFamPreview();
     const _totEl = document.getElementById('adm-cans-total');
     if (_totEl) { const _np = cans.filter((c) => c.is_published).length; _totEl.textContent = cans.length + ' canette' + (cans.length > 1 ? 's' : '') + ' au total — ' + _np + ' publiée' + (_np > 1 ? 's' : '') + ' · ' + (cans.length - _np) + ' brouillon' + ((cans.length - _np) > 1 ? 's' : ''); }
     if (q) cans = cans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q));
@@ -1193,11 +1200,75 @@ window.loadAdmCans = function () {
       const badge = c.is_published ? '<span class="tbadge pub">Publiée</span>' : '<span class="tbadge draft">Brouillon</span>';
       const lim = c.is_limited ? ' <span class="tbadge lim">Limitée</span>' : '';
       const pubBtn = c.is_published ? '<button class="tedit" onclick="publishCan(\'' + c.id + '\',false)">Dépublier</button>' : '<button class="tedit" onclick="publishCan(\'' + c.id + '\',true)">Publier</button>';
-      rows += '<tr><td>' + img + '</td><td><div class="tname">' + escapeHtml(c.name) + accentDot + '</div></td><td style="color:var(--mu);font-size:12px;">' + escapeHtml(c.series || '—') + (c.variant ? ' · ' + escapeHtml(c.variant) : '') + lim + '</td><td>' + badge + '</td><td><div class="tacts"><button class="tedit" onclick="openCanModal(\'' + c.id + '\')">Éditer</button>' + pubBtn + '<button class="tdel" onclick="deleteCan(\'' + c.id + '\')">Suppr.</button></div></td></tr>';
+      const _fk = mtFamilyKey(c);
+      const _famN = _fk ? _admCansAll.filter((x) => mtFamilyKey(x) === _fk).length : 0;
+      const _modN = c.variant ? _admCansAll.filter((x) => mtModelKey(x) === mtModelKey(c)).length : 0;
+      const famCell = !c.series
+        ? '<span class="fam-miss">non classée</span>'
+        : '<div class="fam-t">' + escapeHtml(c.series) + (c.variant ? ' · ' + escapeHtml(c.variant) : ' <i>sans modèle</i>') + '</div>'
+          + '<div class="fam-n">' + _famN + ' canette' + (_famN > 1 ? 's' : '') + ' · '
+          + (_modN > 1 ? '<b>' + _modN + ' versions</b>' : 'modèle unique') + '</div>';
+      rows += '<tr><td>' + img + '</td><td><div class="tname">' + escapeHtml(c.name) + accentDot + '</div></td><td style="color:var(--mu);font-size:12px;">' + famCell + lim + '</td><td>' + badge + '</td><td><div class="tacts"><button class="tedit" onclick="openCanModal(\'' + c.id + '\')">Éditer</button>' + pubBtn + '<button class="tdel" onclick="deleteCan(\'' + c.id + '\')">Suppr.</button></div></td></tr>';
     });
     document.getElementById('adm-cans-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Photo</th><th>Nom</th><th>Série</th><th>Statut</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }).catch((e) => { document.getElementById('adm-cans-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
+// ════════════════════ ADMIN : familles (classement manuel) ════════════════════
+let _admCansAll = [];
+function mtAdmSuggestions() {
+  const sl = document.getElementById('fam-series-list'), vl = document.getElementById('fam-variant-list');
+  const se = document.getElementById('cm-series'), ve = document.getElementById('cm-variant');
+  if (!sl || !se || !ve) return;
+  const srs = {}, inFam = {}, others = {};
+  _admCansAll.forEach((c) => {
+    if (c.series) srs[c.series] = (srs[c.series] || 0) + 1;
+    if (c.variant) { if (c.series && mtNorm(c.series) === mtNorm(se.value)) inFam[c.variant] = 1; else others[c.variant] = 1; }
+  });
+  const opt = (v, n) => '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + (n ? ' (' + n + ')' : '') + '</option>';
+  sl.innerHTML = Object.keys(srs).sort((a, b) => a.localeCompare(b, 'fr')).map((v) => opt(v, srs[v])).join('');
+  // variantes de la famille en cours d'abord, puis toutes les autres
+  vl.innerHTML = Object.keys(inFam).sort((a, b) => a.localeCompare(b, 'fr')).map((v) => opt(v, 0)).join('')
+    + Object.keys(others).sort((a, b) => a.localeCompare(b, 'fr')).map((v) => opt(v, 0)).join('');
+}
+function mtAdmFamPreview() {
+  const box = document.getElementById('cm-fam-prev');
+  if (!box) return;
+  const se = document.getElementById('cm-series'), ve = document.getElementById('cm-variant');
+  if (!se || !ve) return;
+  const sr = (se.value || '').trim(), vr = (ve.value || '').trim();
+  const myId = (document.getElementById('cm-id') || {}).value || '';
+  mtAdmSuggestions();
+  if (!sr) {
+    box.className = 'famprev warn';
+    box.innerHTML = '<div class="fp-head"><span class="fp-tag new">&#9888; aucune famille</span></div>'
+      + '<div class="fp-hint">Renseigne la <b>Série</b> : sans elle, cette canette restera seule (elle n\'apparaîtra dans aucune bibliothèque).</div>';
+    return;
+  }
+  const key = mtFamilyKey({ series: sr });
+  const fam = _admCansAll.filter((c) => mtFamilyKey(c) === key && c.id !== myId);
+  const sib = vr ? fam.filter((c) => mtNorm(c.variant) === mtNorm(vr)) : [];
+  const newFam = fam.length === 0;
+  let h = '<div class="fp-head"><span class="fp-tag ' + (newFam ? 'new' : 'ok') + '">'
+        + (newFam ? '+ nouvelle famille' : '&#10003; famille existante') + '</span>'
+        + '<span class="fp-fam">' + escapeHtml(sr) + (vr ? ' &middot; ' + escapeHtml(vr) : ' <i>sans modèle</i>') + '</span>'
+        + '<span class="fp-n">' + fam.length + ' autre' + (fam.length > 1 ? 's' : '') + ' canette' + (fam.length > 1 ? 's' : '') + ' dans la famille</span></div>';
+  if (!vr) {
+    h += '<div class="fp-hint">&#128161; Sans <b>variante</b>, cette canette ne sera fusionnée avec aucune autre : elle aura sa propre carte. '
+       + 'Mets la <b>même variante que ses sœurs</b> (ex. <b>White</b>) pour les regrouper.</div>';
+  } else {
+    h += '<div class="fp-hint">&rarr; Ce modèle comptera <b>' + (sib.length + 1) + ' version' + (sib.length ? 's' : '') + '</b>'
+       + (sib.length ? ' (regroupées sous « ' + escapeHtml(vr) + ' »)' : '') + '.</div>';
+  }
+  const show = (vr ? sib : fam).slice(0, 8);
+  if (show.length) {
+    h += '<div class="fp-thumbs">' + show.map((c) => '<div class="fp-t" title="' + escapeHtml([c.name, c.variant, c.country, c.volume].filter(Boolean).join(' · ')) + '">'
+      + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'">' : '&#129371;') + '</div>').join('') + '</div>';
+  }
+  box.className = 'famprev';
+  box.innerHTML = h;
+}
+window.mtAdmFamPreview = mtAdmFamPreview;
+
 window.openCanModal = function (canId) {
   const setup = (c) => {
     document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
@@ -1211,6 +1282,7 @@ window.openCanModal = function (canId) {
     const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
     if (c && c.image_url) { prev.src = c.image_url; prev.style.display = 'block'; lbl.style.display = 'none'; }
     else { prev.style.display = 'none'; lbl.style.display = 'block'; }
+    mtAdmFamPreview();
     document.getElementById('modal-can').classList.add('on');
   };
   if (canId) getDoc(doc(db, 'cans', canId)).then((snap) => setup(snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null));
