@@ -140,6 +140,7 @@
   <div class="ntabs" id="admin-tabs" style="display:none;">
     <button class="ntab" onclick="toggleSimUser()">&#128065; Vue user</button>
     <button class="ntab on" id="tab-adm-cans"     onclick="goTab('adm-cans',this)">Canettes</button>
+    <button class="ntab"    id="tab-adm-fams"     onclick="goTab('adm-fams',this)">Familles</button>
     <button class="ntab"    id="tab-adm-updates"  onclick="goTab('adm-updates',this)">Annonces</button>
     <button class="ntab"    id="tab-adm-users"    onclick="goTab('adm-users',this)">Utilisateurs</button>
     <button class="ntab"    id="tab-adm-inbox"    onclick="goTab('adm-inbox',this)">Réception<span class="badge" id="inbox-badge" style="display:none;"></span></button>
@@ -411,6 +412,13 @@
   <div id="adm-cans-ct"></div>
 </div>
 
+<!-- ADMIN : FAMILLES -->
+<div class="sec" id="sec-adm-fams">
+  <div class="adm-hdr"><div><h2>FAMILLES</h2><p>Regroupe les canettes qui vont ensemble — c'est toi qui décides lesquelles</p><p id="adm-fams-total" style="margin-top:6px;font-size:12px;font-weight:800;letter-spacing:1px;color:var(--g);text-transform:uppercase;"></p></div><button class="btn-add" onclick="openFamPicker('')">+ NOUVELLE FAMILLE</button></div>
+  <input class="sinput" id="fam-search" type="text" placeholder="Rechercher une famille..." oninput="famSearch(this.value)"/>
+  <div id="adm-fams-ct"></div>
+</div>
+
 <!-- ADMIN : ANNONCES -->
 <div class="sec" id="sec-adm-updates">
   <div class="adm-hdr"><div><h2>ANNONCES</h2><p>Publie des annonces pour tous les utilisateurs</p></div><button class="btn-add" onclick="openUpdateModal()">+ NOUVELLE</button></div>
@@ -496,20 +504,39 @@
 </div>
 </div>
 
-<!-- Classement rapide dans une famille (admin) -->
-<div class="moverlay" id="modal-fam">
-<div class="modal" style="max-width:440px;">
-  <div class="mhdr"><h3>CLASSER DANS UNE FAMILLE</h3><button class="mclose" onclick="closeModal('fam')">&#x2715;</button></div>
-  <div class="mbody">
-    <div id="fm-can" style="font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1.5px;color:var(--g);margin-bottom:14px;"></div>
-    <div class="field">
-      <label>Famille</label>
-      <input class="minput" type="text" id="fm-name" list="fm-list" oninput="mtFamQuickPreview()" placeholder="Choisis dans la liste ou tape un nouveau nom"/>
-      <datalist id="fm-list"></datalist>
+<!-- Ajouter des canettes à une famille (admin) -->
+<div class="moverlay" id="modal-fam-pick">
+<div class="modal" style="max-width:560px;">
+  <div class="mhdr"><h3 id="fp-title">NOUVELLE FAMILLE</h3><button class="mclose" onclick="closeModal('fam-pick')">&#x2715;</button></div>
+  <div class="mbody" style="padding:0;">
+    <div style="padding:16px 20px 12px;border-bottom:1px solid var(--br);">
+      <div class="field" style="margin-bottom:0;">
+        <label>Nom de la famille</label>
+        <input class="minput" type="text" id="fp-name" list="fp-fams-list" oninput="famPickerName(this.value)" placeholder="ex : Ultra White, Reserve, Java..."/>
+        <datalist id="fp-fams-list"></datalist>
+      </div>
+      <div id="fp-info" style="font-size:11.5px;color:var(--mu);margin-top:8px;letter-spacing:1px;text-transform:uppercase;font-weight:700;"></div>
     </div>
-    <div class="famprev" id="fm-prev"></div>
+    <div style="padding:12px 20px;border-bottom:1px solid var(--br);display:flex;gap:8px;align-items:center;">
+      <input class="sinput" id="fp-search" type="text" placeholder="Rechercher une canette..." oninput="fpSearch(this.value)" style="margin-bottom:0;flex:1;"/>
+      <button class="btn-ghost" id="fp-all" onclick="famPickerAll(true)" style="flex-shrink:0;white-space:nowrap;">Tout cocher</button>
+    </div>
+    <div id="fp-list" class="fp-list"></div>
   </div>
-  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('fam')">ANNULER</button><button class="btn-save" onclick="saveFamQuick()">CLASSER</button></div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('fam-pick')">ANNULER</button><button class="btn-save" id="fp-save" onclick="saveFamPicker()">AJOUTER</button></div>
+</div>
+</div>
+
+<!-- Renommer une famille (admin) -->
+<div class="moverlay" id="modal-fam-rename">
+<div class="modal" style="max-width:400px;">
+  <div class="mhdr"><h3>RENOMMER LA FAMILLE</h3><button class="mclose" onclick="closeModal('fam-rename')">&#x2715;</button></div>
+  <div class="mbody">
+    <p style="font-size:12.5px;color:var(--mu);margin-bottom:12px;">Famille actuelle : <b id="fr-old" style="color:var(--g);"></b></p>
+    <div class="field"><label>Nouveau nom</label><input class="minput" type="text" id="fr-name" placeholder="Nom de la famille"/></div>
+    <p style="font-size:11.5px;color:var(--mu);line-height:1.6;">Toutes les canettes de cette famille seront renommées d'un coup.</p>
+  </div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('fam-rename')">ANNULER</button><button class="btn-save" onclick="saveFamRename()">RENOMMER</button></div>
 </div>
 </div>
 
@@ -545,16 +572,12 @@
     <div class="mrow">
       <div class="field"><label>Nom *</label><input class="minput" type="text" id="cm-name" placeholder="Monster Original"/></div>
       <div class="field"><label>Série (étiquette, ne regroupe rien)</label><input class="minput" type="text" id="cm-series" placeholder="Ultra, Juice, Rehab..."/></div>
-      <div class="field"><label>Famille — c'est toi qui choisis</label><input class="minput" type="text" id="cm-family" list="fam-families-list" oninput="mtAdmFamPreview()" placeholder="Choisis ou tape un nouveau nom"/></div>
     </div>
     <div class="mrow">
-      <div class="field"><label>Modèle (dans la famille)</label><input class="minput" type="text" id="cm-variant" list="fam-variant-list" oninput="mtAdmFamPreview()" placeholder="ex : White, Red, Mean Bean"/></div>
+      <div class="field"><label>Variante / modèle</label><input class="minput" type="text" id="cm-variant" placeholder="ex : White, Red, Mean Bean"/></div>
       <div class="field"><label>Édition (bande auto)</label><select class="minput" id="cm-edition"><option value="">Aucune</option><option value="blackops7">Black Ops 7</option><option value="blackops6">Black Ops 6</option><option value="apex">Apex</option></select></div>
       <div class="field"><label>Langue</label><input class="minput" type="text" id="cm-lang" placeholder="FR, EN, DE..."/></div>
     </div>
-    <div class="famprev" id="cm-fam-prev"></div>
-    <datalist id="fam-families-list"></datalist>
-    <datalist id="fam-variant-list"></datalist>
     <div class="mdiv"></div>
     <div class="mlbl">Apparence</div>
     <div class="mrow">

@@ -110,7 +110,7 @@ window.goTab = (s, btn) => {
   document.querySelectorAll('.ntab').forEach((x) => x.classList.remove('on'));
   document.getElementById('sec-' + s).classList.add('on');
   if (btn) btn.classList.add('on');
-  const m = { home: loadHome, catalogue: loadCatalogue, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings };
+  const m = { home: loadHome, catalogue: loadCatalogue, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings, 'adm-fams': loadAdmFams };
   if (m[s]) m[s]();
 };
 window.showForgot = () => { document.getElementById('forgot-panel').style.display = 'block'; };
@@ -1188,7 +1188,6 @@ window.loadAdmCans = function () {
   getDocs(query(collection(db, 'cans'), orderBy('name'))).then((snap) => {
     let cans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
     _admCansAll = cans.slice(0);
-    if (window.mtAdmFamPreview) mtAdmFamPreview();
     const _totEl = document.getElementById('adm-cans-total');
     if (_totEl) { const _np = cans.filter((c) => c.is_published).length; _totEl.textContent = cans.length + ' canette' + (cans.length > 1 ? 's' : '') + ' au total — ' + _np + ' publiée' + (_np > 1 ? 's' : '') + ' · ' + (cans.length - _np) + ' brouillon' + ((cans.length - _np) > 1 ? 's' : ''); }
     if (q) cans = cans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q));
@@ -1204,85 +1203,265 @@ window.loadAdmCans = function () {
       const _famN = _fk ? _admCansAll.filter((x) => mtFamilyKey(x) === _fk).length : 0;
       const _modN = c.variant ? _admCansAll.filter((x) => mtModelKey(x) === mtModelKey(c)).length : 0;
       const famCell = !_fk
-        ? '<span class="fam-miss">non classée</span> <button class="fam-btn" onclick="openFamQuick(\'' + c.id + '\')">+ Famille</button>'
+        ? '<span class="fam-miss">sans famille</span> <button class="fam-btn" onclick="openFamAssign(\'' + c.id + '\')">+ Famille</button>'
         : '<div class="fam-t">' + escapeHtml(c.family) + (c.variant ? ' · ' + escapeHtml(c.variant) : ' <i>sans modèle</i>') + '</div>'
           + '<div class="fam-n">' + _famN + ' canette' + (_famN > 1 ? 's' : '') + ' · '
           + (_modN > 1 ? '<b>' + _modN + ' versions</b>' : 'modèle unique') + '</div>'
-          + '<button class="fam-btn mini" onclick="openFamQuick(\'' + c.id + '\')">changer</button>';
+          + '<button class="fam-btn mini" onclick="openFamAssign(\'' + c.id + '\')">changer</button>';
       const serCell = '<div style="color:var(--mu);font-size:12px;">' + escapeHtml(c.series || '—') + '</div>';
       rows += '<tr><td>' + img + '</td><td><div class="tname">' + escapeHtml(c.name) + accentDot + '</div></td><td class="tdfam">' + famCell + '</td><td>' + serCell + lim + '</td><td>' + badge + '</td><td><div class="tacts"><button class="tedit" onclick="openCanModal(\'' + c.id + '\')">Éditer</button>' + pubBtn + '<button class="tdel" onclick="deleteCan(\'' + c.id + '\')">Suppr.</button></div></td></tr>';
     });
     document.getElementById('adm-cans-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Photo</th><th>Nom</th><th>Famille</th><th>Série</th><th>Statut</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }).catch((e) => { document.getElementById('adm-cans-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
-// ════════════════════ ADMIN : familles (classement manuel) ════════════════════
+// ════════════════════ ADMIN : PAGE FAMILLES ════════════════════
+// Une page dédiée pour créer des familles et y ajouter / en retirer des canettes.
 let _admCansAll = [];
-function mtFamilies() {
-  // liste des familles existantes (déjà assignées par l'admin) avec leur nombre de canettes
+let _famQuery = '';
+let _fpQuery = '';
+let _famPickSel = new Set();
+let _famPickName = '';
+let _famRenaming = null;
+
+function mtJsq(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+function mtFamThumb(c, w) {
+  return c.image_url
+    ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'">'
+    : '<span style="font-size:16px;">&#129371;</span>';
+}
+function mtFamList() {
   const map = {};
-  _admCansAll.forEach((c) => { const f = mtNorm(c.family); if (f) map[c.family] = (map[c.family] || 0) + 1; });
+  _admCansAll.forEach((c) => { const f = mtNorm(c.family); if (f) (map[c.family] = map[c.family] || []).push(c); });
   return map;
 }
-function mtAdmSuggestions() {
-  const fl = document.getElementById('fam-families-list'), vl = document.getElementById('fam-variant-list');
-  const fe = document.getElementById('cm-family'), ve = document.getElementById('cm-variant');
-  if (!fl || !fe || !ve) return;
-  const fams = mtFamilies();
-  const inFam = {}, others = {};
-  _admCansAll.forEach((c) => {
-    if (!c.variant) return;
-    if (mtNorm(c.family) === mtNorm(fe.value)) inFam[c.variant] = 1; else others[c.variant] = 1;
-  });
-  const opt = (v, n) => '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + (n ? ' (' + n + ')' : '') + '</option>';
-  fl.innerHTML = Object.keys(fams).sort((a, b) => a.localeCompare(b, 'fr')).map((v) => opt(v, fams[v])).join('');
-  vl.innerHTML = Object.keys(inFam).sort((a, b) => a.localeCompare(b, 'fr')).map((v) => opt(v, 0)).join('')
-    + Object.keys(others).sort((a, b) => a.localeCompare(b, 'fr')).map((v) => opt(v, 0)).join('');
+function mtFamStats() {
+  const fams = mtFamList(), keys = Object.keys(fams);
+  let cansIn = 0;
+  keys.forEach((f) => { cansIn += fams[f].length; });
+  return { nbFams: keys.length, cansIn: cansIn, free: _admCansAll.length - cansIn };
 }
-function mtAdmFamPreview() {
-  const box = document.getElementById('cm-fam-prev');
-  if (!box) return;
-  const fe = document.getElementById('cm-family'), ve = document.getElementById('cm-variant');
-  if (!fe || !ve) return;
-  const fr = (fe.value || '').trim(), vr = (ve.value || '').trim();
-  const myId = (document.getElementById('cm-id') || {}).value || '';
-  mtAdmSuggestions();
-  if (!fr) {
-    box.className = 'famprev warn';
-    box.innerHTML = '<div class="fp-head"><span class="fp-tag new">&#9888; aucune famille</span></div>'
-      + '<div class="fp-hint">Choisis une <b>famille</b> (ou crée-la en tapant son nom) : c\'est toi qui décides quelles canettes vont ensemble. '
-      + 'Sans famille, cette canette reste seule et n\'apparaît dans aucune bibliothèque.</div>';
-    return;
-  }
-  const key = mtFamilyKey({ family: fr });
-  const fam = _admCansAll.filter((c) => mtFamilyKey(c) === key && c.id !== myId);
-  const sib = vr ? fam.filter((c) => mtNorm(c.variant) === mtNorm(vr)) : [];
-  const newFam = fam.length === 0;
-  let h = '<div class="fp-head"><span class="fp-tag ' + (newFam ? 'new' : 'ok') + '">'
-        + (newFam ? '+ nouvelle famille' : '&#10003; famille existante') + '</span>'
-        + '<span class="fp-fam">' + escapeHtml(fr) + (vr ? ' &middot; ' + escapeHtml(vr) : ' <i>sans modèle</i>') + '</span>'
-        + '<span class="fp-n">' + fam.length + ' autre' + (fam.length > 1 ? 's' : '') + ' canette' + (fam.length > 1 ? 's' : '') + ' dans la famille</span></div>';
-  if (!vr) {
-    h += '<div class="fp-hint">&#128161; Sans <b>variante</b>, cette canette ne sera fusionnée avec aucune autre : elle aura sa propre carte. '
-       + 'Mets la <b>même variante que ses sœurs</b> (ex. <b>White</b>) pour les regrouper.</div>';
+
+window.loadAdmFams = function () {
+  const ct = document.getElementById('adm-fams-ct');
+  if (ct) ct.innerHTML = lHtml();
+  getDocs(query(collection(db, 'cans'), orderBy('name'))).then((snap) => {
+    _admCansAll = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    renderAdmFams();
+  }).catch((e) => { if (ct) ct.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+
+window.famSearch = function (v) { _famQuery = mtNorm(v); renderAdmFams(); };
+
+function renderAdmFams() {
+  const el = document.getElementById('adm-fams-ct');
+  if (!el) return;
+  const s = mtFamStats();
+  const tot = document.getElementById('adm-fams-total');
+  if (tot) tot.textContent = s.nbFams + ' famille' + (s.nbFams > 1 ? 's' : '') + ' · ' + s.cansIn + ' canette' + (s.cansIn > 1 ? 's' : '') + ' classée' + (s.cansIn > 1 ? 's' : '') + ' · ' + s.free + ' sans famille';
+  const fams = mtFamList();
+  let keys = Object.keys(fams).sort((a, b) => fams[b].length - fams[a].length || a.localeCompare(b, 'fr'));
+  if (_famQuery) keys = keys.filter((k) => mtNorm(k).indexOf(_famQuery) !== -1);
+
+  let html = '';
+  if (!keys.length) {
+    html += eHtml('&#128218;', _famQuery ? 'AUCUNE FAMILLE TROUVÉE' : 'AUCUNE FAMILLE',
+      _famQuery ? 'Aucune famille ne correspond à cette recherche.' : 'Crée ta première famille : clique sur « + NOUVELLE FAMILLE », donne-lui un nom et choisis les canettes qui vont ensemble.');
   } else {
-    h += '<div class="fp-hint">&rarr; Ce modèle comptera <b>' + (sib.length + 1) + ' version' + (sib.length ? 's' : '') + '</b>'
-       + (sib.length ? ' (regroupées sous « ' + escapeHtml(vr) + ' »)' : '') + '.</div>';
+    html += '<div class="famgrid">';
+    keys.forEach((name) => {
+      const list = fams[name].slice().sort((a, b) =>
+        (a.variant || '').localeCompare(b.variant || '', 'fr') || (a.name || '').localeCompare(b.name || '', 'fr'));
+      const mods = {};
+      list.forEach((c) => { mods[mtModelKey(c)] = 1; });
+      const nbMod = Object.keys(mods).length;
+      html += '<div class="famcard"><div class="fc-hd">'
+        + '<div class="fc-t"><div class="fc-name">' + escapeHtml(name) + '</div>'
+        + '<div class="fc-n">' + list.length + ' canette' + (list.length > 1 ? 's' : '') + ' · ' + nbMod + ' modèle' + (nbMod > 1 ? 's' : '') + '</div></div>'
+        + '<div class="fc-act">'
+        + '<button title="Renommer la famille" onclick="openFamRename(\'' + mtJsq(name) + '\')">&#9998;</button>'
+        + '<button title="Vider la famille" onclick="deleteFamily(\'' + mtJsq(name) + '\')">&#128465;</button>'
+        + '</div></div><div class="fc-list">';
+      list.forEach((c) => {
+        html += '<div class="fc-row">'
+          + '<div class="fc-thumb">' + mtFamThumb(c) + '</div>'
+          + '<div class="fc-info">'
+          + '<div class="fc-tn">' + escapeHtml(c.name) + (c.is_published ? '' : ' <span class="fc-draft">brouillon</span>') + '</div>'
+          + '<div class="fc-tm">' + escapeHtml([c.series, c.country, c.volume, c.year].filter(Boolean).join(' · ') || '—') + '</div>'
+          + '<input class="fc-model" type="text" value="' + escapeHtml(c.variant || '') + '" placeholder="modèle (ex : White)" '
+          + 'title="Deux canettes avec le même modèle sont regroupées sous une seule carte" onchange="setFamModel(\'' + c.id + '\', this.value)"/>'
+          + '</div>'
+          + '<button class="fc-out" title="Retirer de la famille" onclick="removeFromFamily(\'' + c.id + '\', \'' + mtJsq(name) + '\')">&#10005;</button>'
+          + '</div>';
+      });
+      html += '</div><button class="fc-add" onclick="openFamPicker(\'' + mtJsq(name) + '\')">＋ Ajouter des canettes</button></div>';
+    });
+    html += '</div>';
   }
-  const show = (vr ? sib : fam).slice(0, 8);
-  if (show.length) {
-    h += '<div class="fp-thumbs">' + show.map((c) => '<div class="fp-t" title="' + escapeHtml([c.name, c.variant, c.country, c.volume].filter(Boolean).join(' · ')) + '">'
-      + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'">' : '&#129371;') + '</div>').join('') + '</div>';
+
+  // canettes sans famille
+  const free = _admCansAll.filter((c) => !mtNorm(c.family));
+  html += '<div class="famfree"><div class="ff-hd">&#128230; Sans famille <span>' + free.length + ' canette' + (free.length > 1 ? 's' : '') + '</span></div>';
+  if (!free.length) html += '<div class="ff-empty">Toutes tes canettes sont classées ✓</div>';
+  else if (free.length > 12) {
+    html += '<div class="ff-note">' + free.length + ' canettes à classer — utilise la recherche pour les retrouver.</div>';
+    html += '<div class="ff-list">' + free.slice(0, 12).map((c) =>
+      '<div class="ff-i"><div class="fc-thumb">' + mtFamThumb(c) + '</div><div class="ff-n">' + escapeHtml(c.name)
+      + '<span>' + escapeHtml([c.series, c.country, c.volume].filter(Boolean).join(' · ') || '—') + '</span></div>'
+      + '<button class="fam-btn" onclick="openFamAssign(\'' + c.id + '\')">+ Famille</button></div>').join('') + '</div>';
+  } else {
+    html += '<div class="ff-list">' + free.map((c) =>
+      '<div class="ff-i"><div class="fc-thumb">' + mtFamThumb(c) + '</div><div class="ff-n">' + escapeHtml(c.name)
+      + '<span>' + escapeHtml([c.series, c.country, c.volume].filter(Boolean).join(' · ') || '—') + '</span></div>'
+      + '<button class="fam-btn" onclick="openFamAssign(\'' + c.id + '\')">+ Famille</button></div>').join('') + '</div>';
   }
-  box.className = 'famprev';
-  box.innerHTML = h;
+  html += '</div>';
+  el.innerHTML = html;
 }
-window.mtAdmFamPreview = mtAdmFamPreview;
+
+// ── Retirer / modèle ──
+window.removeFromFamily = function (id, name) {
+  updateDoc(doc(db, 'cans', id), { family: null, updated_at: fst() })
+    .then(() => { toast('Canette retirée de « ' + name + ' »'); loadAdmFams(); })
+    .catch((e) => toast(e.message, 'err'));
+};
+window.setFamModel = function (id, val) {
+  const v = (val || '').trim() || null;
+  updateDoc(doc(db, 'cans', id), { variant: v, updated_at: fst() })
+    .then(() => {
+      const c = _admCansAll.find((x) => x.id === id);
+      if (c) c.variant = v;
+      toast(v ? 'Modèle « ' + v + ' » enregistré ✓' : 'Modèle retiré');
+      renderAdmFams();
+    })
+    .catch((e) => toast(e.message, 'err'));
+};
+
+// ── Renommer / vider une famille ──
+window.openFamRename = function (name) {
+  _famRenaming = name;
+  document.getElementById('fr-old').textContent = name;
+  document.getElementById('fr-name').value = name;
+  document.getElementById('modal-fam-rename').classList.add('on');
+};
+window.saveFamRename = function () {
+  const nv = (document.getElementById('fr-name').value || '').trim();
+  if (!nv) { toast('Nom requis', 'err'); return; }
+  if (!_famRenaming || mtNorm(nv) === mtNorm(_famRenaming)) { closeModal('fam-rename'); return; }
+  const ids = _admCansAll.filter((c) => mtNorm(c.family) === mtNorm(_famRenaming)).map((c) => c.id);
+  const b = fbatch();
+  ids.forEach((id) => b.update(doc(db, 'cans', id), { family: nv, updated_at: fst() }));
+  b.commit().then(() => {
+    closeModal('fam-rename');
+    toast('Famille renommée en « ' + nv + ' » ✓');
+    _famRenaming = null;
+    loadAdmFams();
+  }).catch((e) => toast(e.message, 'err'));
+};
+window.deleteFamily = function (name) {
+  const ids = _admCansAll.filter((c) => mtNorm(c.family) === mtNorm(name)).map((c) => c.id);
+  if (!ids.length) return;
+  if (!confirm('Vider la famille « ' + name + ' » ?\n\nLes ' + ids.length + ' canette' + (ids.length > 1 ? 's' : '') + ' ne sont pas supprimées : elles redeviennent « sans famille ».')) return;
+  const b = fbatch();
+  ids.forEach((id) => b.update(doc(db, 'cans', id), { family: null, updated_at: fst() }));
+  b.commit().then(() => { toast('Famille « ' + name + ' » vidée'); loadAdmFams(); }).catch((e) => toast(e.message, 'err'));
+};
+
+// ── Sélecteur de canettes (ajouter à une famille / en créer une) ──
+window.openFamPicker = function (family) {
+  _famPickName = (family || '').trim();
+  _famPickSel = new Set();
+  _fpQuery = '';
+  const n = document.getElementById('fp-name');
+  n.value = _famPickName;
+  n.readOnly = !!_famPickName;
+  document.getElementById('fp-title').textContent = _famPickName ? 'AJOUTER À « ' + _famPickName + ' »' : 'NOUVELLE FAMILLE';
+  document.getElementById('fp-search').value = '';
+  renderFamPicker();
+  document.getElementById('modal-fam-pick').classList.add('on');
+};
+window.openFamAssign = function (canId) {
+  const c = _admCansAll.find((x) => x.id === canId);
+  if (!c) return;
+  window.openFamPicker(c.family || '');
+  _famPickSel = new Set([canId]);
+  document.getElementById('fp-name').readOnly = false;
+  document.getElementById('fp-title').textContent = 'CLASSER DANS UNE FAMILLE';
+  renderFamPicker();
+};
+window.fpSearch = function (v) { _fpQuery = mtNorm(v); renderFamPicker(); };
+window.famPickerToggle = function (id, on) {
+  if (on) _famPickSel.add(id); else _famPickSel.delete(id);
+  renderFamPicker();
+};
+window.famPickerAll = function (on) {
+  const list = famPickerList();
+  list.forEach((c) => { if (on) _famPickSel.add(c.id); else _famPickSel.delete(c.id); });
+  renderFamPicker();
+};
+window.famPickerName = function (v) {
+  _famPickName = (v || '').trim();
+  document.getElementById('fp-title').textContent = _famPickName
+    ? ('AJOUTER À « ' + _famPickName + ' »') : 'NOUVELLE FAMILLE';
+  renderFamPicker();
+};
+function famPickerList() {
+  return _admCansAll.filter((c) => {
+    if (!_fpQuery) return true;
+    const h = mtNorm([c.name, c.series, c.country, c.volume, c.year, c.family].filter(Boolean).join(' '));
+    return h.indexOf(_fpQuery) !== -1;
+  }).sort((a, b) => (Number(!!mtNorm(a.family)) - Number(!!mtNorm(b.family))) || (a.name || '').localeCompare(b.name || '', 'fr'));  // canettes sans famille en premier
+}
+function renderFamPicker() {
+  const list = famPickerList();
+  const box = document.getElementById('fp-list');
+  const cur = mtNorm(_famPickName);
+  box.innerHTML = list.length ? list.map((c) => {
+    const on = _famPickSel.has(c.id);
+    const cFam = mtNorm(c.family);
+    const tag = (!cFam) ? '' : (cur && cFam === cur
+      ? '<span class="fp-in">déjà dedans</span>'
+      : '<span class="fp-other">dans « ' + escapeHtml(c.family) + ' »</span>');
+    return '<label class="fp-i' + (on ? ' on' : '') + '">'
+      + '<input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="famPickerToggle(\'' + c.id + '\', this.checked)"/>'
+      + '<div class="fc-thumb">' + mtFamThumb(c) + '</div>'
+      + '<div class="fp-meta"><div class="fp-nm">' + escapeHtml(c.name) + '</div>'
+      + '<div class="fp-sub">' + escapeHtml([c.series, c.country, c.volume].filter(Boolean).join(' · ') || '—') + tag + '</div></div>'
+      + '</label>';
+  }).join('') : '<div class="fp-none">Aucune canette ne correspond.</div>';
+  const fams = mtFamList();
+  document.getElementById('fp-fams-list').innerHTML = Object.keys(fams).sort((a, b) => a.localeCompare(b, 'fr'))
+    .map((v) => '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + ' (' + fams[v].length + ')</option>').join('');
+  const b = document.getElementById('fp-save');
+  b.disabled = !_famPickSel.size || !cur;
+  b.textContent = _famPickSel.size
+    ? 'AJOUTER ' + _famPickSel.size + ' CANETTE' + (_famPickSel.size > 1 ? 'S' : '')
+    : 'AJOUTER';
+  const allOn = list.length > 0 && list.every((c) => _famPickSel.has(c.id));
+  const sel = document.getElementById('fp-all');
+  if (sel) sel.textContent = allOn ? 'Tout décocher' : 'Tout cocher (' + list.length + ')';
+  const info = document.getElementById('fp-info');
+  info.textContent = !cur ? 'Donne un nom à la famille' : (_famPickSel.size ? '' : 'Coche les canettes à ajouter');
+}
+window.saveFamPicker = function () {
+  const name = (document.getElementById('fp-name').value || '').trim();
+  if (!name) { toast('Donne un nom à la famille', 'err'); return; }
+  const ids = Array.from(_famPickSel);
+  if (!ids.length) { toast('Sélectionne au moins une canette', 'err'); return; }
+  const b = fbatch();
+  ids.forEach((id) => b.update(doc(db, 'cans', id), { family: name, updated_at: fst() }));
+  b.commit().then(() => {
+    closeModal('fam-pick');
+    toast(ids.length + ' canette' + (ids.length > 1 ? 's' : '') + ' dans « ' + name + ' » ✓');
+    _famPickSel = new Set(); _famPickName = '';
+    loadAdmFams();
+  }).catch((e) => toast(e.message, 'err'));
+};
 
 window.openCanModal = function (canId) {
   const setup = (c) => {
     document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
     document.getElementById('cm-id').value = (c && c.id) || '';
-    const map = { name: 'name', family: 'family', series: 'series', variant: 'variant', lang: 'language', cap: 'cap_color', fc: 'full_color', vol: 'volume', country: 'country', year: 'year', desc: 'description', 'img-url': 'image_url' };
+    const map = { name: 'name', series: 'series', variant: 'variant', lang: 'language', cap: 'cap_color', fc: 'full_color', vol: 'volume', country: 'country', year: 'year', desc: 'description', 'img-url': 'image_url' };
     Object.keys(map).forEach((f) => { document.getElementById('cm-' + f).value = (c && c[map[f]]) || ''; });
     document.getElementById('cm-color').value = (c && c.accent_color) || '#39ff14';
     document.getElementById('cm-limited').checked = !!(c && c.is_limited);
@@ -1291,7 +1470,6 @@ window.openCanModal = function (canId) {
     const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
     if (c && c.image_url) { prev.src = c.image_url; prev.style.display = 'block'; lbl.style.display = 'none'; }
     else { prev.style.display = 'none'; lbl.style.display = 'block'; }
-    mtAdmFamPreview();
     document.getElementById('modal-can').classList.add('on');
   };
   if (canId) getDoc(doc(db, 'cans', canId)).then((snap) => setup(snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null));
@@ -1318,8 +1496,7 @@ window.saveCan = function () {
   const fi = document.getElementById('cm-img-file');
   const imageUrl = (fi.dataset && fi.dataset.compressed) || document.getElementById('cm-img-url').value.trim();
   const body = {
-    name, family: document.getElementById('cm-family').value.trim() || null,
-    series: document.getElementById('cm-series').value || null, variant: document.getElementById('cm-variant').value || null,
+    name, series: document.getElementById('cm-series').value || null, variant: document.getElementById('cm-variant').value || null,
     language: document.getElementById('cm-lang').value || null, cap_color: document.getElementById('cm-cap').value || null,
     full_color: document.getElementById('cm-fc').value || null, volume: document.getElementById('cm-vol').value || null,
     country: document.getElementById('cm-country').value || null,
@@ -1334,53 +1511,6 @@ window.saveCan = function () {
   const id = document.getElementById('cm-id').value;
   const p = id ? updateDoc(doc(db, 'cans', id), body) : addDoc(collection(db, 'cans'), Object.assign({}, body, { is_published: false, created_at: fst() }));
   p.then(() => { toast(id ? 'Modifiée ✓' : 'Ajoutée (brouillon)'); fi.dataset.compressed = ''; closeModal('can'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
-};
-// ── Classement rapide dans une famille (depuis la liste admin) ──
-let _famQuickCan = null;
-window.openFamQuick = function (canId) {
-  const c = _admCansAll.find((x) => x.id === canId);
-  if (!c) return;
-  _famQuickCan = c;
-  const nm = document.getElementById('fm-can');
-  if (nm) nm.textContent = c.name + (c.variant ? ' · ' + c.variant : '');
-  const fe = document.getElementById('fm-name');
-  if (fe) { fe.value = c.family || ''; setTimeout(() => fe.focus(), 50); }
-  mtFamQuickPreview();
-  document.getElementById('modal-fam').classList.add('on');
-};
-window.mtFamQuickPreview = function () {
-  const box = document.getElementById('fm-prev');
-  const fe = document.getElementById('fm-name');
-  if (!box || !fe) return;
-  const fr = (fe.value || '').trim();
-  const fams = mtFamilies();
-  const opt = Object.keys(fams).sort((a, b) => a.localeCompare(b, 'fr'))
-    .map((v) => '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + ' (' + fams[v] + ')</option>').join('');
-  document.getElementById('fm-list').innerHTML = opt;
-  if (!fr) { box.className = 'famprev warn'; box.innerHTML = '<div class="fp-hint">Choisis une famille existante dans la liste, ou tape un nouveau nom pour la créer.</div>'; return; }
-  const key = mtFamilyKey({ family: fr });
-  const liens = _admCansAll.filter((c) => mtFamilyKey(c) === key && (!_famQuickCan || c.id !== _famQuickCan.id));
-  const neuve = liens.length === 0;
-  let h = '<div class="fp-head"><span class="fp-tag ' + (neuve ? 'new' : 'ok') + '">'
-        + (neuve ? '+ nouvelle famille' : '&#10003; famille existante') + '</span>'
-        + '<span class="fp-fam">' + escapeHtml(fr) + '</span>'
-        + '<span class="fp-n">' + liens.length + ' canette' + (liens.length > 1 ? 's' : '') + '</span></div>';
-  h += '<div class="fp-hint">' + (neuve
-        ? 'Cette famille n\'existe pas encore : elle sera créée.'
-        : 'Cette canette rejoindra ces canettes :') + '</div>';
-  if (liens.length) {
-    h += '<div class="fp-thumbs">' + liens.slice(0, 10).map((c) => '<div class="fp-t" title="' + escapeHtml([c.name, c.variant, c.country, c.volume].filter(Boolean).join(' · ')) + '">'
-      + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'">' : '&#129371;') + '</div>').join('') + '</div>';
-  }
-  box.className = 'famprev';
-  box.innerHTML = h;
-};
-window.saveFamQuick = function () {
-  if (!_famQuickCan) return;
-  const v = (document.getElementById('fm-name').value || '').trim();
-  updateDoc(doc(db, 'cans', _famQuickCan.id), { family: v || null, updated_at: fst() })
-    .then(() => { closeModal('fam'); toast(v ? 'Classée dans « ' + v + ' » ✓' : 'Famille retirée'); _famQuickCan = null; loadAdmCans(); })
-    .catch((e) => toast(e.message, 'err'));
 };
 window.publishCan = (id, pub) => updateDoc(doc(db, 'cans', id), { is_published: pub }).then(() => { toast(pub ? 'Publiée ✓' : 'Dépubliée'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
 window.deleteCan = (id) => { if (!confirm('Supprimer cette canette ?')) return; deleteDoc(doc(db, 'cans', id)).then(() => { toast('Supprimée ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err')); };
