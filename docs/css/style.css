@@ -557,4 +557,24 @@ td.tdfam{min-width:190px;}
 .fp-other{color:#ff9600;border:1px solid rgba(255,150,0,.3);padding:1px 5px;margin-left:6px;font-size:9px;letter-spacing:1px;text-transform:uppercase;}
 .fp-none{padding:22px;text-align:center;color:var(--mu);font-size:13px;}
 #fp-save:disabled{opacity:.45;cursor:not-allowed;}
-@media(max-width:600px){.famgrid{grid-template-columns:1fr;}.ff-list{grid-template-columns:1fr;}}
+
+/* Infos détaillées des canettes (page Familles) */
+.famgrid{grid-template-columns:repeat(auto-fill,minmax(430px,1fr));}
+.fc-list{max-height:520px;}
+.fc-row{align-items:flex-start;padding:11px 12px;}
+.fc-thumb{width:46px;height:58px;flex:0 0 46px;margin-top:2px;}
+.fc-fields{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.fc-fields .cinfo{font-size:9px;}
+.cinfo.lim{color:#ff9600;border-color:rgba(255,150,0,.3);background:rgba(255,150,0,.08);}
+.cinfo.pubx{color:var(--g);border-color:rgba(var(--g-r),var(--g-g),var(--g-b),.3);background:rgba(var(--g-r),var(--g-g),var(--g-b),.07);}
+.cinfo.draftx{color:#ff9600;border-color:rgba(255,150,0,.3);background:rgba(255,150,0,.08);}
+.cinfo .swatch{display:inline-block;width:9px;height:9px;border:1px solid rgba(255,255,255,.3);vertical-align:-1px;}
+.fc-desc{font-size:11px;color:#9a9a9a;line-height:1.55;margin-top:6px;border-left:2px solid var(--br);padding-left:8px;}
+.fc-modelrow{display:flex;align-items:center;gap:7px;margin-top:8px;}
+.fc-modelrow label{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);flex-shrink:0;}
+.fc-noinfo{font-size:10.5px;color:#5a5a5a;font-style:italic;}
+.ff-i{align-items:flex-start;padding:10px;}
+.ff-body{flex:1;min-width:0;}
+.ff-list{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));}
+
+@media(max-width:600px){.famgrid{grid-template-columns:1fr;}.ff-list{grid-template-columns:1fr;}.fc-thumb{width:40px;height:50px;flex:0 0 40px;}}

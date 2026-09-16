@@ -1224,6 +1224,36 @@ function mtFamThumb(c, w) {
     ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'">'
     : '<span style="font-size:16px;">&#129371;</span>';
 }
+const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
+// Toutes les infos d'une canette, en pastilles (comme les cartes du catalogue)
+function mtFamFields(c) {
+  const ch = [];
+  const push = (l, v) => { if (v !== null && v !== undefined && v !== '') ch.push('<span class="cinfo"><b>' + l + '</b> ' + escapeHtml(String(v)) + '</span>'); };
+  push('VOL', c.volume);
+  push('PAYS', c.country);
+  push('ANNÉE', c.year);
+  push('LANGUE', c.language);
+  push('CAP', c.cap_color);
+  push('FULL', c.full_color);
+  if (c.edition) push('ÉDITION', MT_EDLBL[c.edition] || c.edition);
+  if (c.is_limited) ch.push('<span class="cinfo lim">ÉDITION LIMITÉE</span>');
+  ch.push(c.is_published ? '<span class="cinfo pubx">PUBLIÉE</span>' : '<span class="cinfo draftx">BROUILLON</span>');
+  if (c.accent_color) ch.push('<span class="cinfo"><b>ACCENT</b><i class="swatch" style="background:' + escapeHtml(c.accent_color) + '"></i></span>');
+  return ch.join('');
+}
+// Bloc complet : identité + toutes les infos + description + modèles
+function mtFamFull(c) {
+  const fields = mtFamFields(c);
+  return '<div class="fc-info">'
+    + '<div class="fc-tn">' + escapeHtml(c.name) + '</div>'
+    + '<div class="fc-tm">' + escapeHtml([c.series, c.variant].filter(Boolean).join(' · ') || 'Aucune série renseignée') + '</div>'
+    + (fields ? '<div class="fc-fields">' + fields + '</div>' : '<div class="fc-fields"><span class="fc-noinfo">Aucune info renseignée</span></div>')
+    + (c.description ? '<div class="fc-desc">' + escapeHtml(c.description) + '</div>' : '')
+    + '<div class="fc-modelrow"><label>modèle</label>'
+    + '<input class="fc-model" type="text" value="' + escapeHtml(c.variant || '') + '" placeholder="ex : White" '
+    + 'title="Deux canettes avec le même modèle sont regroupées en une seule carte dans le catalogue" onchange="setFamModel(\'' + c.id + '\', this.value)"/></div>'
+    + '</div>';
+}
 function mtFamList() {
   const map = {};
   _admCansAll.forEach((c) => { const f = mtNorm(c.family); if (f) (map[c.family] = map[c.family] || []).push(c); });
@@ -1279,12 +1309,7 @@ function renderAdmFams() {
       list.forEach((c) => {
         html += '<div class="fc-row">'
           + '<div class="fc-thumb">' + mtFamThumb(c) + '</div>'
-          + '<div class="fc-info">'
-          + '<div class="fc-tn">' + escapeHtml(c.name) + (c.is_published ? '' : ' <span class="fc-draft">brouillon</span>') + '</div>'
-          + '<div class="fc-tm">' + escapeHtml([c.series, c.country, c.volume, c.year].filter(Boolean).join(' · ') || '—') + '</div>'
-          + '<input class="fc-model" type="text" value="' + escapeHtml(c.variant || '') + '" placeholder="modèle (ex : White)" '
-          + 'title="Deux canettes avec le même modèle sont regroupées sous une seule carte" onchange="setFamModel(\'' + c.id + '\', this.value)"/>'
-          + '</div>'
+          + mtFamFull(c)
           + '<button class="fc-out" title="Retirer de la famille" onclick="removeFromFamily(\'' + c.id + '\', \'' + mtJsq(name) + '\')">&#10005;</button>'
           + '</div>';
       });
@@ -1300,13 +1325,17 @@ function renderAdmFams() {
   else if (free.length > 12) {
     html += '<div class="ff-note">' + free.length + ' canettes à classer — utilise la recherche pour les retrouver.</div>';
     html += '<div class="ff-list">' + free.slice(0, 12).map((c) =>
-      '<div class="ff-i"><div class="fc-thumb">' + mtFamThumb(c) + '</div><div class="ff-n">' + escapeHtml(c.name)
-      + '<span>' + escapeHtml([c.series, c.country, c.volume].filter(Boolean).join(' · ') || '—') + '</span></div>'
+      '<div class="ff-i"><div class="fc-thumb">' + mtFamThumb(c) + '</div><div class="ff-body">'
+      + '<div class="ff-n">' + escapeHtml(c.name) + '</div>'
+      + '<div class="fc-tm">' + escapeHtml([c.series, c.variant].filter(Boolean).join(' · ') || 'Aucune série renseignée') + '</div>'
+      + '<div class="fc-fields">' + (mtFamFields(c) || '<span class="fc-noinfo">Aucune info renseignée</span>') + '</div></div>'
       + '<button class="fam-btn" onclick="openFamAssign(\'' + c.id + '\')">+ Famille</button></div>').join('') + '</div>';
   } else {
     html += '<div class="ff-list">' + free.map((c) =>
-      '<div class="ff-i"><div class="fc-thumb">' + mtFamThumb(c) + '</div><div class="ff-n">' + escapeHtml(c.name)
-      + '<span>' + escapeHtml([c.series, c.country, c.volume].filter(Boolean).join(' · ') || '—') + '</span></div>'
+      '<div class="ff-i"><div class="fc-thumb">' + mtFamThumb(c) + '</div><div class="ff-body">'
+      + '<div class="ff-n">' + escapeHtml(c.name) + '</div>'
+      + '<div class="fc-tm">' + escapeHtml([c.series, c.variant].filter(Boolean).join(' · ') || 'Aucune série renseignée') + '</div>'
+      + '<div class="fc-fields">' + (mtFamFields(c) || '<span class="fc-noinfo">Aucune info renseignée</span>') + '</div></div>'
       + '<button class="fam-btn" onclick="openFamAssign(\'' + c.id + '\')">+ Famille</button></div>').join('') + '</div>';
   }
   html += '</div>';
