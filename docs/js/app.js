@@ -451,30 +451,12 @@ function renderSerieChips() {
   });
   el.innerHTML = html;
 }
-function renderCat(cans) {
-  const el = document.getElementById('cat-ct');
-  if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE TROUVÉE', 'Aucun résultat.'); return; }
-  const groups = {};
-  cans.forEach((c) => { const sr = c.series || 'Autres'; (groups[sr] = groups[sr] || []).push(c); });
-  let html = '';
-  Object.keys(groups).sort((a, b) => a.localeCompare(b, 'fr')).forEach((sr) => {
-    const logo = MT_SERLOGO[MT_SERALIAS[sr.toLowerCase()] || sr.toLowerCase()];
-    html += '<div class="serlib"><div class="serhead">' + (logo ? '<img class="serlogo" src="' + logo + '" alt="">' : '<span class="sername">' + escapeHtml(sr) + '</span>') + '<span class="sercount">' + groups[sr].length + ' canette' + (groups[sr].length > 1 ? 's' : '') + '</span></div><div class="cgrid">';
-    groups[sr].forEach((can) => {
-      const colBtn = '<button class="cbtn ' + (can.in_collection ? 'on' : '') + '" onclick="event.stopPropagation();toggleCol(\'' + can.id + '\',' + can.in_collection + ')">' + (can.in_collection ? '✓ Possédée' : '+ Collection') + '</button>';
-      const wlBtn = '<button class="cbtn wl ' + (can.in_wishlist ? 'on' : '') + '" onclick="event.stopPropagation();toggleWl(\'' + can.id + '\',' + can.in_wishlist + ')">' + (can.in_wishlist ? '♥' : '♡') + ' Wish</button>';
-      html += '<div onclick="openCanDetailById(\'' + can.id + '\')">' + canCardHtml(can, colBtn + wlBtn) + '</div>';
-    });
-    html += '</div></div>';
-  });
-  el.innerHTML = html;
-}
 window.openCanDetailById = (id) => openCanDetail(allCans.find((x) => x.id === id));
 window.toggleCol = function (id, owned) {
   if (owned) {
     getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid), where('can_id', '==', id))).then((snap) => {
       const b = fbatch(); snap.docs.forEach((d) => b.delete(d.ref)); return b.commit();
-    }).then(() => { toast('Retirée ✓'); loadCatalogue(); });
+    }).then(() => { toast('Retirée ✓'); mtAfterChange(); });
     return;
   }
   const can = allCans.find((x) => x.id === id);
@@ -492,9 +474,9 @@ window.toggleWl = function (id, inWl) {
   if (inWl) {
     getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid), where('can_id', '==', id))).then((snap) => {
       const b = fbatch(); snap.docs.forEach((d) => b.delete(d.ref)); return b.commit();
-    }).then(() => { toast('Retirée de la wishlist'); loadCatalogue(); });
+    }).then(() => { toast('Retirée de la wishlist'); mtAfterChange(); });
   } else {
-    addDoc(collection(db, 'wishlist'), { uid: user.uid, can_id: id, added_at: fst() }).then(() => { toast('Ajoutée à la wishlist ♥'); loadCatalogue(); });
+    addDoc(collection(db, 'wishlist'), { uid: user.uid, can_id: id, added_at: fst() }).then(() => { toast('Ajoutée à la wishlist ♥'); mtAfterChange(); });
   }
 };
 window.selectPurchase = function (type) {
@@ -514,7 +496,7 @@ window.confirmAddCol = function () {
       language: cd.language || null, accent_color: cd.accent_color || null,
       price: price ? parseFloat(price) : null, purchase_type: pt || null, added_at: fst(),
     });
-  }).then(() => { closeModal('add-col'); toast('Ajoutée à ta collection ✓'); loadCatalogue(); }).catch((e) => toast(e.message, 'err'));
+  }).then(() => { closeModal('add-col'); toast('Ajoutée à ta collection ✓'); mtAfterChange(); }).catch((e) => toast(e.message, 'err'));
 };
 
 // ── Détail ──
@@ -539,9 +521,224 @@ function openCanDetail(can) {
   if (can.description) { document.getElementById('cd-desc').textContent = can.description; descWrap.style.display = 'block'; }
   else descWrap.style.display = 'none';
   document.getElementById('cd-add-btn').style.display = can.in_collection ? 'none' : 'inline-flex';
+  const _libBtn = document.getElementById('cd-lib-btn');
+  if (_libBtn) {
+    const _n = mtVersionCount(can), _own = mtFamilyCans(can).filter((c) => c.in_collection).length;
+    const _cn = _libBtn.querySelector('.cd-lib-n');
+    if (_cn) _cn.textContent = _n > 1 ? '(' + _n + ' versions)' : '(1 version)';
+    _libBtn.title = 'Voir les ' + _n + ' versions de la série ' + mtFamilyLabel(can) + ' — ' + _own + ' dans ta collection';
+  }
   document.getElementById('modal-can-detail').classList.add('on');
 }
 window.openAddModal = function () { if (_detailCan) { closeModal('can-detail'); openAddColModal(_detailCan); } };
+
+// ════════════════════ BIBLIOTHÈQUE — versions d'une canette ════════════════════
+// Une « famille » = une série (Ultra, Java, Punch…). Un « modèle » = une
+// déclinaison (Ultra White, Ultra Red…). La bibliothèque liste TOUTES les
+// versions d'un modèle (pays, volume, année, langue) afin d'éviter que la
+// même canette apparaisse plusieurs fois dans le catalogue général.
+
+function mtNorm(s) {
+  return (s === null || s === undefined ? '' : String(s)).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+function mtFamilyKey(can) {
+  const raw = mtNorm(can.series) || 'autres';
+  return MT_SERALIAS[raw] || raw;
+}
+function mtFamilyLabel(can) { return can.series || 'Autres'; }
+function mtModelKey(can) {
+  const fam = mtFamilyKey(can);
+  const v = mtNorm(can.variant);
+  if (v) return fam + '|' + v;
+  let n = mtNorm(can.name).replace(/\bmonster\b/g, ' ').replace(/\benergy\b/g, ' ');
+  if (fam && fam !== 'autres') n = n.split(fam).join(' ');
+  if (can.series) n = n.split(mtNorm(can.series)).join(' ');
+  n = n.replace(/\b\d+([.,]\d+)?\s?(ml|cl|l|fl oz)\b/g, ' ').replace(/[·|/,;-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return fam + '|' + (n || mtNorm(can.name) || 'autres');
+}
+function mtModelLabel(can) {
+  if (can.variant) return can.variant;
+  const k = (mtModelKey(can).split('|')[1] || '').trim();
+  return k ? k.replace(/\b\w/g, (c) => c.toUpperCase()) : mtFamilyLabel(can);
+}
+function mtFamilyCans(can) { return allCans.filter((c) => mtFamilyKey(c) === mtFamilyKey(can)); }
+function mtVersionCount(can) { return mtFamilyCans(can).length; }
+function mtCurrentSec() { const el = document.querySelector('.sec.on'); return el ? el.id.replace('sec-', '') : 'catalogue'; }
+function mtAfterChange() { if (mtCurrentSec() === 'lib') renderLibrary(); else loadCatalogue(); }
+function mtFetchCans() {
+  const colIds = new Set(), wlIds = new Set();
+  return getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((s) => {
+    s.docs.forEach((d) => colIds.add(d.data().can_id));
+    return getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid)));
+  }).then((s) => {
+    s.docs.forEach((d) => wlIds.add(d.data().can_id));
+    return getDocs(query(collection(db, 'cans'), where('is_published', '==', true)));
+  }).then((snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data(), { in_collection: colIds.has(d.id), in_wishlist: wlIds.has(d.id) })));
+}
+
+// ── Cartes réutilisables ──
+function mtCanBtns(can) {
+  const colBtn = '<button class="cbtn ' + (can.in_collection ? 'on' : '') + '" onclick="event.stopPropagation();toggleCol(\'' + can.id + '\',' + !!can.in_collection + ')">' + (can.in_collection ? '✓ Possédée' : '+ Collection') + '</button>';
+  const wlBtn = '<button class="cbtn wl ' + (can.in_wishlist ? 'on' : '') + '" onclick="event.stopPropagation();toggleWl(\'' + can.id + '\',' + !!can.in_wishlist + ')">' + (can.in_wishlist ? '♥' : '♡') + ' Wish</button>';
+  return colBtn + wlBtn;
+}
+function mtCanCardWrap(can, extraHtml, cls) {
+  return '<div class="cwrap' + (cls ? ' ' + cls : '') + '" onclick="openCanDetailById(\'' + can.id + '\')">'
+    + canCardHtml(can, mtCanBtns(can)) + (extraHtml || '') + '</div>';
+}
+function mtModelBlock(versions) {
+  if (versions.length === 1) return mtCanCardWrap(versions[0]);
+  const rep = versions.find((c) => c.in_collection) || versions.find((c) => c.image_url) || versions[0];
+  const own = versions.filter((c) => c.in_collection).length;
+  const more = '<div class="vmore" onclick="event.stopPropagation();openLibraryById(\'' + rep.id + '\')">&#128218; Voir les ' + versions.length + ' versions</div>';
+  return '<div class="vwrap">' + mtCanCardWrap(rep, more)
+    + '<div class="vbadge">' + versions.length + ' versions<span>' + own + '/' + versions.length + ' possédées</span></div></div>';
+}
+
+// ── Ouverture / navigation ──
+let _libFam = null, _libLabel = '', _libBack = 'catalogue', _libFilter = 'all', _libQ = '', _libFocus = null;
+window.openLibrary = function (can, backTab) {
+  if (!can) return;
+  const here = mtCurrentSec();
+  _libFam = mtFamilyKey(can);
+  _libLabel = mtFamilyLabel(can);
+  _libBack = (backTab && backTab !== 'lib') ? backTab : (here === 'lib' ? _libBack : here);
+  _libFilter = 'all'; _libQ = ''; _libFocus = can.id;
+  closeModal('can-detail');
+  const s = document.getElementById('lib-search'); if (s) s.value = '';
+  goTab('lib', document.getElementById('tab-' + _libBack));
+  renderLibrary();
+};
+window.openLibFromDetail = function () { if (_detailCan) openLibrary(_detailCan, _libBack); };
+window.openLibraryById = function (id) { const can = allCans.find((x) => x.id === id); if (can) openLibrary(can); };
+window.openLibraryBySeries = function (sr) {
+  const first = allCans.find((c) => (c.series || 'Autres') === sr);
+  if (first) openLibrary(first);
+  else toast('Aucune canette dans cette série', 'err');
+};
+window.backFromLibrary = function () { goTab(_libBack, document.getElementById('tab-' + _libBack)); };
+window.setLibFilter = function (f) { _libFilter = f; renderLibrary(); };
+window.libSearch = function (v) { _libQ = mtNorm(v); renderLibrary(); };
+
+// ── Rendu de la page Bibliothèque ──
+function renderLibrary() {
+  const ct = document.getElementById('lib-ct');
+  if (!ct) return;
+  ct.innerHTML = lHtml();
+  const headEl = document.getElementById('lib-head');
+  if (headEl) headEl.innerHTML = '';
+  mtFetchCans().then((cans) => {
+    allCans = cans.slice(0);
+    allCans.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    const fam = allCans.filter((c) => mtFamilyKey(c) === _libFam);
+    if (!fam.length) { ct.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Cette série est vide pour le moment.'); return; }
+    const owned = fam.filter((c) => c.in_collection).length;
+    const models = {};
+    fam.forEach((c) => { const k = mtModelKey(c); (models[k] = models[k] || []).push(c); });
+    const keys = Object.keys(models);
+    const pct = Math.round((owned / fam.length) * 100);
+    const logo = MT_SERLOGO[_libFam] || MT_SERLOGO[MT_SERALIAS[_libFam] || _libFam];
+
+    const t = document.getElementById('lib-title');
+    if (t) t.textContent = 'BIBLIOTHÈQUE — ' + String(_libLabel).toUpperCase();
+    const sub = document.getElementById('lib-sub');
+    if (sub) sub.textContent = fam.length + ' version' + (fam.length > 1 ? 's' : '') + ' · ' + keys.length + ' modèle' + (keys.length > 1 ? 's' : '') + ' · ' + owned + ' possédée' + (owned > 1 ? 's' : '');
+    if (headEl) {
+      headEl.innerHTML = '<div class="libhero">' + (logo ? '<img src="' + logo + '" alt="">' : '')
+        + '<div class="libhero-s"><div class="libhero-p"><i style="width:' + pct + '%"></i></div>'
+        + '<div class="libhero-t">' + pct + '% de cette série · ' + owned + ' / ' + fam.length + ' versions possédées · '
+        + '<b style="color:var(--g)">' + (fam.length - owned) + '</b> à trouver</div></div></div>';
+    }
+    const chips = [
+      ['all', 'Toutes (' + fam.length + ')'],
+      ['missing', 'Manquantes (' + (fam.length - owned) + ')'],
+      ['owned', 'Possédées (' + owned + ')'],
+      ['wish', 'Wishlist (' + fam.filter((c) => c.in_wishlist).length + ')'],
+    ];
+    const ce = document.getElementById('lib-chips');
+    if (ce) ce.innerHTML = chips.map(([k, l]) => '<button class="schip' + (_libFilter === k ? ' on' : '') + '" onclick="setLibFilter(\'' + k + '\')">' + escapeHtml(l) + '</button>').join('');
+
+    const match = (c) => {
+      if (_libFilter === 'owned' && !c.in_collection) return false;
+      if (_libFilter === 'missing' && c.in_collection) return false;
+      if (_libFilter === 'wish' && !c.in_wishlist) return false;
+      if (_libQ) {
+        const hay = mtNorm([c.name, c.variant, c.country, c.year, c.volume, c.language, c.cap_color, c.full_color].filter(Boolean).join(' '));
+        if (hay.indexOf(_libQ) === -1) return false;
+      }
+      return true;
+    };
+    keys.sort((a, b) => {
+      const oa = models[a].filter((c) => c.in_collection).length, ob = models[b].filter((c) => c.in_collection).length;
+      if (oa !== ob) return ob - oa;
+      return (models[a][0].name || '').localeCompare(models[b][0].name || '', 'fr');
+    });
+    let html = '';
+    keys.forEach((k) => {
+      const all = models[k];
+      const shown = all.filter(match).sort((x, y) =>
+        (x.country || '').localeCompare(y.country || '', 'fr') ||
+        (x.volume || '').localeCompare(y.volume || '', 'fr') ||
+        ((x.year || 0) - (y.year || 0)));
+      if (!shown.length) return;
+      const ownM = all.filter((c) => c.in_collection).length;
+      const done = ownM === all.length ? '<span class="vgdone">COMPLET ✓</span>' : '';
+      html += '<div class="vgroup"><div class="vghead"><span class="vgname">' + escapeHtml(mtModelLabel(all[0])) + '</span>' + done
+        + '<span class="vgcount">' + all.length + ' version' + (all.length > 1 ? 's' : '') + ' · ' + ownM + ' possédée' + (ownM > 1 ? 's' : '') + '</span></div><div class="cgrid">';
+      shown.forEach((can) => { html += mtCanCardWrap(can, '', can.id === _libFocus ? 'libfocus' : ''); });
+      html += '</div></div>';
+    });
+    ct.innerHTML = html || eHtml('&#128269;', 'AUCUN RÉSULTAT', 'Aucune version ne correspond à ce filtre.');
+  }).catch((e) => { ct.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+}
+
+// ════════════════════ CATALOGUE GROUPÉ (anti-doublons) ════════════════════
+let MT_GROUP = true;
+try { MT_GROUP = localStorage.getItem('mt_group') !== '0'; } catch (e) {}
+window.toggleCatGroup = function () {
+  MT_GROUP = !MT_GROUP;
+  try { localStorage.setItem('mt_group', MT_GROUP ? '1' : '0'); } catch (e) {}
+  window.filterCans();
+};
+
+function renderCat(cans) {
+  const el = document.getElementById('cat-ct');
+  const tg = document.getElementById('cat-group-toggle');
+  if (tg) { tg.classList.toggle('on', MT_GROUP); tg.innerHTML = MT_GROUP ? '&#9638; VUE GROUPÉE' : '&#9637; VUE COMPLÈTE'; }
+  if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE TROUVÉE', 'Aucun résultat.'); return; }
+  const groups = {};
+  cans.forEach((c) => { const sr = c.series || 'Autres'; (groups[sr] = groups[sr] || []).push(c); });
+  let html = '';
+  Object.keys(groups).sort((a, b) => a.localeCompare(b, 'fr')).forEach((sr) => {
+    const list = groups[sr];
+    const logo = MT_SERLOGO[MT_SERALIAS[sr.toLowerCase()] || sr.toLowerCase()];
+    const own = list.filter((c) => c.in_collection).length;
+    const models = {};
+    list.forEach((c) => { const k = mtModelKey(c); (models[k] = models[k] || []).push(c); });
+    const nbModels = Object.keys(models).length;
+    const nVers = MT_GROUP ? nbModels : list.length;
+    html += '<div class="serlib"><div class="serhead">'
+      + (logo ? '<img class="serlogo" src="' + logo + '" alt="">' : '<span class="sername">' + escapeHtml(sr) + '</span>')
+      + '<span class="sercount">' + (MT_GROUP
+        ? nVers + ' modèle' + (nVers > 1 ? 's' : '') + ' · ' + list.length + ' version' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : '')
+        : list.length + ' canette' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : ''))
+      + '</span>'
+      + '<button class="serlib-btn" onclick="openLibraryBySeries(\'' + sr.replace(/'/g, "\\'") + '\')">&#128218; Bibliothèque de la série</button>'
+      + '</div><div class="cgrid">';
+    if (MT_GROUP) {
+      Object.keys(models).sort((a, b) => {
+        const oa = models[a].filter((c) => c.in_collection).length, ob = models[b].filter((c) => c.in_collection).length;
+        if (oa !== ob) return ob - oa;
+        return (models[a][0].name || '').localeCompare(models[b][0].name || '', 'fr');
+      }).forEach((k) => { html += mtModelBlock(models[k]); });
+    } else {
+      list.forEach((can) => { html += mtCanCardWrap(can); });
+    }
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+}
 
 // ════════════════════ MA COLLECTION ════════════════════
 window.loadCollection = function () {

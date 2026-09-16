@@ -187,7 +187,10 @@
 <!-- CATALOGUE -->
 <div class="sec" id="sec-catalogue">
   <div class="sec-hd"><h1>CATALOGUE</h1><p>Toutes les canettes disponibles</p></div>
-  <input class="sinput" id="search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
+  <div class="catbar">
+    <input class="sinput" id="search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
+    <button class="schip grp" id="cat-group-toggle" onclick="toggleCatGroup()" title="Regroupe les différentes versions d'une même canette en une seule carte">&#9638; VUE GROUPÉE</button>
+  </div>
   <div class="serie-chips" id="cat-series"></div>
   <div id="cat-ct"></div>
 </div>
@@ -205,6 +208,18 @@
 </div>
 
 <!-- AMIS -->
+<!-- BIBLIOTHÈQUE (versions d'une canette) -->
+<div class="sec" id="sec-lib">
+  <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div><h1 id="lib-title">BIBLIOTHÈQUE</h1><p id="lib-sub">Toutes les versions de cette canette</p></div>
+    <button class="btn-ghost" onclick="backFromLibrary()">&#8592; Retour</button>
+  </div>
+  <div id="lib-head"></div>
+  <input class="sinput" id="lib-search" type="text" placeholder="Rechercher une version (pays, volume, année, langue, couleur...)" oninput="libSearch(this.value)"/>
+  <div class="serie-chips" id="lib-chips"></div>
+  <div id="lib-ct"></div>
+</div>
+
 <div class="sec" id="sec-friends">
   <div class="sec-hd"><h1>AMIS</h1><p>Ajoute des collectionneurs par pseudo</p></div>
   <div class="fr-add"><input type="text" id="friend-input" placeholder="Pseudo ou code ami..." oninput="friendSearch()"/></div>
@@ -477,7 +492,7 @@
       <div style="font-size:13px;color:#bbb;line-height:1.6;" id="cd-desc"></div>
     </div>
   </div>
-  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('can-detail')">FERMER</button><button id="cd-add-btn" class="btn-add" onclick="openAddModal()">+ MA COLLECTION</button></div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('can-detail')">FERMER</button><button class="btn-lib" id="cd-lib-btn" onclick="openLibFromDetail()">&#128218; BIBLIOTHÈQUE <span class="cd-lib-n" style="font-size:11px;opacity:.85;"></span></button><button id="cd-add-btn" class="btn-add" onclick="openAddModal()">+ MA COLLECTION</button></div>
 </div>
 </div>
 
