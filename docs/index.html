@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=46">
+<link rel="stylesheet" href="css/style.css?v=47">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -23,8 +23,7 @@
 <div class="page active" id="page-landing">
 <nav class="ln-nav">
   <div class="logo" onclick="go('landing')">
-    <img class="logo-icon" src="icon.png" alt="MonsterTracker"/>
-    <span class="logo-t">MONSTER<em>TRACKER</em></span>
+    <span class="logo-t"><img class="lg-m" src="img/logo-m.png" alt="M"><span class="lg-w">onster</span><img class="lg-t" src="img/logo-t.png" alt="T"><span class="lg-w">racker</span></span>
   </div>
   <div style="display:flex;align-items:center;gap:15px;">
     <button class="nav-l2" onclick="go('login')">CONNEXION</button>
@@ -59,8 +58,7 @@
 </section>
 <footer class="footer">
   <div class="logo" onclick="go('landing')">
-    <img class="logo-icon" src="icon.png" alt="" style="width:17px;height:17px;"/>
-    <span class="logo-t" style="font-size:15px;">MONSTER<em>TRACKER</em></span>
+    <span class="logo-t" style="font-size:15px;"><img class="lg-m" src="img/logo-m.png" alt="M"><span class="lg-w">onster</span><img class="lg-t" src="img/logo-t.png" alt="T"><span class="lg-w">racker</span></span>
   </div>
   <p>2026 MonsterTracker — Application indépendante, non affiliée à Monster Energy.</p>
 </footer>
@@ -72,7 +70,7 @@
   <div class="svis"><img src="https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=900&q=80" alt="" onerror="this.style.display='none'"/><div class="svis-over"></div><div class="svis-grid"></div><div class="svis-scan"></div>
     <div class="svis-body">
       <div class="logo" onclick="go('landing')" style="justify-content:center;">
-        <span class="logo-t">MONSTER<em>TRACKER</em></span>
+        <span class="logo-t"><img class="lg-m" src="img/logo-m.png" alt="M"><span class="lg-w">onster</span><img class="lg-t" src="img/logo-t.png" alt="T"><span class="lg-w">racker</span></span>
       </div>
       <h2>BON RETOUR</h2><p>Connecte-toi pour retrouver ta collection.</p>
     </div>
@@ -103,7 +101,7 @@
   <div class="svis"><img src="https://images.unsplash.com/photo-1622543925917-763c34d1a86e?w=900&q=80" alt="" onerror="this.style.display='none'"/><div class="svis-over"></div><div class="svis-grid"></div><div class="svis-scan"></div>
     <div class="svis-body">
       <div class="logo" onclick="go('landing')" style="justify-content:center;">
-        <span class="logo-t">MONSTER<em>TRACKER</em></span>
+        <span class="logo-t"><img class="lg-m" src="img/logo-m.png" alt="M"><span class="lg-w">onster</span><img class="lg-t" src="img/logo-t.png" alt="T"><span class="lg-w">racker</span></span>
       </div>
       <h2>REJOINS-NOUS</h2><p>Crée ton compte et commence ta collection.</p>
     </div>
@@ -125,8 +123,7 @@
 <div class="page" id="page-app">
 <nav class="app-nav">
   <div class="logo" onclick="goLandingApp()">
-    <img class="logo-icon" src="icon.png" alt="" style="width:28px;height:28px;"/>
-    <span class="logo-t" style="font-size:22px;">MONSTER<em>TRACKER</em></span>
+    <span class="logo-t" style="font-size:22px;"><img class="lg-m" src="img/logo-m.png" alt="M"><span class="lg-w">onster</span><img class="lg-t" src="img/logo-t.png" alt="T"><span class="lg-w">racker</span></span>
   </div>
   <span id="nav-tabs-anchor" style="display:none;"></span>
   <div class="ntabs" id="user-tabs">
@@ -138,7 +135,6 @@
     <button class="ntab"    id="tab-settings"   onclick="goTab('settings',this)">Paramètres</button>
   </div>
   <div class="ntabs" id="admin-tabs" style="display:none;">
-    <button class="ntab" onclick="toggleSimUser()">&#128065; Vue user</button>
     <button class="ntab on" id="tab-adm-cans"     onclick="goTab('adm-cans',this)">Canettes</button>
     <button class="ntab"    id="tab-adm-fams"     onclick="goTab('adm-fams',this)">Familles</button>
     <button class="ntab"    id="tab-adm-updates"  onclick="goTab('adm-updates',this)">Annonces</button>
@@ -485,6 +481,9 @@
         <button id="maint-off-btn" class="btn-full" onclick="setMaintenance(false)" style="background:rgba(57,255,20,.08);border:1px solid rgba(57,255,20,.2);color:var(--g);">&#9654; RELANCER L'APPLICATION</button>
       </div>
     </div>
+    <div class="mlbl" style="margin-top:0;">Vue utilisateur</div>
+    <p style="font-size:13px;color:#888;margin-bottom:14px;line-height:1.6;">Ouvre l'application telle que la voient tes utilisateurs (sans les onglets d'administration). Un bandeau vert en haut permet de revenir.</p>
+    <button class="btn-full" onclick="toggleSimUser()" style="background:rgba(57,255,20,.1);border:1px solid rgba(57,255,20,.3);color:var(--g);margin-bottom:14px;">&#128065; VOIR L'APP COMME UN UTILISATEUR</button>
     <button class="btn-full" onclick="doLogout()" style="background:rgba(255,53,53,.1);border:1px solid rgba(255,53,53,.3);color:var(--rd);">DÉCONNEXION</button>
   </div>
   <div class="serimg-card">
@@ -689,6 +688,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=46"></script>
+<script type="module" src="js/app.js?v=47"></script>
 </body>
 </html>

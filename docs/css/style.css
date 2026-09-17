@@ -41,7 +41,7 @@ body{background:var(--bk);color:var(--tx);font-family:'Barlow',sans-serif;min-he
 /* ── Logo & navigation landing ── */
 .logo{display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;min-width:0;}
 .logo-icon{width:40px;height:40px;flex-shrink:0;object-fit:contain;transition:filter .3s;}
-.logo-t{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;}
+.logo-t{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px;}
 .logo-t em{color:var(--g);font-style:normal;}
 .ln-nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 48px;background:linear-gradient(to bottom,rgba(0,0,0,.97),transparent);}
 .nav-cta{background:var(--g);color:#000;border:none;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;letter-spacing:2px;padding:8px 20px;cursor:pointer;text-transform:uppercase;clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%);transition:all .2s;touch-action:manipulation;}
@@ -587,6 +587,13 @@ td.tdfam{min-width:190px;}
 .serimg-btn{border-color:#8a8a8a;color:#c0c0c0;}
 .serimg-btn:hover{border-color:var(--g);color:var(--g);}
 .serimg-reset:hover{border-color:var(--rd);color:var(--rd);}
+
+/* v47 : nouveau logo (M penché + onster + T + racker) */
+.logo-t{display:inline-flex;align-items:baseline;gap:0;max-width:260px;}
+.logo-t .lg-w{color:var(--tx);letter-spacing:1px;}
+.logo-t .lg-m{height:1.42em;width:auto;align-self:center;transform:rotate(-11deg);transform-origin:50% 62%;margin:0 .04em 0 0;filter:drop-shadow(0 0 6px rgba(var(--g-r),var(--g-g),var(--g-b),.45));}
+.logo-t .lg-t{height:1.42em;width:auto;align-self:center;transform:rotate(5deg);transform-origin:50% 40%;margin:0 .02em 0 .05em;filter:drop-shadow(0 0 6px rgba(var(--g-r),var(--g-g),var(--g-b),.45));}
+@media(max-width:1050px){.logo-t .lg-w{display:none;}}
 
 /* v45 : bibliothèque d'une canette + lien depuis la fiche */
 .cd-liblink{width:100%;margin-top:12px;background:rgba(var(--g-r),var(--g-g),var(--g-b),.09);border:1px solid rgba(var(--g-r),var(--g-g),var(--g-b),.3);color:var(--g);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;padding:9px 10px;cursor:pointer;}
