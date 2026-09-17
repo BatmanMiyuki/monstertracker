@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=39">
+<link rel="stylesheet" href="css/style.css?v=41">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -209,19 +209,7 @@
 </div>
 
 <!-- AMIS -->
-<!-- BIBLIOTHÈQUE (versions d'une canette) -->
-<div class="sec" id="sec-lib">
-  <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-    <div><h1 id="lib-title">BIBLIOTHÈQUE</h1><p id="lib-sub">Toutes les versions de cette canette</p></div>
-    <button class="btn-ghost" onclick="backFromLibrary()">&#8592; Retour</button>
-  </div>
-  <div id="lib-head"></div>
-  <input class="sinput" id="lib-search" type="text" placeholder="Rechercher une version (pays, volume, année, langue, couleur...)" oninput="libSearch(this.value)"/>
-  <div class="serie-chips" id="lib-chips"></div>
-  <div id="lib-ct"></div>
-</div>
 
-<div class="sec" id="sec-friends">
   <div class="sec-hd"><h1>AMIS</h1><p>Ajoute des collectionneurs par pseudo</p></div>
   <div class="fr-add"><input type="text" id="friend-input" placeholder="Pseudo ou code ami..." oninput="friendSearch()"/></div>
   <div class="errmsg" id="friend-err" style="margin-bottom:13px;"></div>
@@ -321,6 +309,15 @@
         <div class="fav-slot" id="wish-3"><span class="fav-num">3</span></div>
       </div>
     </div>
+    <div class="scard">
+      <div class="scard-t">Application</div>
+      <div class="appver">
+        <div class="appver-row"><span>Version</span><b id="set-appver">—</b></div>
+        <div class="appver-row"><span>Mise en ligne</span><b id="set-appdate">—</b></div>
+      </div>
+      <button class="btn-o" style="width:100%;margin-top:14px;font-size:12px;padding:11px;" onclick="forceAppUpdate()">&#8635; FORCER LA MISE À JOUR</button>
+      <div style="font-size:11px;color:var(--mu);margin-top:8px;line-height:1.5;">Vide le cache du navigateur et recharge la dernière version du site. À utiliser si l'appli semble afficher une ancienne version.</div>
+    </div>
   </div>
 </div>
 
@@ -408,6 +405,7 @@
 <!-- ADMIN : CANETTES -->
 <div class="sec" id="sec-adm-cans">
   <div class="adm-hdr"><div><h2>CANETTES</h2><p>Les nouvelles canettes sont en brouillon — Publie-les pour les rendre visibles</p><p id="adm-cans-total" style="margin-top:6px;font-size:12px;font-weight:800;letter-spacing:1px;color:var(--g);text-transform:uppercase;"></p></div><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div>
+  <div id="adm-cans-series"></div>
   <input class="sinput" id="adm-search" type="text" placeholder="Rechercher une canette..." oninput="loadAdmCans()"/>
   <div id="adm-cans-ct"></div>
 </div>
@@ -500,7 +498,7 @@
       <div style="font-size:13px;color:#bbb;line-height:1.6;" id="cd-desc"></div>
     </div>
   </div>
-  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('can-detail')">FERMER</button><button class="btn-lib" id="cd-lib-btn" onclick="openLibFromDetail()">&#128218; BIBLIOTHÈQUE <span class="cd-lib-n" style="font-size:11px;opacity:.85;"></span></button><button id="cd-add-btn" class="btn-add" onclick="openAddModal()">+ MA COLLECTION</button></div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('can-detail')">FERMER</button><button id="cd-add-btn" class="btn-add" onclick="openAddModal()">+ MA COLLECTION</button></div>
 </div>
 </div>
 
@@ -673,6 +671,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=39"></script>
+<script type="module" src="js/app.js?v=41"></script>
 </body>
 </html>

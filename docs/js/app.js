@@ -247,7 +247,8 @@ function _setupAppUI() {
   document.getElementById('nav-name').textContent = (isAdmin && !sim) ? 'Admin' : (user.username || '');
   const nnd = document.getElementById('nav-name-drop'); if (nnd) nnd.textContent = (isAdmin && !sim) ? 'Admin' : (user.username || '');
   if (!isAdmin || sim) {
-    document.getElementById('set-name').textContent = user.username || '';
+    if (window.showAppInfo) showAppInfo();
+  document.getElementById('set-name').textContent = user.username || '';
     document.getElementById('set-user').value = user.username || '';
     document.getElementById('set-email').value = user.email || '';
   }
@@ -342,6 +343,51 @@ window.toggleSimUser = function () {
   if (MT_SIM) goTab('home', document.getElementById('tab-home'));
   else goTab('adm-cans', document.getElementById('tab-adm-cans'));
 };
+// ── SÉRIES : une seule section par série, même si le libellé est écrit
+//    différemment (majuscules, accents, espaces) dans plusieurs fiches ──
+function mtSerKey(s) { return mtNorm(s || '') || 'autres'; }
+function mtSerGroups(cans) {
+  const g = {};
+  cans.forEach((c) => {
+    const raw = String(c.series || '').replace(/\s+/g, ' ').trim();
+    const k = mtSerKey(raw);
+    if (!g[k]) g[k] = { key: k, list: [], spell: {} };
+    g[k].list.push(c);
+    const sp = raw || 'Autres';
+    g[k].spell[sp] = (g[k].spell[sp] || 0) + 1;
+  });
+  Object.keys(g).forEach((k) => {
+    const sp = g[k].spell;
+    g[k].label = Object.keys(sp).sort((x, y) => (sp[y] - sp[x]) || x.length - y.length || x.localeCompare(y, 'fr'))[0];
+    g[k].variants = Object.keys(sp).filter((v) => v !== g[k].label);
+  });
+  return g;
+}
+// Images de série : TES fichiers remplacent les miens automatiquement.
+//    « Classique » -> img/series/classique.png, « Dragon Tea » -> dragon-tea.png
+function mtSerCands(sr) {
+  const raw = mtNorm(sr || '');
+  if (!raw) return [];
+  const dash = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const flat = raw.replace(/[^a-z0-9]+/g, '');
+  const alias = MT_SERALIAS[raw] || MT_SERALIAS[dash] || '';
+  const names = [dash, flat];
+  if (alias) names.push(alias, alias.replace(/[^a-z0-9]+/g, '-'));
+  const out = [];
+  names.forEach((n) => { if (n) out.push('img/series/' + n + '.png'); });
+  return out.filter((v, i, arr) => arr.indexOf(v) === i);
+}
+window.mtSerNext = function (img) {
+  const c = (img.dataset.cands || '').split('|').filter(Boolean);
+  if (!c.length) { img.style.display = 'none'; return; }
+  img.dataset.cands = c.slice(1).join('|');
+  img.src = c[0];
+};
+function mtSerImg(sr, cls) {
+  const c = mtSerCands(sr);
+  if (!c.length) return '';
+  return '<img class="' + cls + '" src="' + c[0] + '" data-cands="' + c.slice(1).join('|') + '" alt="" onerror="mtSerNext(this)">';
+}
 const MT_SERALIAS = { 'rehab recover': 'rehab', 'original': 'classic', 'classic ': 'classic', 'extra strength': 'extra strenght', 'hydro sport': 'hydrosport' };
 const MT_BAKED = /monster-(apex|original|original-blackops7|ultra-blackops7)\.png/;
 function accentBg(color) {
@@ -410,7 +456,9 @@ window.loadHome = function () {
       elRec.innerHTML = rhtml + '</div>';
     } else elRec.innerHTML = eHtml('&#129371;', 'Aucune canette ajoutée', 'Commence à ajouter des canettes à ta collection !');
     const seriesMap = {}, langMap = {};
-    colItems.forEach((c) => { if (c.series) seriesMap[c.series] = (seriesMap[c.series] || 0) + 1; if (c.language) langMap[c.language] = (langMap[c.language] || 0) + 1; });
+    const _sg = mtSerGroups(colItems.filter((c) => c.series));
+    Object.keys(_sg).forEach((k) => { seriesMap[_sg[k].label] = _sg[k].list.length; });
+    colItems.forEach((c) => { if (c.language) langMap[c.language] = (langMap[c.language] || 0) + 1; });
     drawPieChart(Object.entries(seriesMap).map((e) => ({ label: e[0], count: e[1] })).sort((a, b) => b.count - a.count), 'chart-series');
     drawPieChart(Object.entries(langMap).map((e) => ({ label: e[0], count: e[1] })).sort((a, b) => b.count - a.count), 'chart-lang');
   }).catch((e) => console.error('loadHome', e));
@@ -438,16 +486,16 @@ window.setCatSerie = function (serie) { _catSerie = serie; window.filterCans(); 
 window.filterCans = function () {
   const q = (document.getElementById('search').value || '').toLowerCase();
   let list = allCans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q) || (c.variant || '').toLowerCase().includes(q));
-  if (_catSerie !== 'Toutes') list = list.filter((c) => (c.series || 'Autres') === _catSerie);
+  if (_catSerie !== 'Toutes') list = list.filter((c) => mtSerKey(c.series) === mtSerKey(_catSerie));
   renderCat(list);
 };
 function renderSerieChips() {
   const el = document.getElementById('cat-series'); if (!el) return;
-  const map = {};
-  allCans.forEach((c) => { const sr = c.series || 'Autres'; map[sr] = (map[sr] || 0) + 1; });
+  const g = mtSerGroups(allCans);
   let html = '<button class="schip' + (_catSerie === 'Toutes' ? ' on' : '') + '" onclick="setCatSerie(\'Toutes\')">Toutes (' + allCans.length + ')</button>';
-  Object.keys(map).sort((a, b) => a.localeCompare(b, 'fr')).forEach((sr) => {
-    html += '<button class="schip' + (_catSerie === sr ? ' on' : '') + '" onclick="setCatSerie(\'' + sr.replace(/'/g, "\\'") + '\')">' + escapeHtml(sr) + ' (' + map[sr] + ')</button>';
+  Object.keys(g).map((k) => g[k]).sort((x, y) => x.label.localeCompare(y.label, 'fr')).forEach((sr) => {
+    const on = _catSerie !== 'Toutes' && mtSerKey(_catSerie) === sr.key;
+    html += '<button class="schip' + (on ? ' on' : '') + '" onclick="setCatSerie(\'' + sr.label.replace(/'/g, "\\'") + '\')">' + escapeHtml(sr.label) + ' (' + sr.list.length + ')</button>';
   });
   el.innerHTML = html;
 }
@@ -521,25 +569,9 @@ function openCanDetail(can) {
   if (can.description) { document.getElementById('cd-desc').textContent = can.description; descWrap.style.display = 'block'; }
   else descWrap.style.display = 'none';
   document.getElementById('cd-add-btn').style.display = can.in_collection ? 'none' : 'inline-flex';
-  const _libBtn = document.getElementById('cd-lib-btn');
-  if (_libBtn) {
-    const _cls = mtNorm(can.family);
-    const _n = mtVersionCount(can), _own = mtFamilyCans(can).filter((c) => c.in_collection).length;
-    const _cn = _libBtn.querySelector('.cd-lib-n');
-    if (_cn) _cn.textContent = _cls ? '(' + _n + ' version' + (_n > 1 ? 's' : '') + ')' : '(à classer)';
-    _libBtn.title = _cls
-      ? 'Voir les ' + _n + ' versions de la famille « ' + mtFamilyLabel(can) + ' » — ' + _own + ' dans ta collection'
-      : 'Cette canette n\'est dans aucune famille : classe-la dans l\'admin (Canettes → Famille)';
-  }
   document.getElementById('modal-can-detail').classList.add('on');
 }
 window.openAddModal = function () { if (_detailCan) { closeModal('can-detail'); openAddColModal(_detailCan); } };
-
-// ════════════════════ BIBLIOTHÈQUE — versions d'une canette ════════════════════
-// Une « famille » = une série (Ultra, Java, Punch…). Un « modèle » = une
-// déclinaison (Ultra White, Ultra Red…). La bibliothèque liste TOUTES les
-// versions d'un modèle (pays, volume, année, langue) afin d'éviter que la
-// même canette apparaisse plusieurs fois dans le catalogue général.
 
 function mtNorm(s) {
   return (s === null || s === undefined ? '' : String(s)).toLowerCase()
@@ -551,7 +583,6 @@ function mtFamilyKey(can) {
   const raw = mtNorm(can.family);
   return raw || '';
 }
-function mtFamilyLabel(can) { return mtNorm(can.family) ? can.family : 'Non classées'; }
 function mtModelKey(can) {
   const fam = mtFamilyKey(can);
   const v = mtNorm(can.variant);
@@ -566,7 +597,7 @@ function mtModelLabel(can) {
 function mtFamilyCans(can) { return allCans.filter((c) => mtFamilyKey(c) === mtFamilyKey(can)); }
 function mtVersionCount(can) { return mtFamilyCans(can).length; }
 function mtCurrentSec() { const el = document.querySelector('.sec.on'); return el ? el.id.replace('sec-', '') : 'catalogue'; }
-function mtAfterChange() { if (mtCurrentSec() === 'lib') renderLibrary(); else loadCatalogue(); }
+function mtAfterChange() { loadCatalogue(); }
 function mtFetchCans() {
   const colIds = new Set(), wlIds = new Set();
   return getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((s) => {
@@ -592,110 +623,8 @@ function mtModelBlock(versions) {
   if (versions.length === 1) return mtCanCardWrap(versions[0]);
   const rep = versions.find((c) => c.in_collection) || versions.find((c) => c.image_url) || versions[0];
   const own = versions.filter((c) => c.in_collection).length;
-  const more = '<div class="vmore" onclick="event.stopPropagation();openLibraryById(\'' + rep.id + '\')">&#128218; Voir les ' + versions.length + ' versions</div>';
-  return '<div class="vwrap">' + mtCanCardWrap(rep, more)
+  return '<div class="vwrap">' + mtCanCardWrap(rep)
     + '<div class="vbadge">' + versions.length + ' versions<span>' + own + '/' + versions.length + ' possédées</span></div></div>';
-}
-
-// ── Ouverture / navigation ──
-let _libFam = null, _libLabel = '', _libBack = 'catalogue', _libFilter = 'all', _libQ = '', _libFocus = null;
-window.openLibrary = function (can, backTab) {
-  if (!can) return;
-  const here = mtCurrentSec();
-  _libFam = mtFamilyKey(can);
-  _libLabel = mtFamilyLabel(can);
-  _libBack = (backTab && backTab !== 'lib') ? backTab : (here === 'lib' ? _libBack : here);
-  _libFilter = 'all'; _libQ = ''; _libFocus = can.id;
-  closeModal('can-detail');
-  const s = document.getElementById('lib-search'); if (s) s.value = '';
-  goTab('lib', document.getElementById('tab-' + _libBack));
-  renderLibrary();
-};
-window.openLibFromDetail = function () { if (_detailCan) openLibrary(_detailCan, _libBack); };
-window.openLibraryById = function (id) { const can = allCans.find((x) => x.id === id); if (can) openLibrary(can); };
-window.openLibraryBySeries = function (sr) {
-  const first = allCans.find((c) => (c.series || 'Autres') === sr);
-  if (first) openLibrary(first);
-  else toast('Aucune canette dans cette série', 'err');
-};
-window.backFromLibrary = function () { goTab(_libBack, document.getElementById('tab-' + _libBack)); };
-window.setLibFilter = function (f) { _libFilter = f; renderLibrary(); };
-window.libSearch = function (v) { _libQ = mtNorm(v); renderLibrary(); };
-
-// ── Rendu de la page Bibliothèque ──
-function renderLibrary() {
-  const ct = document.getElementById('lib-ct');
-  if (!ct) return;
-  ct.innerHTML = lHtml();
-  const headEl = document.getElementById('lib-head');
-  if (headEl) headEl.innerHTML = '';
-  mtFetchCans().then((cans) => {
-    allCans = cans.slice(0);
-    allCans.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
-    const fam = allCans.filter((c) => mtFamilyKey(c) === _libFam);
-    if (!fam.length) { ct.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Cette série est vide pour le moment.'); return; }
-    const owned = fam.filter((c) => c.in_collection).length;
-    const models = {};
-    fam.forEach((c) => { const k = mtModelKey(c); (models[k] = models[k] || []).push(c); });
-    const keys = Object.keys(models);
-    const pct = Math.round((owned / fam.length) * 100);
-    const logo = MT_SERLOGO[_libFam] || MT_SERLOGO[MT_SERALIAS[_libFam] || _libFam];
-
-    const t = document.getElementById('lib-title');
-    if (t) t.textContent = 'BIBLIOTHÈQUE — ' + String(_libLabel).toUpperCase();
-    const sub = document.getElementById('lib-sub');
-    if (sub) sub.textContent = fam.length + ' version' + (fam.length > 1 ? 's' : '') + ' · ' + keys.length + ' modèle' + (keys.length > 1 ? 's' : '') + ' · ' + owned + ' possédée' + (owned > 1 ? 's' : '');
-    if (headEl) {
-      const warn = _libFam === ''
-        ? '<div class="libwarn">&#9888; Ces canettes ne sont dans <b>aucune famille</b> : elles ne sont donc regroupées avec rien. '
-          + 'Donne-leur une famille dans l\'admin (<b>Canettes → Famille</b>).</div>'
-        : '';
-      headEl.innerHTML = warn + '<div class="libhero">' + (logo ? '<img src="' + logo + '" alt="">' : '')
-        + '<div class="libhero-s"><div class="libhero-p"><i style="width:' + pct + '%"></i></div>'
-        + '<div class="libhero-t">' + pct + '% de cette famille · ' + owned + ' / ' + fam.length + ' versions possédées · '
-        + '<b style="color:var(--g)">' + (fam.length - owned) + '</b> à trouver</div></div></div>';
-    }
-    const chips = [
-      ['all', 'Toutes (' + fam.length + ')'],
-      ['missing', 'Manquantes (' + (fam.length - owned) + ')'],
-      ['owned', 'Possédées (' + owned + ')'],
-      ['wish', 'Wishlist (' + fam.filter((c) => c.in_wishlist).length + ')'],
-    ];
-    const ce = document.getElementById('lib-chips');
-    if (ce) ce.innerHTML = chips.map(([k, l]) => '<button class="schip' + (_libFilter === k ? ' on' : '') + '" onclick="setLibFilter(\'' + k + '\')">' + escapeHtml(l) + '</button>').join('');
-
-    const match = (c) => {
-      if (_libFilter === 'owned' && !c.in_collection) return false;
-      if (_libFilter === 'missing' && c.in_collection) return false;
-      if (_libFilter === 'wish' && !c.in_wishlist) return false;
-      if (_libQ) {
-        const hay = mtNorm([c.name, c.variant, c.country, c.year, c.volume, c.language, c.cap_color, c.full_color].filter(Boolean).join(' '));
-        if (hay.indexOf(_libQ) === -1) return false;
-      }
-      return true;
-    };
-    keys.sort((a, b) => {
-      const oa = models[a].filter((c) => c.in_collection).length, ob = models[b].filter((c) => c.in_collection).length;
-      if (oa !== ob) return ob - oa;
-      return (models[a][0].name || '').localeCompare(models[b][0].name || '', 'fr');
-    });
-    let html = '';
-    keys.forEach((k) => {
-      const all = models[k];
-      const shown = all.filter(match).sort((x, y) =>
-        (x.country || '').localeCompare(y.country || '', 'fr') ||
-        (x.volume || '').localeCompare(y.volume || '', 'fr') ||
-        ((x.year || 0) - (y.year || 0)));
-      if (!shown.length) return;
-      const ownM = all.filter((c) => c.in_collection).length;
-      const done = ownM === all.length ? '<span class="vgdone">COMPLET ✓</span>' : '';
-      html += '<div class="vgroup"><div class="vghead"><span class="vgname">' + escapeHtml(mtModelLabel(all[0])) + '</span>' + done
-        + '<span class="vgcount">' + all.length + ' version' + (all.length > 1 ? 's' : '') + ' · ' + ownM + ' possédée' + (ownM > 1 ? 's' : '') + '</span></div><div class="cgrid">';
-      shown.forEach((can) => { html += mtCanCardWrap(can, '', can.id === _libFocus ? 'libfocus' : ''); });
-      html += '</div></div>';
-    });
-    ct.innerHTML = html || eHtml('&#128269;', 'AUCUN RÉSULTAT', 'Aucune version ne correspond à ce filtre.');
-  }).catch((e) => { ct.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 }
 
 // ════════════════════ CATALOGUE GROUPÉ (anti-doublons) ════════════════════
@@ -712,24 +641,22 @@ function renderCat(cans) {
   const tg = document.getElementById('cat-group-toggle');
   if (tg) { tg.classList.toggle('on', MT_GROUP); tg.innerHTML = MT_GROUP ? '&#9638; VUE GROUPÉE' : '&#9637; VUE COMPLÈTE'; }
   if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE TROUVÉE', 'Aucun résultat.'); return; }
-  const groups = {};
-  cans.forEach((c) => { const sr = c.series || 'Autres'; (groups[sr] = groups[sr] || []).push(c); });
+  const groups = mtSerGroups(cans);
   let html = '';
-  Object.keys(groups).sort((a, b) => a.localeCompare(b, 'fr')).forEach((sr) => {
-    const list = groups[sr];
-    const logo = MT_SERLOGO[MT_SERALIAS[sr.toLowerCase()] || sr.toLowerCase()];
+  Object.keys(groups).map((k) => groups[k]).sort((x, y) => x.label.localeCompare(y.label, 'fr')).forEach((sr) => {
+    const list = sr.list;
     const own = list.filter((c) => c.in_collection).length;
     const models = {};
     list.forEach((c) => { const k = mtModelKey(c); (models[k] = models[k] || []).push(c); });
     const nbModels = Object.keys(models).length;
     const nVers = MT_GROUP ? nbModels : list.length;
     html += '<div class="serlib"><div class="serhead">'
-      + (logo ? '<img class="serlogo" src="' + logo + '" alt="">' : '<span class="sername">' + escapeHtml(sr) + '</span>')
+      + mtSerImg(sr.label, 'serlogo')
+      + '<span class="sername">' + escapeHtml(sr.label) + '</span>'
       + '<span class="sercount">' + (MT_GROUP
         ? nVers + ' modèle' + (nVers > 1 ? 's' : '') + ' · ' + list.length + ' version' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : '')
         : list.length + ' canette' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : ''))
       + '</span>'
-      + '<button class="serlib-btn" onclick="openLibraryBySeries(\'' + sr.replace(/'/g, "\\'") + '\')">&#128218; Bibliothèque de la série</button>'
       + '</div><div class="cgrid">';
     if (MT_GROUP) {
       Object.keys(models).sort((a, b) => {
@@ -989,6 +916,18 @@ window.viewReply = function (id) {
 };
 
 // ════════════════════ PARAMÈTRES ════════════════════
+window.forceAppUpdate = function () {
+  const go = () => { toast('Mise à jour en cours...'); setTimeout(() => location.reload(), 400); };
+  const jobs = [];
+  if ('serviceWorker' in navigator) jobs.push(navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister()))).catch(() => {}));
+  if (window.caches) jobs.push(caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))).catch(() => {}));
+  Promise.all(jobs).then(go).catch(go);
+};
+window.showAppInfo = function () {
+  const ver = document.getElementById('set-appver'), dat = document.getElementById('set-appdate');
+  if (ver) ver.textContent = MT_APPVER + ' — build ' + MT_BUILD;
+  if (dat) dat.textContent = MT_BUILD_DATE;
+};
 window.loadSettings = function () {
   document.getElementById('set-name').textContent = (user && user.username) || '';
   document.getElementById('set-user').value = (user && user.username) || '';
@@ -1181,6 +1120,62 @@ window.confirmDelete = function () {
     .catch((e) => setErr('del-err', e.message));
 };
 
+// ════════════════════ ADMIN : SÉRIES EN DOUBLE ════════════════════
+function mtSerDupInfo() {
+  const g = mtSerGroups(_admCansAll.filter((c) => c.series));
+  return Object.keys(g).map((k) => g[k]).filter((x) => x.variants.length);
+}
+window.renderSerDup = function () {
+  const el = document.getElementById('adm-cans-series');
+  if (!el) return;
+  const dups = mtSerDupInfo();
+  const sp = {};
+  _admCansAll.forEach((c) => { const v = String(c.series || '').replace(/\s+/g, ' ').trim(); if (v) sp[v] = (sp[v] || 0) + 1; });
+  const names = Object.keys(sp).sort((x, y) => x.localeCompare(y, 'fr'));
+  let h = '<div class="serdup"><div class="serdup-hd">&#9888; SÉRIES EN DOUBLE <span>'
+    + (dups.length
+      ? dups.length + ' série' + (dups.length > 1 ? 's' : '') + ' écrite' + (dups.length > 1 ? 's' : '') + ' de plusieurs façons — elles sont regroupées à l\'affichage, clique sur FUSIONNER pour corriger les fiches'
+      : 'aucune série écrite de plusieurs façons ✓')
+    + '</span></div>';
+  if (dups.length) {
+    h += '<div class="serdup-list">';
+    dups.forEach((d) => {
+      h += '<div class="serdup-row"><div class="serdup-nm">' + escapeHtml(d.label) + ' <b>(' + d.list.length + ')</b></div>'
+        + '<div class="serdup-var">' + escapeHtml(d.variants.join('  ·  ')) + '  &#8594;  ' + escapeHtml(d.label) + '</div>'
+        + '<button class="serdup-btn" onclick="mergeSeries(\'' + mtJsq(d.label) + '\')">FUSIONNER</button></div>';
+    });
+    h += '</div>';
+  }
+  if (names.length > 1) {
+    h += '<div class="serdup-manual"><div class="serdup-hd2">Fusionner deux séries différentes (ex. Classique &#8594; Classic)</div>'
+      + '<div class="serdup-form"><select id="serdup-from">' + names.map((n) => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + ' (' + sp[n] + ')</option>').join('') + '</select>'
+      + '<span>&#8594;</span><select id="serdup-to">' + names.map((n) => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>').join('') + '</select>'
+      + '<button class="serdup-btn" onclick="mergeSeriesManual()">FUSIONNER</button></div></div>';
+  }
+  h += '</div>';
+  el.innerHTML = h;
+};
+window.mergeSeries = function (label) {
+  const grp = mtSerGroups(_admCansAll.filter((c) => c.series))[mtSerKey(label)];
+  if (!grp) return;
+  const targets = grp.list.filter((c) => String(c.series || '').replace(/\s+/g, ' ').trim() !== label);
+  if (!targets.length) { toast('Rien à corriger'); return; }
+  if (!confirm('Réécrire la série de ' + targets.length + ' fiche' + (targets.length > 1 ? 's' : '') + ' en « ' + label + ' » ?')) return;
+  const b = fbatch();
+  targets.forEach((c) => b.update(doc(db, 'cans', c.id), { series: label, updated_at: fst() }));
+  b.commit().then(() => { toast(targets.length + ' fiche' + (targets.length > 1 ? 's' : '') + ' corrigée' + (targets.length > 1 ? 's' : '') + ' ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
+};
+window.mergeSeriesManual = function () {
+  const from = (document.getElementById('serdup-from') || {}).value, to = (document.getElementById('serdup-to') || {}).value;
+  if (!from || !to || from === to) { toast('Choisis deux séries différentes', 'err'); return; }
+  const targets = _admCansAll.filter((c) => String(c.series || '').replace(/\s+/g, ' ').trim() === from);
+  if (!targets.length) return;
+  if (!confirm('Mettre les ' + targets.length + ' canette' + (targets.length > 1 ? 's' : '') + ' de « ' + from + ' » dans « ' + to + ' » ?\n\nLes fiches seront modifiées définitivement.')) return;
+  const b = fbatch();
+  targets.forEach((c) => b.update(doc(db, 'cans', c.id), { series: to, updated_at: fst() }));
+  b.commit().then(() => { toast('« ' + from + ' » fusionnée dans « ' + to + ' » ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
+};
+
 // ════════════════════ ADMIN : CANETTES ════════════════════
 window.loadAdmCans = function () {
   document.getElementById('adm-cans-ct').innerHTML = lHtml();
@@ -1190,6 +1185,7 @@ window.loadAdmCans = function () {
     _admCansAll = cans.slice(0);
     const _totEl = document.getElementById('adm-cans-total');
     if (_totEl) { const _np = cans.filter((c) => c.is_published).length; _totEl.textContent = cans.length + ' canette' + (cans.length > 1 ? 's' : '') + ' au total — ' + _np + ' publiée' + (_np > 1 ? 's' : '') + ' · ' + (cans.length - _np) + ' brouillon' + ((cans.length - _np) > 1 ? 's' : ''); }
+    renderSerDup();
     if (q) cans = cans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q));
     if (!cans.length) { document.getElementById('adm-cans-ct').innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Ajoute ta première canette !'); return; }
     let rows = '';
@@ -1225,8 +1221,11 @@ function mtFamThumb(c, w) {
     : '<span style="font-size:16px;">&#129371;</span>';
 }
 const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
-const MT_BUILD = 'mt-v39';
+const MT_APPVER = '3.0';
+const MT_BUILD = 'mt-v41';
+const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
+window.MT_APPVER = MT_APPVER;
 // Champs d'identité d'une canette, dans l'ordre d'affichage
 const MT_FCH = [['VOL', 'volume'], ['PAYS', 'country'], ['ANNÉE', 'year'], ['LANGUE', 'language'], ['CAP', 'cap_color'], ['FULL', 'full_color']];
 function mtIsVoid(v) { return v === null || v === undefined || v === ''; }
@@ -1243,6 +1242,13 @@ function mtFamMissing(c) {
   return m;
 }
 // TOUTES les infos d'une canette, toujours affichées : un champ vide montre « — »
+function mtDupFlag(c) {
+  const k = mtNorm(c.name);
+  if (!k) return false;
+  let n = 0;
+  _admCansAll.forEach((x) => { if (mtNorm(x.name) === k) n++; });
+  return n > 1;
+}
 function mtFamFields(c) {
   const ch = [];
   MT_FCH.forEach((p) => {
@@ -1261,7 +1267,7 @@ function mtFamFields(c) {
 }
 // Bloc complet : identité + toutes les infos + description + modèles
 function mtFamFull(c) {
-  const fields = mtFamFields(c);
+  const fields = mtFamFields(c) + (mtDupFlag(c) ? '<span class="cinfo dup">&#9888; MÊME NOM QU\'UNE AUTRE</span>' : '');
   return '<div class="fc-info">'
     + '<div class="fc-tn">' + escapeHtml(c.name) + '</div>'
     + '<div class="fc-tm">' + escapeHtml([c.series, c.variant].filter(Boolean).join(' · ') || 'Aucune série renseignée') + '</div>'
@@ -1272,6 +1278,62 @@ function mtFamFull(c) {
     + 'title="Deux canettes avec le même modèle sont regroupées en une seule carte dans le catalogue" onchange="setFamModel(\'' + c.id + '\', this.value)"/></div>'
     + '</div>';
 }
+// ── Doublons : canettes qui partagent le même nom + la même série ──
+function mtIdentKey(c) { return mtNorm([c.name, c.series, c.volume, c.variant, c.country, c.year].filter(Boolean).join('|')); }
+function mtDupGroups() {
+  const byName = {};
+  _admCansAll.forEach((c) => {
+    const k = mtNorm(c.name);
+    if (!k) return;
+    (byName[k] = byName[k] || []).push(c);
+  });
+  const groups = [];
+  Object.keys(byName).forEach((k) => {
+    const list = byName[k];
+    if (list.length < 2) return;
+    const strict = Object.keys(list.reduce((m, c) => { m[mtIdentKey(c)] = 1; return m; }, {})).length < list.length;
+    groups.push({ name: list[0].name, list, strict });
+  });
+  groups.sort((a, b) => (b.strict - a.strict) || (b.list.length - a.list.length) || a.name.localeCompare(b.name, 'fr'));
+  return groups;
+}
+window.deleteCanFromFams = function (id, nm) {
+  if (!confirm('Supprimer définitivement la fiche « ' + nm + ' » ?\n\nÀ utiliser quand deux fiches sont la MÊME canette. Si elles sont différentes, utilise plutôt MODÈLE pour les distinguer.')) return;
+  deleteDoc(doc(db, 'cans', id)).then(() => { toast('Fiche supprimée ✓'); loadAdmFams(); }).catch((e) => toast(e.message, 'err'));
+};
+window.mtDupShort = (id) => '#' + String(id).slice(0, 6).toUpperCase();
+window.mtDupWhy = function (a2, b2) {
+  const same = [], diff = [];
+  [['nom', 'name'], ['série', 'series'], ['modèle', 'variant'], ['volume', 'volume'], ['pays', 'country'], ['année', 'year'], ['langue', 'language'], ['cap', 'cap_color'], ['full', 'full_color'], ['édition', 'edition']].forEach((p) => {
+    const x = a2[p[1]], y = b2[p[1]];
+    if (mtIsVoid(x) && mtIsVoid(y)) return;
+    if (mtNorm(x) === mtNorm(y)) same.push(p[0]); else diff.push(p[0]);
+  });
+  return { same, diff };
+};
+function mtDupBlock() {
+  const groups = mtDupGroups();
+  if (!groups.length) return '';
+  const strictN = groups.filter((g) => g.strict).length;
+  let h = '<div class="dup-card"><div class="dup-hd">&#9888; ' + groups.length + ' GROUPE' + (groups.length > 1 ? 'S' : '') + ' DE CANETTES PORTANT LE MÊME NOM'
+    + '<span>' + (strictN ? strictN + ' doublon' + (strictN > 1 ? 's' : '') + ' certain' + (strictN > 1 ? 's' : '') + ' · ' : '') + 'vérifie et supprime les fiches en trop</span></div>';
+  h += '<div class="dup-list">';
+  groups.forEach((g) => {
+    h += '<div class="dup-grp"><div class="dup-nm">' + escapeHtml(g.name)
+      + ' <span class="dup-tag ' + (g.strict ? 'hard' : 'soft') + '">' + (g.strict ? 'DOUBLON' : 'À VÉRIFIER') + '</span></div><div class="dup-rows">';
+    g.list.forEach((c) => {
+      h += '<div class="dup-row"><div class="fc-thumb">' + mtFamThumb(c) + '</div><div class="dup-body">'
+        + '<div class="dup-id">' + mtDupShort(c.id) + (c.family ? ' <span class="dup-fam">famille : ' + escapeHtml(c.family) + '</span>' : ' <span class="dup-fam">sans famille</span>') + '</div>'
+        + '<div class="fc-fields">' + mtFamFields(c).replace(/<span class="cinfo (pubx|draftx|warn)"[^>]*>.*?<\/span>/g, '') + '</div>'
+        + '</div>'
+        + '<button class="dup-del" title="Supprimer cette fiche" onclick="deleteCanFromFams(\'' + c.id + '\', \'' + mtJsq(c.name) + '\')">&#128465;</button></div>';
+    });
+    h += '</div></div>';
+  });
+  h += '</div><div class="dup-note">Deux fiches identiques = la même canette enregistrée deux fois : supprime celle en trop (&#128465;). Si les canettes sont différentes, donne-leur un <b>MODÈLE</b> différent (ex : <i>2024</i>, <i>Zero Sugar</i>) juste en dessous : elles seront distinguées partout.</div></div>';
+  return h;
+}
+
 function mtFamList() {
   const map = {};
   _admCansAll.forEach((c) => { const f = mtNorm(c.family); if (f) (map[c.family] = map[c.family] || []).push(c); });
@@ -1310,7 +1372,7 @@ function renderAdmFams() {
   let keys = Object.keys(fams).sort((a, b) => fams[b].length - fams[a].length || a.localeCompare(b, 'fr'));
   if (_famQuery) keys = keys.filter((k) => mtNorm(k).indexOf(_famQuery) !== -1);
 
-  let html = '';
+  let html = mtDupBlock();
   if (!keys.length) {
     html += eHtml('&#128218;', _famQuery ? 'AUCUNE FAMILLE TROUVÉE' : 'AUCUNE FAMILLE',
       _famQuery ? 'Aucune famille ne correspond à cette recherche.' : 'Crée ta première famille : clique sur « + NOUVELLE FAMILLE », donne-lui un nom et choisis les canettes qui vont ensemble.');
@@ -1772,7 +1834,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=39', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=41', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
