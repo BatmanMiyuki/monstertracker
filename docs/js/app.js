@@ -656,35 +656,21 @@ function mtCanCardWrap(can, extraHtml, cls) {
   return '<div class="cwrap' + (cls ? ' ' + cls : '') + '" onclick="openCanDetailById(\'' + can.id + '\')">'
     + canCardHtml(can, mtCanBtns(can)) + (extraHtml || '') + '</div>';
 }
-// Ligne d'une version (volume · pays · langue · année) + actions
-function mtVerRow(c) {
-  const v = mtVarClean(c.variant);
-  const inf = [c.volume, c.country, c.language, c.year].filter(Boolean).join(' · ') || 'Version sans détails';
-  return '<div class="vrow' + (c.in_collection ? ' owned' : '') + '" onclick="openCanDetailById(\'' + c.id + '\')">'
-    + '<span class="vrow-dot" style="background:' + escapeHtml(c.accent_color || '#39ff14') + '"></span>'
-    + '<span class="vrow-inf">' + escapeHtml(inf) + (v ? ' <b>' + escapeHtml(v) + '</b>' : '') + '</span>'
-    + (c.is_limited ? '<span class="vrow-lim">LIMITÉE</span>' : '')
-    + (c.is_published ? '' : '<span class="vrow-draft">BROUILLON</span>')
-    + '<button class="vrow-btn' + (c.in_collection ? ' on' : '') + '" onclick="event.stopPropagation();toggleCol(\'' + c.id + '\',' + !!c.in_collection + ')">' + (c.in_collection ? '✓ Possédée' : '+ Collection') + '</button>'
-    + '<button class="vrow-w' + (c.in_wishlist ? ' on' : '') + '" title="Wishlist" onclick="event.stopPropagation();toggleWl(\'' + c.id + '\',' + !!c.in_wishlist + ')">' + (c.in_wishlist ? '♥' : '♡') + '</button>'
-    + '</div>';
-}
 function mtNameBlock(list) {
-  if (list.length === 1) return '<div class="vgroupfull solo">' + mtCanCardWrap(list[0]) + '</div>';
+  // Une seule entrée par canette, et TOUTES ses versions en cartes côte à côte.
+  if (list.length === 1) return mtCanCardWrap(list[0]);
   const sorted = list.slice().sort((a2, b2) =>
     (a2.country || '').localeCompare(b2.country || '', 'fr') ||
     (a2.volume || '').localeCompare(b2.volume || '', 'fr') ||
     ((a2.year || 0) - (b2.year || 0)));
-  const rep = sorted.find((c) => c.in_collection) || sorted.find((c) => c.image_url) || sorted[0];
   const own = sorted.filter((c) => c.in_collection).length;
   const done = own === sorted.length ? '<span class="vgdone">COMPLET ✓</span>' : '';
   const depub = sorted.filter((c) => !c.is_published).length;
   return '<div class="vgroupfull"><div class="vghead">'
-    + '<span class="vgname">' + escapeHtml(rep.name || 'Sans nom') + '</span>' + done
+    + '<span class="vgname">' + escapeHtml(sorted[0].name || 'Sans nom') + '</span>' + done
     + '<span class="vgcount">' + sorted.length + ' version' + (sorted.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : '')
     + (depub ? ' · ' + depub + ' brouillon' + (depub > 1 ? 's' : '') : '') + '</span></div>'
-    + '<div class="vgbody"><div class="cgrid vgcard">' + mtCanCardWrap(rep) + '</div>'
-    + '<div class="vrows">' + sorted.map((c) => mtVerRow(c)).join('') + '</div></div></div>';
+    + '<div class="cgrid">' + sorted.map((c) => mtCanCardWrap(c)).join('') + '</div></div>';
 }
 
 function mtModelBlock(versions) {
@@ -1232,7 +1218,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v43';
+const MT_BUILD = 'mt-v44';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1836,7 +1822,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=43', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=44', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

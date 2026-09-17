@@ -559,28 +559,11 @@ td.tdfam{min-width:190px;}
 #fp-save:disabled{opacity:.45;cursor:not-allowed;}
 
 
-/* v43 : une canette = sa carte + toutes ses versions listées dessous */
-.vgroupfull{grid-column:1/-1;width:100%;margin-bottom:18px;}
-.vgroupfull.solo{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:0;}
+/* v44 : une seule entrée par canette, ses versions en cartes côte à côte */
+.vgroupfull{grid-column:1/-1;width:100%;margin-bottom:6px;}
 .vgroupfull .vghead{border-left:3px solid var(--g);padding-left:10px;}
-.vgbody{display:grid;grid-template-columns:158px 1fr;gap:12px;align-items:start;}
-.vgcard{grid-template-columns:1fr;}
-.vrows{display:flex;flex-direction:column;gap:6px;background:var(--c1);border:1px solid var(--br);padding:8px;}
-.vrow{display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--c2);border:1px solid var(--br);cursor:pointer;transition:.15s;flex-wrap:wrap;}
-.vrow:hover{border-color:var(--g);}
-.vrow.owned{border-left:3px solid var(--g);}
-.vrow-dot{width:9px;height:9px;flex-shrink:0;border:1px solid rgba(255,255,255,.25);}
-.vrow-inf{flex:1;min-width:120px;font-size:12.5px;color:#c8c8c8;font-family:'Barlow Condensed',sans-serif;letter-spacing:.6px;}
-.vrow-inf b{color:var(--g);font-weight:700;margin-left:6px;}
-.vrow-lim,.vrow-draft{font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.2px;padding:2px 6px;border:1px solid;}
-.vrow-lim{color:#ff9600;border-color:rgba(255,150,0,.4);}
-.vrow-draft{color:#8a8a8a;border-color:var(--br);}
-.vrow-btn{font-family:'Barlow Condensed',sans-serif;font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:6px 11px;cursor:pointer;background:transparent;border:1px solid var(--br);color:#9a9a9a;flex-shrink:0;}
-.vrow-btn:hover{border-color:var(--g);color:var(--g);}
-.vrow-btn.on{background:rgba(var(--g-r),var(--g-g),var(--g-b),.14);border-color:var(--g);color:var(--g);}
-.vrow-w{width:30px;height:30px;flex-shrink:0;background:transparent;border:1px solid var(--br);color:#9a9a9a;cursor:pointer;font-size:13px;}
-.vrow-w.on{color:var(--g);border-color:var(--g);}
-@media(max-width:700px){.vgbody{grid-template-columns:1fr;}}
+.vgroupfull .cgrid{margin-top:10px;}
+
 
 /* v42 : versions + photos de série (admin) + note brouillons + modèles complets */
 .appver{margin:6px 0 2px;}
