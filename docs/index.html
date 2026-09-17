@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=41">
+<link rel="stylesheet" href="css/style.css?v=42">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -192,6 +192,7 @@
     <input class="sinput" id="search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
     <button class="schip grp" id="cat-group-toggle" onclick="toggleCatGroup()" title="Regroupe les différentes versions d'une même canette en une seule carte">&#9638; VUE GROUPÉE</button>
   </div>
+  <div id="cat-note"></div>
   <div class="serie-chips" id="cat-series"></div>
   <div id="cat-ct"></div>
 </div>
@@ -315,8 +316,6 @@
         <div class="appver-row"><span>Version</span><b id="set-appver">—</b></div>
         <div class="appver-row"><span>Mise en ligne</span><b id="set-appdate">—</b></div>
       </div>
-      <button class="btn-o" style="width:100%;margin-top:14px;font-size:12px;padding:11px;" onclick="forceAppUpdate()">&#8635; FORCER LA MISE À JOUR</button>
-      <div style="font-size:11px;color:var(--mu);margin-top:8px;line-height:1.5;">Vide le cache du navigateur et recharge la dernière version du site. À utiliser si l'appli semble afficher une ancienne version.</div>
     </div>
   </div>
 </div>
@@ -405,7 +404,6 @@
 <!-- ADMIN : CANETTES -->
 <div class="sec" id="sec-adm-cans">
   <div class="adm-hdr"><div><h2>CANETTES</h2><p>Les nouvelles canettes sont en brouillon — Publie-les pour les rendre visibles</p><p id="adm-cans-total" style="margin-top:6px;font-size:12px;font-weight:800;letter-spacing:1px;color:var(--g);text-transform:uppercase;"></p></div><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div>
-  <div id="adm-cans-series"></div>
   <input class="sinput" id="adm-search" type="text" placeholder="Rechercher une canette..." oninput="loadAdmCans()"/>
   <div id="adm-cans-ct"></div>
 </div>
@@ -462,6 +460,13 @@
       </div>
     </div>
     <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">
+      <div class="mlbl" style="margin-top:0;">Application</div>
+      <div class="appver">
+        <div class="appver-row"><span>Version</span><b id="adm-appver">—</b></div>
+        <div class="appver-row"><span>Mise en ligne</span><b id="adm-appdate">—</b></div>
+      </div>
+    </div>
+    <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">
       <div class="mlbl" style="margin-top:0;">&#9888; Mode maintenance</div>
       <p style="font-size:13px;color:#888;margin-bottom:16px;line-height:1.6;">Active la maintenance pour bloquer l'accès à tous les utilisateurs (sauf toi).</p>
       <div id="maint-status" style="font-size:13px;margin-bottom:14px;"></div>
@@ -471,6 +476,11 @@
       </div>
     </div>
     <button class="btn-full" onclick="doLogout()" style="background:rgba(255,53,53,.1);border:1px solid rgba(255,53,53,.3);color:var(--rd);">DÉCONNEXION</button>
+  </div>
+  <div class="serimg-card">
+    <div class="mlbl" style="margin-top:0;">&#128247; Photos des séries</div>
+    <p class="serimg-intro">Choisis l'image affichée devant chaque série dans le catalogue. Sans choix, l'appli cherche toute seule <b>img/series/&lt;nom-de-la-série&gt;.png</b>.</p>
+    <div id="adm-ser-img"></div>
   </div>
 </div>
 
@@ -584,7 +594,6 @@
     </div>
     <div class="mrow">
       <div class="field"><label>Volume</label><input class="minput" type="text" id="cm-vol" placeholder="500ml, 355ml..."/></div>
-      <div class="field"><label>Pays</label><input class="minput" type="text" id="cm-country" placeholder="France, USA..."/></div>
     </div>
     <div class="field">
       <label>Couleur d'accent de la carte</label>
@@ -596,8 +605,6 @@
     <div class="mdiv"></div>
     <div class="mlbl">Infos</div>
     <div class="mrow">
-      <div class="field"><label>Année</label><input class="minput" type="number" id="cm-year" placeholder="2024"/></div>
-      <div class="field"><label>Description</label><input class="minput" type="text" id="cm-desc" placeholder="Notes..."/></div>
     </div>
     <div class="mdiv"></div>
     <div class="mlbl">Image</div>
@@ -671,6 +678,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=41"></script>
+<script type="module" src="js/app.js?v=42"></script>
 </body>
 </html>

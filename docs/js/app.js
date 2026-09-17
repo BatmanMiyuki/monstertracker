@@ -377,6 +377,19 @@ function mtSerCands(sr) {
   names.forEach((n) => { if (n) out.push('img/series/' + n + '.png'); });
   return out.filter((v, i, arr) => arr.indexOf(v) === i);
 }
+// Photos de série choisies par l'admin : settings/series_<clé> { image_url }
+let _mtSerMedia = {}, _mtSerMediaP = null, _admSerList = [];
+function mtLoadSerMedia() {
+  if (_mtSerMediaP) return _mtSerMediaP;
+  _mtSerMediaP = getDocs(collection(db, 'settings')).then((snap) => {
+    snap.docs.forEach((d) => {
+      if (String(d.id).indexOf('series_') !== 0) return;
+      const v = d.data();
+      if (v && v.image_url) _mtSerMedia[String(d.id).slice(7)] = v.image_url;
+    });
+  }).catch(() => {});
+  return _mtSerMediaP;
+}
 window.mtSerNext = function (img) {
   const c = (img.dataset.cands || '').split('|').filter(Boolean);
   if (!c.length) { img.style.display = 'none'; return; }
@@ -384,6 +397,8 @@ window.mtSerNext = function (img) {
   img.src = c[0];
 };
 function mtSerImg(sr, cls) {
+  const custom = _mtSerMedia[mtSerKey(sr)];
+  if (custom) return '<img class="' + cls + '" src="' + escapeHtml(custom) + '" alt="">';
   const c = mtSerCands(sr);
   if (!c.length) return '';
   return '<img class="' + cls + '" src="' + c[0] + '" data-cands="' + c.slice(1).join('|') + '" alt="" onerror="mtSerNext(this)">';
@@ -468,7 +483,7 @@ window.loadHome = function () {
 window.loadCatalogue = function () {
   document.getElementById('cat-ct').innerHTML = lHtml();
   const colIds = new Set(), wlIds = new Set();
-  getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((s) => {
+  mtLoadSerMedia().then(() => getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid)))).then((s) => {
     s.docs.forEach((d) => colIds.add(d.data().can_id));
     return getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid)));
   }).then((s) => {
@@ -479,7 +494,21 @@ window.loadCatalogue = function () {
     allCans.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
     renderSerieChips();
     renderCat(allCans);
+    mtCatDraftNote();
   }).catch((e) => { document.getElementById('cat-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+// Note brouillons (admin) : dit pourquoi certaines fiches ne sont pas dans le catalogue
+window.mtCatDraftNote = function () {
+  const el = document.getElementById('cat-note');
+  if (!el) return;
+  el.innerHTML = '';
+  if (!user || user.role !== 'admin') return;
+  getDocs(collection(db, 'cans')).then((snap) => {
+    const drafts = snap.docs.filter((d) => !d.data().is_published).length;
+    if (!drafts) return;
+    el.innerHTML = '<div class="cat-note-in">&#9888; ' + drafts + ' canette' + (drafts > 1 ? 's' : '') + ' en <b>brouillon</b> n\'apparaît pas ici — '
+      + '<button onclick="goTab(\'adm-cans\', document.getElementById(\'tab-adm-cans\'))">ADMIN &#8594; CANETTES</button> pour les publier</div>';
+  }).catch(() => {});
 };
 let _catSerie = 'Toutes';
 window.setCatSerie = function (serie) { _catSerie = serie; window.filterCans(); };
@@ -620,11 +649,18 @@ function mtCanCardWrap(can, extraHtml, cls) {
     + canCardHtml(can, mtCanBtns(can)) + (extraHtml || '') + '</div>';
 }
 function mtModelBlock(versions) {
+  // AUCUNE canette cachée : un modèle affiche TOUTES ses versions.
   if (versions.length === 1) return mtCanCardWrap(versions[0]);
-  const rep = versions.find((c) => c.in_collection) || versions.find((c) => c.image_url) || versions[0];
-  const own = versions.filter((c) => c.in_collection).length;
-  return '<div class="vwrap">' + mtCanCardWrap(rep)
-    + '<div class="vbadge">' + versions.length + ' versions<span>' + own + '/' + versions.length + ' possédées</span></div></div>';
+  const list = versions.slice().sort((a2, b2) =>
+    (a2.country || '').localeCompare(b2.country || '', 'fr') ||
+    (a2.volume || '').localeCompare(b2.volume || '', 'fr') ||
+    ((a2.year || 0) - (b2.year || 0)));
+  const own = list.filter((c) => c.in_collection).length;
+  const done = own === list.length ? '<span class="vgdone">COMPLET ✓</span>' : '';
+  let h = '<div class="vgroupfull"><div class="vghead"><span class="vgname">' + escapeHtml(mtModelLabel(list[0])) + '</span>' + done
+    + '<span class="vgcount">' + list.length + ' versions · ' + own + ' possédée' + (own > 1 ? 's' : '') + '</span></div><div class="cgrid">';
+  list.forEach((c) => { h += mtCanCardWrap(c); });
+  return h + '</div></div>';
 }
 
 // ════════════════════ CATALOGUE GROUPÉ (anti-doublons) ════════════════════
@@ -916,17 +952,10 @@ window.viewReply = function (id) {
 };
 
 // ════════════════════ PARAMÈTRES ════════════════════
-window.forceAppUpdate = function () {
-  const go = () => { toast('Mise à jour en cours...'); setTimeout(() => location.reload(), 400); };
-  const jobs = [];
-  if ('serviceWorker' in navigator) jobs.push(navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister()))).catch(() => {}));
-  if (window.caches) jobs.push(caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))).catch(() => {}));
-  Promise.all(jobs).then(go).catch(go);
-};
 window.showAppInfo = function () {
-  const ver = document.getElementById('set-appver'), dat = document.getElementById('set-appdate');
-  if (ver) ver.textContent = MT_APPVER + ' — build ' + MT_BUILD;
-  if (dat) dat.textContent = MT_BUILD_DATE;
+  const txt = MT_APPVER + ' — build ' + MT_BUILD;
+  ['set-appver', 'adm-appver'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = txt; });
+  ['set-appdate', 'adm-appdate'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = MT_BUILD_DATE; });
 };
 window.loadSettings = function () {
   document.getElementById('set-name').textContent = (user && user.username) || '';
@@ -1120,62 +1149,6 @@ window.confirmDelete = function () {
     .catch((e) => setErr('del-err', e.message));
 };
 
-// ════════════════════ ADMIN : SÉRIES EN DOUBLE ════════════════════
-function mtSerDupInfo() {
-  const g = mtSerGroups(_admCansAll.filter((c) => c.series));
-  return Object.keys(g).map((k) => g[k]).filter((x) => x.variants.length);
-}
-window.renderSerDup = function () {
-  const el = document.getElementById('adm-cans-series');
-  if (!el) return;
-  const dups = mtSerDupInfo();
-  const sp = {};
-  _admCansAll.forEach((c) => { const v = String(c.series || '').replace(/\s+/g, ' ').trim(); if (v) sp[v] = (sp[v] || 0) + 1; });
-  const names = Object.keys(sp).sort((x, y) => x.localeCompare(y, 'fr'));
-  let h = '<div class="serdup"><div class="serdup-hd">&#9888; SÉRIES EN DOUBLE <span>'
-    + (dups.length
-      ? dups.length + ' série' + (dups.length > 1 ? 's' : '') + ' écrite' + (dups.length > 1 ? 's' : '') + ' de plusieurs façons — elles sont regroupées à l\'affichage, clique sur FUSIONNER pour corriger les fiches'
-      : 'aucune série écrite de plusieurs façons ✓')
-    + '</span></div>';
-  if (dups.length) {
-    h += '<div class="serdup-list">';
-    dups.forEach((d) => {
-      h += '<div class="serdup-row"><div class="serdup-nm">' + escapeHtml(d.label) + ' <b>(' + d.list.length + ')</b></div>'
-        + '<div class="serdup-var">' + escapeHtml(d.variants.join('  ·  ')) + '  &#8594;  ' + escapeHtml(d.label) + '</div>'
-        + '<button class="serdup-btn" onclick="mergeSeries(\'' + mtJsq(d.label) + '\')">FUSIONNER</button></div>';
-    });
-    h += '</div>';
-  }
-  if (names.length > 1) {
-    h += '<div class="serdup-manual"><div class="serdup-hd2">Fusionner deux séries différentes (ex. Classique &#8594; Classic)</div>'
-      + '<div class="serdup-form"><select id="serdup-from">' + names.map((n) => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + ' (' + sp[n] + ')</option>').join('') + '</select>'
-      + '<span>&#8594;</span><select id="serdup-to">' + names.map((n) => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>').join('') + '</select>'
-      + '<button class="serdup-btn" onclick="mergeSeriesManual()">FUSIONNER</button></div></div>';
-  }
-  h += '</div>';
-  el.innerHTML = h;
-};
-window.mergeSeries = function (label) {
-  const grp = mtSerGroups(_admCansAll.filter((c) => c.series))[mtSerKey(label)];
-  if (!grp) return;
-  const targets = grp.list.filter((c) => String(c.series || '').replace(/\s+/g, ' ').trim() !== label);
-  if (!targets.length) { toast('Rien à corriger'); return; }
-  if (!confirm('Réécrire la série de ' + targets.length + ' fiche' + (targets.length > 1 ? 's' : '') + ' en « ' + label + ' » ?')) return;
-  const b = fbatch();
-  targets.forEach((c) => b.update(doc(db, 'cans', c.id), { series: label, updated_at: fst() }));
-  b.commit().then(() => { toast(targets.length + ' fiche' + (targets.length > 1 ? 's' : '') + ' corrigée' + (targets.length > 1 ? 's' : '') + ' ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
-};
-window.mergeSeriesManual = function () {
-  const from = (document.getElementById('serdup-from') || {}).value, to = (document.getElementById('serdup-to') || {}).value;
-  if (!from || !to || from === to) { toast('Choisis deux séries différentes', 'err'); return; }
-  const targets = _admCansAll.filter((c) => String(c.series || '').replace(/\s+/g, ' ').trim() === from);
-  if (!targets.length) return;
-  if (!confirm('Mettre les ' + targets.length + ' canette' + (targets.length > 1 ? 's' : '') + ' de « ' + from + ' » dans « ' + to + ' » ?\n\nLes fiches seront modifiées définitivement.')) return;
-  const b = fbatch();
-  targets.forEach((c) => b.update(doc(db, 'cans', c.id), { series: to, updated_at: fst() }));
-  b.commit().then(() => { toast('« ' + from + ' » fusionnée dans « ' + to + ' » ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
-};
-
 // ════════════════════ ADMIN : CANETTES ════════════════════
 window.loadAdmCans = function () {
   document.getElementById('adm-cans-ct').innerHTML = lHtml();
@@ -1185,7 +1158,6 @@ window.loadAdmCans = function () {
     _admCansAll = cans.slice(0);
     const _totEl = document.getElementById('adm-cans-total');
     if (_totEl) { const _np = cans.filter((c) => c.is_published).length; _totEl.textContent = cans.length + ' canette' + (cans.length > 1 ? 's' : '') + ' au total — ' + _np + ' publiée' + (_np > 1 ? 's' : '') + ' · ' + (cans.length - _np) + ' brouillon' + ((cans.length - _np) > 1 ? 's' : ''); }
-    renderSerDup();
     if (q) cans = cans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q));
     if (!cans.length) { document.getElementById('adm-cans-ct').innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Ajoute ta première canette !'); return; }
     let rows = '';
@@ -1222,12 +1194,13 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v41';
+const MT_BUILD = 'mt-v42';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
 // Champs d'identité d'une canette, dans l'ordre d'affichage
-const MT_FCH = [['VOL', 'volume'], ['PAYS', 'country'], ['ANNÉE', 'year'], ['LANGUE', 'language'], ['CAP', 'cap_color'], ['FULL', 'full_color']];
+const MT_FCH = [['VOL', 'volume'], ['LANGUE', 'language'], ['CAP', 'cap_color'], ['FULL', 'full_color']];
+const MT_FOPT = [['PAYS', 'country'], ['ANNÉE', 'year']];
 function mtIsVoid(v) { return v === null || v === undefined || v === ''; }
 // Liste des infos absentes de la fiche (pour le compteur « à compléter »)
 function mtFamMissing(c) {
@@ -1236,24 +1209,17 @@ function mtFamMissing(c) {
   if (mtIsVoid(c.series)) m.push('SÉRIE');
   if (mtIsVoid(c.variant)) m.push('MODÈLE');
   if (mtIsVoid(c.edition)) m.push('ÉDITION');
-  if (mtIsVoid(c.description)) m.push('DESCRIPTION');
   if (mtIsVoid(c.accent_color)) m.push('ACCENT');
   if (mtIsVoid(c.image_url)) m.push('PHOTO');
   return m;
 }
 // TOUTES les infos d'une canette, toujours affichées : un champ vide montre « — »
-function mtDupFlag(c) {
-  const k = mtNorm(c.name);
-  if (!k) return false;
-  let n = 0;
-  _admCansAll.forEach((x) => { if (mtNorm(x.name) === k) n++; });
-  return n > 1;
-}
 function mtFamFields(c) {
   const ch = [];
-  MT_FCH.forEach((p) => {
+  MT_FCH.forEach((p, i) => {
     if (mtIsVoid(c[p[1]])) ch.push('<span class="cinfo none"><b>' + p[0] + '</b> —</span>');
     else ch.push('<span class="cinfo"><b>' + p[0] + '</b> ' + escapeHtml(String(c[p[1]])) + '</span>');
+    if (i === 0) MT_FOPT.forEach((o) => { if (!mtIsVoid(c[o[1]])) ch.push('<span class="cinfo"><b>' + o[0] + '</b> ' + escapeHtml(String(c[o[1]])) + '</span>'); });
   });
   ch.push(mtIsVoid(c.edition)
     ? '<span class="cinfo none"><b>ÉDITION</b> —</span>'
@@ -1267,7 +1233,7 @@ function mtFamFields(c) {
 }
 // Bloc complet : identité + toutes les infos + description + modèles
 function mtFamFull(c) {
-  const fields = mtFamFields(c) + (mtDupFlag(c) ? '<span class="cinfo dup">&#9888; MÊME NOM QU\'UNE AUTRE</span>' : '');
+  const fields = mtFamFields(c);
   return '<div class="fc-info">'
     + '<div class="fc-tn">' + escapeHtml(c.name) + '</div>'
     + '<div class="fc-tm">' + escapeHtml([c.series, c.variant].filter(Boolean).join(' · ') || 'Aucune série renseignée') + '</div>'
@@ -1278,62 +1244,6 @@ function mtFamFull(c) {
     + 'title="Deux canettes avec le même modèle sont regroupées en une seule carte dans le catalogue" onchange="setFamModel(\'' + c.id + '\', this.value)"/></div>'
     + '</div>';
 }
-// ── Doublons : canettes qui partagent le même nom + la même série ──
-function mtIdentKey(c) { return mtNorm([c.name, c.series, c.volume, c.variant, c.country, c.year].filter(Boolean).join('|')); }
-function mtDupGroups() {
-  const byName = {};
-  _admCansAll.forEach((c) => {
-    const k = mtNorm(c.name);
-    if (!k) return;
-    (byName[k] = byName[k] || []).push(c);
-  });
-  const groups = [];
-  Object.keys(byName).forEach((k) => {
-    const list = byName[k];
-    if (list.length < 2) return;
-    const strict = Object.keys(list.reduce((m, c) => { m[mtIdentKey(c)] = 1; return m; }, {})).length < list.length;
-    groups.push({ name: list[0].name, list, strict });
-  });
-  groups.sort((a, b) => (b.strict - a.strict) || (b.list.length - a.list.length) || a.name.localeCompare(b.name, 'fr'));
-  return groups;
-}
-window.deleteCanFromFams = function (id, nm) {
-  if (!confirm('Supprimer définitivement la fiche « ' + nm + ' » ?\n\nÀ utiliser quand deux fiches sont la MÊME canette. Si elles sont différentes, utilise plutôt MODÈLE pour les distinguer.')) return;
-  deleteDoc(doc(db, 'cans', id)).then(() => { toast('Fiche supprimée ✓'); loadAdmFams(); }).catch((e) => toast(e.message, 'err'));
-};
-window.mtDupShort = (id) => '#' + String(id).slice(0, 6).toUpperCase();
-window.mtDupWhy = function (a2, b2) {
-  const same = [], diff = [];
-  [['nom', 'name'], ['série', 'series'], ['modèle', 'variant'], ['volume', 'volume'], ['pays', 'country'], ['année', 'year'], ['langue', 'language'], ['cap', 'cap_color'], ['full', 'full_color'], ['édition', 'edition']].forEach((p) => {
-    const x = a2[p[1]], y = b2[p[1]];
-    if (mtIsVoid(x) && mtIsVoid(y)) return;
-    if (mtNorm(x) === mtNorm(y)) same.push(p[0]); else diff.push(p[0]);
-  });
-  return { same, diff };
-};
-function mtDupBlock() {
-  const groups = mtDupGroups();
-  if (!groups.length) return '';
-  const strictN = groups.filter((g) => g.strict).length;
-  let h = '<div class="dup-card"><div class="dup-hd">&#9888; ' + groups.length + ' GROUPE' + (groups.length > 1 ? 'S' : '') + ' DE CANETTES PORTANT LE MÊME NOM'
-    + '<span>' + (strictN ? strictN + ' doublon' + (strictN > 1 ? 's' : '') + ' certain' + (strictN > 1 ? 's' : '') + ' · ' : '') + 'vérifie et supprime les fiches en trop</span></div>';
-  h += '<div class="dup-list">';
-  groups.forEach((g) => {
-    h += '<div class="dup-grp"><div class="dup-nm">' + escapeHtml(g.name)
-      + ' <span class="dup-tag ' + (g.strict ? 'hard' : 'soft') + '">' + (g.strict ? 'DOUBLON' : 'À VÉRIFIER') + '</span></div><div class="dup-rows">';
-    g.list.forEach((c) => {
-      h += '<div class="dup-row"><div class="fc-thumb">' + mtFamThumb(c) + '</div><div class="dup-body">'
-        + '<div class="dup-id">' + mtDupShort(c.id) + (c.family ? ' <span class="dup-fam">famille : ' + escapeHtml(c.family) + '</span>' : ' <span class="dup-fam">sans famille</span>') + '</div>'
-        + '<div class="fc-fields">' + mtFamFields(c).replace(/<span class="cinfo (pubx|draftx|warn)"[^>]*>.*?<\/span>/g, '') + '</div>'
-        + '</div>'
-        + '<button class="dup-del" title="Supprimer cette fiche" onclick="deleteCanFromFams(\'' + c.id + '\', \'' + mtJsq(c.name) + '\')">&#128465;</button></div>';
-    });
-    h += '</div></div>';
-  });
-  h += '</div><div class="dup-note">Deux fiches identiques = la même canette enregistrée deux fois : supprime celle en trop (&#128465;). Si les canettes sont différentes, donne-leur un <b>MODÈLE</b> différent (ex : <i>2024</i>, <i>Zero Sugar</i>) juste en dessous : elles seront distinguées partout.</div></div>';
-  return h;
-}
-
 function mtFamList() {
   const map = {};
   _admCansAll.forEach((c) => { const f = mtNorm(c.family); if (f) (map[c.family] = map[c.family] || []).push(c); });
@@ -1372,7 +1282,7 @@ function renderAdmFams() {
   let keys = Object.keys(fams).sort((a, b) => fams[b].length - fams[a].length || a.localeCompare(b, 'fr'));
   if (_famQuery) keys = keys.filter((k) => mtNorm(k).indexOf(_famQuery) !== -1);
 
-  let html = mtDupBlock();
+  let html = '';
   if (!keys.length) {
     html += eHtml('&#128218;', _famQuery ? 'AUCUNE FAMILLE TROUVÉE' : 'AUCUNE FAMILLE',
       _famQuery ? 'Aucune famille ne correspond à cette recherche.' : 'Crée ta première famille : clique sur « + NOUVELLE FAMILLE », donne-lui un nom et choisis les canettes qui vont ensemble.');
@@ -1572,7 +1482,7 @@ window.openCanModal = function (canId) {
   const setup = (c) => {
     document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
     document.getElementById('cm-id').value = (c && c.id) || '';
-    const map = { name: 'name', series: 'series', variant: 'variant', lang: 'language', cap: 'cap_color', fc: 'full_color', vol: 'volume', country: 'country', year: 'year', desc: 'description', 'img-url': 'image_url' };
+    const map = { name: 'name', series: 'series', variant: 'variant', lang: 'language', cap: 'cap_color', fc: 'full_color', vol: 'volume', 'img-url': 'image_url' };
     Object.keys(map).forEach((f) => { document.getElementById('cm-' + f).value = (c && c[map[f]]) || ''; });
     document.getElementById('cm-color').value = (c && c.accent_color) || '#39ff14';
     document.getElementById('cm-limited').checked = !!(c && c.is_limited);
@@ -1610,9 +1520,6 @@ window.saveCan = function () {
     name, series: document.getElementById('cm-series').value || null, variant: document.getElementById('cm-variant').value || null,
     language: document.getElementById('cm-lang').value || null, cap_color: document.getElementById('cm-cap').value || null,
     full_color: document.getElementById('cm-fc').value || null, volume: document.getElementById('cm-vol').value || null,
-    country: document.getElementById('cm-country').value || null,
-    year: document.getElementById('cm-year').value ? parseInt(document.getElementById('cm-year').value, 10) : null,
-    description: document.getElementById('cm-desc').value || null,
     is_limited: document.getElementById('cm-limited').checked,
     edition: document.getElementById('cm-edition').value || null,
     image_url: imageUrl || null,
@@ -1805,7 +1712,64 @@ window.delMsg = (id) => { if (!confirm('Supprimer ce message ?')) return; delete
 window.loadAdmSettings = function () {
   document.getElementById('adm-set-user').value = (user && user.username) || '';
   document.getElementById('adm-set-email').value = (user && user.email) || '';
+  if (window.showAppInfo) showAppInfo();
   loadMaintStatus();
+  loadAdmSerImg();
+};
+// ── Photos des séries (admin → Réglages) ──
+window.loadAdmSerImg = function () {
+  const el = document.getElementById('adm-ser-img');
+  if (!el) return;
+  el.innerHTML = lHtml();
+  Promise.all([mtLoadSerMedia(), getDocs(query(collection(db, 'cans'), orderBy('name')))]).then((r) => {
+    const cans = r[1].docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const g = mtSerGroups(cans.filter((c) => c.series));
+    _admSerList = Object.keys(g).map((k) => g[k]).sort((x, y) => x.label.localeCompare(y.label, 'fr'));
+    if (!_admSerList.length) { el.innerHTML = eHtml('&#128247;', 'AUCUNE SÉRIE', 'Ajoute des canettes avec une série pour choisir leurs photos.'); return; }
+    let h = '<div class="serimg-list">';
+    _admSerList.forEach((s, i) => {
+      const cur = _mtSerMedia[s.key];
+      const auto = mtSerCands(s.label);
+      h += '<div class="serimg-row"><div class="serimg-thumb">'
+        + (cur ? '<img src="' + escapeHtml(cur) + '" alt="">' : (auto.length ? '<img src="' + auto[0] + '" alt="" onerror="this.style.display=\'none\'">' : '<span>&#128247;</span>')) + '</div>'
+        + '<div class="serimg-body"><div class="serimg-nm">' + escapeHtml(s.label) + ' <b>' + s.list.length + ' canette' + (s.list.length > 1 ? 's' : '') + '</b></div>'
+        + '<div class="serimg-st">' + (cur ? '<span class="on">PHOTO CHOISIE</span>' : '<span>Photo automatique' + (auto.length ? ' : ' + escapeHtml(auto[0].split('/').pop()) : ' : aucune') + '</span>') + '</div>'
+        + '<input class="minput" type="text" id="serimg-url-' + i + '" placeholder="Ou colle une URL d\'image (https://...)"/>'
+        + '<div class="serimg-act">'
+        + '<label class="serimg-file">&#128193; CHOISIR UNE PHOTO<input type="file" accept="image/*" style="display:none;" onchange="handleSerImgFile(this,' + i + ')"/></label>'
+        + '<button class="serimg-btn" onclick="saveSerImgUrl(' + i + ')">UTILISER L\'URL</button>'
+        + (cur ? '<button class="serimg-reset" onclick="resetSerImg(' + i + ')">REVENIR À L\'AUTO</button>' : '')
+        + '</div></div></div>';
+    });
+    el.innerHTML = h + '</div>';
+  }).catch((e) => { el.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+function mtSaveSerImg(i, url) {
+  const s = _admSerList[i];
+  if (!s) return;
+  setDoc(doc(db, 'settings', 'series_' + s.key), { key: s.key, series: s.label, image_url: url, updated_at: fst() })
+    .then(() => { _mtSerMedia[s.key] = url; toast('Photo de « ' + s.label + ' » enregistrée ✓'); loadAdmSerImg(); })
+    .catch((e) => toast((e && e.code === 'permission-denied') ? 'Refusé par Firestore : ajoute la collection settings aux règles.' : (e.message || 'Erreur'), 'err'));
+}
+window.saveSerImgUrl = function (i) {
+  const v = ((document.getElementById('serimg-url-' + i) || {}).value || '').trim();
+  if (!v) { toast('Colle une URL ou choisis un fichier', 'err'); return; }
+  mtSaveSerImg(i, v);
+};
+window.handleSerImgFile = function (input, i) {
+  const f = input.files[0];
+  if (!f) return;
+  if (f.size > 5 * 1024 * 1024) { toast('Image trop lourde (max 5 Mo).', 'err'); input.value = ''; return; }
+  toast('Compression de l\'image...');
+  compressImage(f, 320, 0.85).then((d) => mtSaveSerImg(i, d)).catch(() => toast('Image illisible', 'err'));
+};
+window.resetSerImg = function (i) {
+  const s = _admSerList[i];
+  if (!s) return;
+  if (!confirm('Revenir à la photo automatique pour « ' + s.label + ' » ?')) return;
+  deleteDoc(doc(db, 'settings', 'series_' + s.key))
+    .then(() => { delete _mtSerMedia[s.key]; toast('Photo réinitialisée ✓'); loadAdmSerImg(); })
+    .catch((e) => toast(e.message, 'err'));
 };
 window.saveAdmProfile = function () {
   const username = document.getElementById('adm-set-user').value.trim();
@@ -1834,7 +1798,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=41', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=42', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
