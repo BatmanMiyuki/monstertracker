@@ -612,16 +612,24 @@ function mtFamilyKey(can) {
   const raw = mtNorm(can.family);
   return raw || '';
 }
+// Un « - » saisi comme modèle compte comme vide
+function mtVarClean(v) {
+  const t = String(v === null || v === undefined ? '' : v).replace(/\s+/g, ' ').trim();
+  return /^[-–—_.]+$/.test(t) ? '' : t;
+}
+// Clé « modèle » (page Familles : regroupe les canettes par modèle)
 function mtModelKey(can) {
   const fam = mtFamilyKey(can);
-  const v = mtNorm(can.variant);
-  // 100 % manuel : sans variante renseignée, AUCUNE fusion automatique.
+  const v = mtNorm(mtVarClean(can.variant));
   if (v) return fam + '|' + v;
   return fam + '|solo:' + (can.id || mtNorm(can.name));
 }
+// Clé « nom de canette » (catalogue : toutes les mêmes canettes ensemble)
+function mtNameKey(can) { return mtNorm(can.name) || ('id:' + (can.id || '')); }
 function mtModelLabel(can) {
-  if (can.variant) return can.variant;
-  return can.name || 'Sans modèle';
+  const v = mtVarClean(can.variant);
+  if (v) return v;
+  return can.name || 'Sans nom';
 }
 function mtFamilyCans(can) { return allCans.filter((c) => mtFamilyKey(c) === mtFamilyKey(can)); }
 function mtVersionCount(can) { return mtFamilyCans(can).length; }
@@ -648,6 +656,37 @@ function mtCanCardWrap(can, extraHtml, cls) {
   return '<div class="cwrap' + (cls ? ' ' + cls : '') + '" onclick="openCanDetailById(\'' + can.id + '\')">'
     + canCardHtml(can, mtCanBtns(can)) + (extraHtml || '') + '</div>';
 }
+// Ligne d'une version (volume · pays · langue · année) + actions
+function mtVerRow(c) {
+  const v = mtVarClean(c.variant);
+  const inf = [c.volume, c.country, c.language, c.year].filter(Boolean).join(' · ') || 'Version sans détails';
+  return '<div class="vrow' + (c.in_collection ? ' owned' : '') + '" onclick="openCanDetailById(\'' + c.id + '\')">'
+    + '<span class="vrow-dot" style="background:' + escapeHtml(c.accent_color || '#39ff14') + '"></span>'
+    + '<span class="vrow-inf">' + escapeHtml(inf) + (v ? ' <b>' + escapeHtml(v) + '</b>' : '') + '</span>'
+    + (c.is_limited ? '<span class="vrow-lim">LIMITÉE</span>' : '')
+    + (c.is_published ? '' : '<span class="vrow-draft">BROUILLON</span>')
+    + '<button class="vrow-btn' + (c.in_collection ? ' on' : '') + '" onclick="event.stopPropagation();toggleCol(\'' + c.id + '\',' + !!c.in_collection + ')">' + (c.in_collection ? '✓ Possédée' : '+ Collection') + '</button>'
+    + '<button class="vrow-w' + (c.in_wishlist ? ' on' : '') + '" title="Wishlist" onclick="event.stopPropagation();toggleWl(\'' + c.id + '\',' + !!c.in_wishlist + ')">' + (c.in_wishlist ? '♥' : '♡') + '</button>'
+    + '</div>';
+}
+function mtNameBlock(list) {
+  if (list.length === 1) return '<div class="vgroupfull solo">' + mtCanCardWrap(list[0]) + '</div>';
+  const sorted = list.slice().sort((a2, b2) =>
+    (a2.country || '').localeCompare(b2.country || '', 'fr') ||
+    (a2.volume || '').localeCompare(b2.volume || '', 'fr') ||
+    ((a2.year || 0) - (b2.year || 0)));
+  const rep = sorted.find((c) => c.in_collection) || sorted.find((c) => c.image_url) || sorted[0];
+  const own = sorted.filter((c) => c.in_collection).length;
+  const done = own === sorted.length ? '<span class="vgdone">COMPLET ✓</span>' : '';
+  const depub = sorted.filter((c) => !c.is_published).length;
+  return '<div class="vgroupfull"><div class="vghead">'
+    + '<span class="vgname">' + escapeHtml(rep.name || 'Sans nom') + '</span>' + done
+    + '<span class="vgcount">' + sorted.length + ' version' + (sorted.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : '')
+    + (depub ? ' · ' + depub + ' brouillon' + (depub > 1 ? 's' : '') : '') + '</span></div>'
+    + '<div class="vgbody"><div class="cgrid vgcard">' + mtCanCardWrap(rep) + '</div>'
+    + '<div class="vrows">' + sorted.map((c) => mtVerRow(c)).join('') + '</div></div></div>';
+}
+
 function mtModelBlock(versions) {
   // AUCUNE canette cachée : un modèle affiche TOUTES ses versions.
   if (versions.length === 1) return mtCanCardWrap(versions[0]);
@@ -683,14 +722,13 @@ function renderCat(cans) {
     const list = sr.list;
     const own = list.filter((c) => c.in_collection).length;
     const models = {};
-    list.forEach((c) => { const k = mtModelKey(c); (models[k] = models[k] || []).push(c); });
+    list.forEach((c) => { const k = mtNameKey(c); (models[k] = models[k] || []).push(c); });
     const nbModels = Object.keys(models).length;
-    const nVers = MT_GROUP ? nbModels : list.length;
     html += '<div class="serlib"><div class="serhead">'
       + mtSerImg(sr.label, 'serlogo')
       + '<span class="sername">' + escapeHtml(sr.label) + '</span>'
       + '<span class="sercount">' + (MT_GROUP
-        ? nVers + ' modèle' + (nVers > 1 ? 's' : '') + ' · ' + list.length + ' version' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : '')
+        ? nbModels + ' canette' + (nbModels > 1 ? 's' : '') + ' · ' + list.length + ' version' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : '')
         : list.length + ' canette' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : ''))
       + '</span>'
       + '</div><div class="cgrid">';
@@ -699,7 +737,7 @@ function renderCat(cans) {
         const oa = models[a].filter((c) => c.in_collection).length, ob = models[b].filter((c) => c.in_collection).length;
         if (oa !== ob) return ob - oa;
         return (models[a][0].name || '').localeCompare(models[b][0].name || '', 'fr');
-      }).forEach((k) => { html += mtModelBlock(models[k]); });
+      }).forEach((k) => { html += mtNameBlock(models[k]); });
     } else {
       list.forEach((can) => { html += mtCanCardWrap(can); });
     }
@@ -1194,7 +1232,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v42';
+const MT_BUILD = 'mt-v43';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1240,7 +1278,7 @@ function mtFamFull(c) {
     + (fields ? '<div class="fc-fields">' + fields + '</div>' : '<div class="fc-fields"><span class="fc-noinfo">Aucune info renseignée</span></div>')
     + (c.description ? '<div class="fc-desc">' + escapeHtml(c.description) + '</div>' : '')
     + '<div class="fc-modelrow"><label>modèle</label>'
-    + '<input class="fc-model" type="text" value="' + escapeHtml(c.variant || '') + '" placeholder="ex : White" '
+    + '<input class="fc-model" type="text" value="' + escapeHtml(mtVarClean(c.variant)) + '" placeholder="ex : White" '
     + 'title="Deux canettes avec le même modèle sont regroupées en une seule carte dans le catalogue" onchange="setFamModel(\'' + c.id + '\', this.value)"/></div>'
     + '</div>';
 }
@@ -1346,7 +1384,7 @@ window.removeFromFamily = function (id, name) {
     .catch((e) => toast(e.message, 'err'));
 };
 window.setFamModel = function (id, val) {
-  const v = (val || '').trim() || null;
+  const v = mtVarClean(val) || null;
   updateDoc(doc(db, 'cans', id), { variant: v, updated_at: fst() })
     .then(() => {
       const c = _admCansAll.find((x) => x.id === id);
@@ -1798,7 +1836,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=42', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=43', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

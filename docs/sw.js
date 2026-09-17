@@ -1,7 +1,7 @@
 // MonsterTracker statique — Service Worker
 // Cache d'abord (network-first en ligne, cache en secours) → fonctionne hors-ligne une fois visité.
-const CACHE = 'mt-v42';
-const SHELL = ['./', './index.html', './support.html', './css/style.css?v=42', './js/app.js?v=42', './js/support.js', './js/qrcode.min.js', './icon.png', './manifest.json'];
+const CACHE = 'mt-v43';
+const SHELL = ['./', './index.html', './support.html', './css/style.css?v=43', './js/app.js?v=43', './js/support.js', './js/qrcode.min.js', './icon.png', './manifest.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
