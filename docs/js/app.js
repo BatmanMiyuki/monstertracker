@@ -597,8 +597,9 @@ function openCanDetail(can) {
   const libLine = document.getElementById('cd-libline');
   if (libLine) {
     const n = mtCanLibCount(can);
-    libLine.innerHTML = n > 1
-      ? '<button class="cd-liblink" onclick="openCanLib(\'' + can.id + '\')">&#128218; Voir les ' + n + ' éditions de cette canette</button>'
+    const fam = mtNorm(can.family) ? can.family : '';
+    libLine.innerHTML = (fam && n > 1)
+      ? '<button class="cd-liblink" onclick="openCanLib(\'' + can.id + '\')">&#128218; Voir les ' + n + ' éditions de la famille « ' + escapeHtml(fam) + ' »</button>'
       : '';
   }
   const descWrap = document.getElementById('cd-desc-wrap');
@@ -663,9 +664,12 @@ function mtCanCardWrap(can, extraHtml, cls) {
   return '<div class="cwrap' + (cls ? ' ' + cls : '') + '" onclick="openCanDetailById(\'' + can.id + '\')">'
     + canCardHtml(can, mtCanBtns(can)) + (extraHtml || '') + '</div>';
 }
-function mtNameBlock(list) {
-  // UNE SEULE carte par canette dans la série. Les autres éditions se voient
-  // en cliquant : la carte ouvre la bibliothèque de la canette.
+// Clé de regroupement du catalogue : la FAMILLE, jamais autre chose.
+// Sans famille → la canette reste seule (aucun rassemblement automatique).
+function mtGroupKey(c) { const f = mtFamilyKey(c); return f ? ('fam:' + f) : ('solo:' + c.id); }
+function mtGroupBlock(list) {
+  // Une carte par famille. Les autres éditions se voient en cliquant : la carte
+  // ouvre la bibliothèque de la famille.
   if (list.length === 1) return mtCanCardWrap(list[0]);
   const sorted = list.slice().sort((a2, b2) =>
     (a2.country || '').localeCompare(b2.country || '', 'fr') ||
@@ -695,15 +699,19 @@ function mtModelBlock(versions) {
 
 // ════════════════════ BIBLIOTHÈQUE D'UNE CANETTE (ses éditions) ════════════════════
 let _libKey = null, _libName = '', _libBack = 'catalogue', _libFocus = null;
-function mtVersionsOf(key) { return allCans.filter((c) => mtNameKey(c) === key); }
-function mtVersionsOfCan(c) { return mtVersionsOf(mtNameKey(c)); }
-function mtCanLibCount(c) { return mtVersionsOfCan(c).length; }
+function mtVersionsOf(key) {
+  if (!key) return [];
+  if (key.indexOf('fam:') === 0) { const f = key.slice(4); return allCans.filter((c) => mtFamilyKey(c) === f); }
+  if (key.indexOf('name:') === 0) { const n = key.slice(5); return allCans.filter((c) => mtNameKey(c) === n); }
+  return allCans.filter((c) => c.id === key);
+}
+function mtCanLibCount(c) { return mtVersionsOf(mtGroupKey(c)).length; }
 window.openCanLib = function (id, backTab) {
   const can = allCans.find((x) => x.id === id) || _admCansAll.find((x) => x.id === id);
   if (!can) return;
   const here = mtCurrentSec();
-  _libKey = mtNameKey(can);
-  _libName = can.name || 'Cette canette';
+  _libKey = mtGroupKey(can);
+  _libName = mtNorm(can.family) ? can.family : (can.name || 'Cette canette');
   _libBack = (backTab && backTab !== 'lib') ? backTab : (here === 'lib' ? _libBack : here);
   _libFocus = can.id;
   closeModal('can-detail');
@@ -721,6 +729,7 @@ function renderCanLib() {
   mtFetchCans().then((cans) => {
     allCans = cans.slice(0);
     const list = mtVersionsOf(_libKey).sort((x, y) =>
+      (x.name || '').localeCompare(y.name || '', 'fr') ||
       (x.country || '').localeCompare(y.country || '', 'fr') ||
       (x.volume || '').localeCompare(y.volume || '', 'fr') ||
       ((x.year || 0) - (y.year || 0)) ||
@@ -730,9 +739,9 @@ function renderCanLib() {
     const own = list.filter((c) => c.in_collection).length;
     const pct = Math.round((own / list.length) * 100);
     const t = document.getElementById('lib-title');
-    if (t) t.textContent = 'BIBLIOTHÈQUE — ' + String(_libName).toUpperCase();
+    if (t) t.textContent = (_libKey.indexOf('fam:') === 0 ? 'FAMILLE — ' : 'BIBLIOTHÈQUE — ') + String(_libName).toUpperCase();
     const sub = document.getElementById('lib-sub');
-    if (sub) sub.textContent = 'Toutes les éditions de cette canette';
+    if (sub) sub.textContent = _libKey.indexOf('fam:') === 0 ? 'Toutes les canettes de cette famille' : 'Cette canette';
     if (head) {
       head.innerHTML = '<div class="libhero">'
         + mtSerImg(rep.series || _libName, '')
@@ -769,7 +778,7 @@ function renderCat(cans) {
     const list = sr.list;
     const own = list.filter((c) => c.in_collection).length;
     const models = {};
-    list.forEach((c) => { const k = mtNameKey(c); (models[k] = models[k] || []).push(c); });
+    list.forEach((c) => { const k = mtGroupKey(c); (models[k] = models[k] || []).push(c); });
     const nbModels = Object.keys(models).length;
     html += '<div class="serlib"><div class="serhead">'
       + mtSerImg(sr.label, 'serlogo')
@@ -784,7 +793,7 @@ function renderCat(cans) {
         const oa = models[a].filter((c) => c.in_collection).length, ob = models[b].filter((c) => c.in_collection).length;
         if (oa !== ob) return ob - oa;
         return (models[a][0].name || '').localeCompare(models[b][0].name || '', 'fr');
-      }).forEach((k) => { html += mtNameBlock(models[k]); });
+      }).forEach((k) => { html += mtGroupBlock(models[k]); });
     } else {
       list.forEach((can) => { html += mtCanCardWrap(can); });
     }
@@ -1279,7 +1288,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v45';
+const MT_BUILD = 'mt-v46';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1883,7 +1892,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=45', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=46', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
