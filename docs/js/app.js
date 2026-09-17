@@ -594,6 +594,13 @@ function openCanDetail(can) {
   let mh = '';
   fields.forEach((f) => { if (f.val) mh += '<div><span style="color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:1px;">' + f.label + '</span><div style="font-weight:700;font-size:13px;margin-top:2px;">' + escapeHtml(f.val) + '</div></div>'; });
   document.getElementById('cd-meta').innerHTML = mh || '<div style="color:var(--mu);font-size:12px;">Pas de métadonnées</div>';
+  const libLine = document.getElementById('cd-libline');
+  if (libLine) {
+    const n = mtCanLibCount(can);
+    libLine.innerHTML = n > 1
+      ? '<button class="cd-liblink" onclick="openCanLib(\'' + can.id + '\')">&#128218; Voir les ' + n + ' éditions de cette canette</button>'
+      : '';
+  }
   const descWrap = document.getElementById('cd-desc-wrap');
   if (can.description) { document.getElementById('cd-desc').textContent = can.description; descWrap.style.display = 'block'; }
   else descWrap.style.display = 'none';
@@ -657,20 +664,18 @@ function mtCanCardWrap(can, extraHtml, cls) {
     + canCardHtml(can, mtCanBtns(can)) + (extraHtml || '') + '</div>';
 }
 function mtNameBlock(list) {
-  // Une seule entrée par canette, et TOUTES ses versions en cartes côte à côte.
+  // UNE SEULE carte par canette dans la série. Les autres éditions se voient
+  // en cliquant : la carte ouvre la bibliothèque de la canette.
   if (list.length === 1) return mtCanCardWrap(list[0]);
   const sorted = list.slice().sort((a2, b2) =>
     (a2.country || '').localeCompare(b2.country || '', 'fr') ||
     (a2.volume || '').localeCompare(b2.volume || '', 'fr') ||
     ((a2.year || 0) - (b2.year || 0)));
+  const rep = sorted.find((c) => c.in_collection) || sorted.find((c) => c.image_url) || sorted[0];
   const own = sorted.filter((c) => c.in_collection).length;
-  const done = own === sorted.length ? '<span class="vgdone">COMPLET ✓</span>' : '';
-  const depub = sorted.filter((c) => !c.is_published).length;
-  return '<div class="vgroupfull"><div class="vghead">'
-    + '<span class="vgname">' + escapeHtml(sorted[0].name || 'Sans nom') + '</span>' + done
-    + '<span class="vgcount">' + sorted.length + ' version' + (sorted.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : '')
-    + (depub ? ' · ' + depub + ' brouillon' + (depub > 1 ? 's' : '') : '') + '</span></div>'
-    + '<div class="cgrid">' + sorted.map((c) => mtCanCardWrap(c)).join('') + '</div></div>';
+  const more = '<div class="vmore" onclick="event.stopPropagation();openCanLib(\'' + rep.id + '\')">&#128218; Voir les ' + sorted.length + ' éditions</div>';
+  return '<div class="vwrap">' + mtCanCardWrap(rep, more)
+    + '<div class="vbadge">' + sorted.length + ' éditions<span>' + own + '/' + sorted.length + ' possédées</span></div></div>';
 }
 
 function mtModelBlock(versions) {
@@ -686,6 +691,62 @@ function mtModelBlock(versions) {
     + '<span class="vgcount">' + list.length + ' versions · ' + own + ' possédée' + (own > 1 ? 's' : '') + '</span></div><div class="cgrid">';
   list.forEach((c) => { h += mtCanCardWrap(c); });
   return h + '</div></div>';
+}
+
+// ════════════════════ BIBLIOTHÈQUE D'UNE CANETTE (ses éditions) ════════════════════
+let _libKey = null, _libName = '', _libBack = 'catalogue', _libFocus = null;
+function mtVersionsOf(key) { return allCans.filter((c) => mtNameKey(c) === key); }
+function mtVersionsOfCan(c) { return mtVersionsOf(mtNameKey(c)); }
+function mtCanLibCount(c) { return mtVersionsOfCan(c).length; }
+window.openCanLib = function (id, backTab) {
+  const can = allCans.find((x) => x.id === id) || _admCansAll.find((x) => x.id === id);
+  if (!can) return;
+  const here = mtCurrentSec();
+  _libKey = mtNameKey(can);
+  _libName = can.name || 'Cette canette';
+  _libBack = (backTab && backTab !== 'lib') ? backTab : (here === 'lib' ? _libBack : here);
+  _libFocus = can.id;
+  closeModal('can-detail');
+  const back = _libBack === 'lib' ? 'catalogue' : _libBack;
+  goTab('lib', document.getElementById('tab-' + back) || document.getElementById('tab-catalogue'));
+  renderCanLib();
+};
+window.backFromLibrary = function () { goTab(_libBack, document.getElementById('tab-' + _libBack)); };
+function renderCanLib() {
+  const ct = document.getElementById('lib-ct');
+  if (!ct) return;
+  ct.innerHTML = lHtml();
+  const head = document.getElementById('lib-head');
+  if (head) head.innerHTML = '';
+  mtFetchCans().then((cans) => {
+    allCans = cans.slice(0);
+    const list = mtVersionsOf(_libKey).sort((x, y) =>
+      (x.country || '').localeCompare(y.country || '', 'fr') ||
+      (x.volume || '').localeCompare(y.volume || '', 'fr') ||
+      ((x.year || 0) - (y.year || 0)) ||
+      (x.name || '').localeCompare(y.name || '', 'fr'));
+    if (!list.length) { ct.innerHTML = eHtml('&#129371;', 'AUCUNE ÉDITION', 'Aucune édition trouvée pour cette canette.'); return; }
+    const rep = list.find((c) => c.id === _libFocus) || list[0];
+    const own = list.filter((c) => c.in_collection).length;
+    const pct = Math.round((own / list.length) * 100);
+    const t = document.getElementById('lib-title');
+    if (t) t.textContent = 'BIBLIOTHÈQUE — ' + String(_libName).toUpperCase();
+    const sub = document.getElementById('lib-sub');
+    if (sub) sub.textContent = 'Toutes les éditions de cette canette';
+    if (head) {
+      head.innerHTML = '<div class="libhero">'
+        + mtSerImg(rep.series || _libName, '')
+        + '<div class="libhero-s"><div class="libhero-p"><i style="width:' + pct + '%"></i></div>'
+        + '<div class="libhero-t">' + list.length + ' édition' + (list.length > 1 ? 's' : '') + ' · '
+        + '<b style="color:var(--g)">' + own + '</b> possédée' + (own > 1 ? 's' : '') + ' · '
+        + '<b style="color:var(--g)">' + (list.length - own) + '</b> à trouver'
+        + (own === list.length ? ' · <b style="color:var(--g)">COMPLET ✓</b>' : '')
+        + '</div></div></div>';
+    }
+    let html = '<div class="cgrid">';
+    list.forEach((c) => { html += mtCanCardWrap(c, '', c.id === _libFocus ? 'libfocus' : ''); });
+    ct.innerHTML = html + '</div>';
+  }).catch((e) => { ct.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 }
 
 // ════════════════════ CATALOGUE GROUPÉ (anti-doublons) ════════════════════
@@ -1218,7 +1279,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v44';
+const MT_BUILD = 'mt-v45';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1822,7 +1883,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=44', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=45', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

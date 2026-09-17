@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=44">
+<link rel="stylesheet" href="css/style.css?v=45">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -209,8 +209,18 @@
   <div id="col-ct"></div>
 </div>
 
-<!-- AMIS -->
+<!-- BIBLIOTHÈQUE D'UNE CANETTE (ses éditions) -->
+<div class="sec" id="sec-lib">
+  <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div><h1 id="lib-title">BIBLIOTHÈQUE</h1><p id="lib-sub">Toutes les éditions de cette canette</p></div>
+    <button class="btn-ghost" onclick="backFromLibrary()">&#8592; Retour</button>
+  </div>
+  <div id="lib-head"></div>
+  <div id="lib-ct"></div>
+</div>
 
+<!-- AMIS -->
+<div class="sec" id="sec-friends">
   <div class="sec-hd"><h1>AMIS</h1><p>Ajoute des collectionneurs par pseudo</p></div>
   <div class="fr-add"><input type="text" id="friend-input" placeholder="Pseudo ou code ami..." oninput="friendSearch()"/></div>
   <div class="errmsg" id="friend-err" style="margin-bottom:13px;"></div>
@@ -501,6 +511,7 @@
         <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;margin-bottom:10px;line-height:1.1;" id="cd-name"></div>
         <div id="cd-limited" style="display:none;"><span class="tbadge lim" style="margin-bottom:10px;display:inline-block;">Édition limitée</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:12px;" id="cd-meta"></div>
+        <div id="cd-libline"></div>
       </div>
     </div>
     <div style="padding:16px 18px;border-top:1px solid var(--br);" id="cd-desc-wrap">
@@ -678,6 +689,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=44"></script>
+<script type="module" src="js/app.js?v=45"></script>
 </body>
 </html>

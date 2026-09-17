@@ -559,12 +559,6 @@ td.tdfam{min-width:190px;}
 #fp-save:disabled{opacity:.45;cursor:not-allowed;}
 
 
-/* v44 : une seule entrée par canette, ses versions en cartes côte à côte */
-.vgroupfull{grid-column:1/-1;width:100%;margin-bottom:6px;}
-.vgroupfull .vghead{border-left:3px solid var(--g);padding-left:10px;}
-.vgroupfull .cgrid{margin-top:10px;}
-
-
 /* v42 : versions + photos de série (admin) + note brouillons + modèles complets */
 .appver{margin:6px 0 2px;}
 .appver-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;background:var(--bk);border:1px solid var(--br);margin-bottom:6px;}
@@ -593,6 +587,11 @@ td.tdfam{min-width:190px;}
 .serimg-btn{border-color:#8a8a8a;color:#c0c0c0;}
 .serimg-btn:hover{border-color:var(--g);color:var(--g);}
 .serimg-reset:hover{border-color:var(--rd);color:var(--rd);}
+
+/* v45 : bibliothèque d'une canette + lien depuis la fiche */
+.cd-liblink{width:100%;margin-top:12px;background:rgba(var(--g-r),var(--g-g),var(--g-b),.09);border:1px solid rgba(var(--g-r),var(--g-g),var(--g-b),.3);color:var(--g);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;padding:9px 10px;cursor:pointer;}
+.cd-liblink:hover{background:var(--g);color:#000;}
+.cwrap.libfocus .ccard{border-color:var(--g);}
 
 /* v39 : champs vides et fiches à compléter */
 .cinfo.none{opacity:.42;border-style:dashed;}
