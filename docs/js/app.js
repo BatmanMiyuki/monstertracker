@@ -331,7 +331,7 @@ function drawPieChart(data, cid) {
 }
 
 // ── Carte canette ──
-const MT_EDIMG = { blackops7: 'img/bandes/blackops7.png', blackops6: 'img/bandes/blackops6.png', apex: 'img/bandes/apex.png' };
+const MT_EDIMG = { modernwarfare4: 'img/bandes/modernwarfare4.png', blackops7: 'img/bandes/blackops7.png', blackops6: 'img/bandes/blackops6.png', apex: 'img/bandes/apex.png' };
 const MT_SERLOGO = { ultra: 'img/series/ultra.png', juice: 'img/series/juice.png', punch: 'img/series/punch.png', rehab: 'img/series/rehab.png', recover: 'img/series/recover.png', classic: 'img/series/classic.png', java: 'img/series/java.png', reserve: 'img/series/reserve.png', maxx: 'img/series/maxx.png', espresso: 'img/series/espresso.png', hydrosport: 'img/series/hydrosport.png', 'dragon tea': 'img/series/dragontea.png', 'extra strenght': 'img/series/extrastrenght.png' };
 
 let MT_SIM = sessionStorage.getItem('mt_sim') === '1';
@@ -1286,9 +1286,9 @@ function mtFamThumb(c, w) {
     ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'">'
     : '<span style="font-size:16px;">&#129371;</span>';
 }
-const MT_EDLBL = { blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
+const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v48';
+const MT_BUILD = 'mt-v49';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1892,7 +1892,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=48', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=49', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
