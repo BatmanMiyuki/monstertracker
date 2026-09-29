@@ -824,3 +824,10 @@ body code,body kbd,body pre,body .mono{font-weight:900 !important;}
 .ib-more{position:absolute;bottom:3px;right:3px;font-size:9.5px;font-weight:900;letter-spacing:.4px;background:rgba(0,0,0,.72);border:1px solid var(--br);color:#d8d8d8;padding:1px 5px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;}
 .icard.locked .ib-more{color:#8f8f8f;}
 body.light .ib-more{background:rgba(255,255,255,.9);border-color:#d9d9d9;color:#3a3a3a;}
+
+/* ── v56 : variantes — ce qui change d'une édition à l'autre ── */
+.cpv-d{font-family:'Barlow Condensed',sans-serif;font-size:11.5px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--g);background:rgba(57,255,20,.08);border:1px solid rgba(57,255,20,.35);border-radius:4px;padding:2px 6px;margin-top:4px;display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cpv.own .cpv-d{background:rgba(57,255,20,.14);}
+body.light .cpv-d{background:rgba(0,161,0,.08);border-color:rgba(0,161,0,.4);}
+.cp-diff{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:'Barlow Condensed',sans-serif;font-size:12.5px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--tx);background:var(--c2);border:1px solid var(--br);border-left:3px solid var(--g);border-radius:4px;padding:7px 10px;margin:8px 0 0;}
+.cp-diff b{color:var(--g);font-size:11px;letter-spacing:1.2px;}
