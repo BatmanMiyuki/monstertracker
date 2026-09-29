@@ -694,7 +694,9 @@ function mtUniqueNames(cans) {
   cans.forEach((c) => { const k = mtGroupKey(c); (parNom[k] = parNom[k] || []).push(c); });
   const uniques = Object.keys(parNom).map((k) => {
     const eds = parNom[k];
-    const rep = eds.find((c) => c.in_collection) || eds.find((c) => c.image_url) || eds[0];
+    // La canette principale choisie par l'admin passe en premier ; sinon une
+    // canette possédée, sinon celle qui a une photo.
+    const rep = eds.find((c) => c.is_main) || eds.find((c) => c.in_collection) || eds.find((c) => c.image_url) || eds[0];
     return { rep: rep, n: eds.length, own: eds.filter((c) => c.in_collection).length };
   });
   return { uniques: uniques, total: uniques.length, owned: uniques.filter((u) => u.own > 0).length };
@@ -966,7 +968,7 @@ function renderCanPage() {
         const vsub = [c.country, c.volume, c.year].map((x) => mtVarClean(x)).filter(Boolean).join(' · ');
         varHtml += '<div class="cpv' + (c.in_collection ? ' own' : '') + '" onclick="openCanPage(\'' + c.id + '\')">'
           + '<div class="cpv-ph">' + ph + '</div>'
-          + '<div class="cpv-n">' + escapeHtml(c.name) + '</div>'
+          + '<div class="cpv-n">' + (c.is_main ? '<span class="cpv-star" title="Canette principale">&#9733;</span> ' : '') + escapeHtml(c.name) + '</div>'
           + (dif ? '<div class="cpv-d">' + escapeHtml(dif) + '</div>' : '')
           + (vsub ? '<div class="cpv-s">' + escapeHtml(vsub) + '</div>' : '')
           + '<div class="cpv-b">' + (c.in_collection ? '&#10003; Possédée' : '+ À débloquer') + '</div></div>';
@@ -1457,7 +1459,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v56';
+const MT_BUILD = 'mt-v57';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1569,6 +1571,7 @@ function renderAdmFams() {
           + '<div class="fc-thumb">' + mtFamThumb(c) + '</div>'
           + mtFamFull(c)
           + '<div class="fc-rowact">'
+          + '<button class="fc-main' + (c.is_main ? ' on' : '') + '" title="' + (c.is_main ? 'Canette principale (celle affichée dans la collection)' : 'Définir comme canette principale (celle affichée dans la collection)') + '" onclick="setFamMain(\'' + c.id + '\', \'' + mtJsq(name) + '\')">' + (c.is_main ? '&#9733;' : '&#9734;') + '</button>'
           + '<button class="fc-edit" title="Modifier la fiche de cette canette" onclick="openCanModal(\'' + c.id + '\')">&#9998;</button>'
           + '<button class="fc-out" title="Retirer de la famille" onclick="removeFromFamily(\'' + c.id + '\', \'' + mtJsq(name) + '\')">&#10005;</button>'
           + '</div></div>';
@@ -1606,6 +1609,19 @@ function renderAdmFams() {
 window.removeFromFamily = function (id, name) {
   updateDoc(doc(db, 'cans', id), { family: null, updated_at: fst() })
     .then(() => { toast('Canette retirée de « ' + name + ' »'); loadAdmFams(); })
+    .catch((e) => toast(e.message, 'err'));
+};
+window.setFamMain = function (id, name) {
+  const fam = mtNorm(name);
+  const list = _admCansAll.filter((c) => mtNorm(c.family) === fam);
+  const b = fbatch();
+  list.forEach((c) => { b.update(doc(db, 'cans', c.id), { is_main: c.id === id, updated_at: fst() }); });
+  b.commit()
+    .then(() => {
+      list.forEach((c) => { c.is_main = c.id === id; });
+      toast('Canette principale définie \u2605');
+      renderAdmFams();
+    })
     .catch((e) => toast(e.message, 'err'));
 };
 window.setFamModel = function (id, val) {
@@ -2064,7 +2080,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=56', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=57', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
