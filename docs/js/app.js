@@ -149,6 +149,20 @@ function mtNormalize(imgUrl) {
 }
 window.mtNormalize = mtNormalize;
 
+// Filet de sécurité : si une image n'est pas au format 2:3 (ex. une photo carrée
+// ajoutée avant la v58), elle est recadrée à l'affichage. Les images déjà au bon
+// format ne sont PAS retouchées (aucun calcul, aucun clignotement).
+window.mtImgFix = function (img) {
+  try {
+    if (!img || img.dataset.normfix) return;
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) return;
+    if (Math.abs((w / h) - (MT_IMG_W / MT_IMG_H)) < 0.06) return;
+    img.dataset.normfix = '1';
+    mtNormalize(img.getAttribute('src')).then((nu) => { if (nu && nu !== img.getAttribute('src')) img.src = nu; });
+  } catch (e) {}
+};
+
 // ── Navigation ──
 window.go = (p) => {
   document.querySelectorAll('.page').forEach((x) => x.classList.remove('active'));
@@ -787,7 +801,7 @@ function renderCol(cans) {
 // Un seul visuel par canette : pas de bloc, pas de texte — juste l'image.
 function mtCanImgHtml(c, nbEd, nbOwn) {
   const img = c.image_url
-    ? '<img src="' + escapeHtml(c.image_url) + '" alt="' + escapeHtml(c.name) + '" loading="lazy" onerror="this.style.opacity=.18">'
+    ? '<img src="' + escapeHtml(c.image_url) + '" alt="' + escapeHtml(c.name) + '" loading="lazy" onload="mtImgFix(this)" onerror="this.style.opacity=.18">'
     : '<span class="ino">&#129371;</span>';
   const badges = (c.is_limited ? '<span class="ib-lim">L</span>' : '')
     + (nbEd > 1 ? '<span class="ib-more"' + (nbOwn ? '' : ' style="opacity:.7"') + '>' + nbEd + ' éd.</span>' : '');
@@ -971,6 +985,7 @@ function renderCanPage() {
     const photo = can.image_url
       ? '<img class="cp-img' + (MT_BAKED.test(can.image_url) ? '' : ' cut-refl') + '" src="' + escapeHtml(can.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'<span class=&quot;cp-noimg&quot;>&#129371;</span>\'">'
       : '<span class="cp-noimg">&#129371;</span>';
+    const photoFix = String(photo).replace('<img class="cp-img', '<img onload="mtImgFix(this)" class="cp-img');
     const eband = (can.edition && MT_EDIMG[can.edition]) ? '<img class="eband" src="' + MT_EDIMG[can.edition] + '" alt="">' : '';
     const owned = !!can.in_collection;
     const state = owned
@@ -994,7 +1009,7 @@ function renderCanPage() {
       : '<button class="btn-unlock" onclick="openAddModal()">DÉBLOQUER CETTE CANETTE</button>' + wishBtn;
 
     let hero = '<div class="cp-hero" style="--acc:' + accent + ';">'
-      + '<div class="cp-photo">' + photo + eband + (can.is_limited ? '<div class="lim-tag">Limitée</div>' : '') + state + '</div>'
+      + '<div class="cp-photo">' + photoFix + eband + (can.is_limited ? '<div class="lim-tag">Limitée</div>' : '') + state + '</div>'
       + '<div class="cp-side"><div class="cp-tag">' + (can.edition && MT_EDLBL[can.edition] ? escapeHtml(MT_EDLBL[can.edition]) : (can.series || 'Monster Energy')) + '</div>'
       + '<h2 class="cp-h2">' + escapeHtml(can.name) + '</h2>'
       + (mtVarClean(can.variant_diff) ? '<div class="cp-diff"><b>CE QUI CHANGE</b>' + escapeHtml(mtVarClean(can.variant_diff)) + '</div>' : '')
@@ -1016,7 +1031,7 @@ function renderCanPage() {
       varHtml = '<div class="cp-vgrid">';
       sibs.forEach((c) => {
         const ph = c.image_url
-          ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'">'
+          ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onload="mtImgFix(this)" onerror="this.style.display=\'none\'">'
           : '<span class="cpv-no">&#129371;</span>';
         const dif = mtDiffLabel(c);
         const vsub = [c.country, c.volume, c.year].map((x) => mtVarClean(x)).filter(Boolean).join(' · ');
@@ -1513,7 +1528,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v58';
+const MT_BUILD = 'mt-v59';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2173,7 +2188,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=58', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=59', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
