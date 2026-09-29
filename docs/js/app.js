@@ -248,6 +248,10 @@ function _setupAppUI() {
   const dsb = document.getElementById('drop-support'); if (dsb) dsb.style.display = (isAdmin && !sim) ? 'block' : 'none';
   document.getElementById('nav-name').textContent = (isAdmin && !sim) ? 'Admin' : (user.username || '');
   const nnd = document.getElementById('nav-name-drop'); if (nnd) nnd.textContent = (isAdmin && !sim) ? 'Admin' : (user.username || '');
+  const nav = document.getElementById('nav-user');
+  if (nav) nav.style.display = '';
+  const na = document.getElementById('nav-ava');
+  if (na) na.innerHTML = (isAdmin && !sim) ? '<span class="nav-ava-txt">&#128737;</span>' : avatarHtml(user, 28);
   if (!isAdmin || sim) {
     if (window.showAppInfo) showAppInfo();
   document.getElementById('set-name').textContent = user.username || '';
@@ -440,8 +444,24 @@ function canCardHtml(can, btnsHtml) {
 
 // ════════════════════ ACCUEIL ════════════════════
 window.loadHome = function () {
-  ['h-owned', 'h-total', 'h-value', 'h-friends'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = '...'; });
-  ['chart-series', 'chart-lang', 'h-recent', 'h-friends-act'].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = lHtml(); });
+  ['h-owned', 'h-total', 'h-value', 'h-drinks', 'h-spent'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = '...'; });
+  ['chart-series', 'chart-lang', 'h-recent', 'h-top'].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = lHtml(); });
+  mtDrinkRows().then((r) => {
+    const nd = document.getElementById('h-drinks'); if (nd) nd.textContent = r.total;
+    const ns = document.getElementById('h-spent'); if (ns) ns.textContent = r.spent > 0 ? r.spent.toFixed(2) + '€' : '—';
+    const el = document.getElementById('h-top');
+    if (!el) return;
+    if (!r.list.length) { el.innerHTML = eHtml('&#129371;', 'Aucune canette bue', 'Appuie sur le bouton + en bas à droite pour enregistrer une canette.'); return; }
+    let th = '<div class="top3">';
+    r.list.slice(0, 3).forEach((x, i) => {
+      th += '<div class="top3-i"><span class="top3-p">' + (i + 1) + '</span><span class="top3-th">' + mtCanImg(x.can_id, x.name) + '</span>'
+        + '<span class="top3-n">' + escapeHtml(x.name) + '</span><span class="top3-c">' + x.count + '×</span></div>';
+    });
+    el.innerHTML = th + '</div>';
+  }).catch(() => {
+    const el = document.getElementById('h-top');
+    if (el) el.innerHTML = eHtml('&#129371;', 'Statistiques indisponibles', 'Autorise la collection « drinks » dans les règles Firestore.');
+  });
   getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((colSnap) => {
     const colItems = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
     const totalValue = colItems.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
@@ -452,17 +472,6 @@ window.loadHome = function () {
       document.getElementById('h-value').textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
       document.getElementById('h-pct').textContent = pct + '%';
       document.getElementById('h-prog').style.width = pct + '%';
-    });
-    getDocs(query(collection(db, 'friends'), where('uid', '==', user.uid), where('status', '==', 'accepted'))).then((frSnap) => {
-      document.getElementById('h-friends').textContent = frSnap.size;
-      const friendUids = frSnap.docs.map((d) => d.data().friendUid);
-      const el = document.getElementById('h-friends-act');
-      if (!friendUids.length) { el.innerHTML = eHtml('👥', 'Pas encore d\'amis', 'Ajoute des amis depuis l\'onglet Amis !'); return; }
-      Promise.all(friendUids.slice(0, 5).map((uid) => getDoc(doc(db, 'users', uid)))).then((docs) => {
-        let fhtml = '<div class="fr-list">';
-        docs.forEach((fd) => { if (!fd.exists()) return; const f = fd.data(); fhtml += '<div class="fr-card">' + avatarHtml(f, 38) + '<div><div class="fr-name">' + escapeHtml(f.username) + '</div></div></div>'; });
-        el.innerHTML = fhtml + '</div>';
-      });
     });
     const recent = colItems.sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0)).slice(0, 5);
     const elRec = document.getElementById('h-recent');
@@ -647,12 +656,11 @@ window.loadCollection = function () {
     allCans = cans.slice(0);
     allCans.sort((x, y) => (x.name || '').localeCompare(y.name || '', 'fr'));
     const owned = allCans.filter((c) => c.in_collection);
-    const totalValue = owned.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
     const pct = allCans.length ? Math.round((owned.length / allCans.length) * 100) : 0;
     const so = document.getElementById('c-owned'); if (so) so.textContent = owned.length;
     const st = document.getElementById('c-total'); if (st) st.textContent = allCans.length;
     const sp = document.getElementById('c-pct'); if (sp) sp.textContent = pct + '%';
-    const sv = document.getElementById('c-value'); if (sv) sv.textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
+    const sbar = document.getElementById('c-prog'); if (sbar) sbar.style.width = pct + '%';
     renderSerieChips();
     renderCol(allCans);
     mtCatDraftNote();
@@ -677,12 +685,111 @@ function renderCol(cans) {
       + '<span class="sercount">' + list.length + ' canette' + (list.length > 1 ? 's' : '')
       + ' · <b style="color:var(--g)">' + own + '</b> possédée' + (own > 1 ? 's' : '')
       + (rest ? ' · ' + rest + ' à débloquer' : ' · COMPLET ✓')
-      + '</span></div><div class="cgrid">';
-    list.forEach((c) => { html += mtCanCardWrap(c); });
+      + '</span></div><div class="imgrid">';
+    list.forEach((c) => { html += mtCanImgHtml(c); });
     html += '</div></div>';
   });
   el.innerHTML = html;
 }
+
+// Un seul visuel par canette : pas de bloc, pas de texte — juste l'image.
+function mtCanImgHtml(c) {
+  const img = c.image_url
+    ? '<img src="' + escapeHtml(c.image_url) + '" alt="' + escapeHtml(c.name) + '" loading="lazy" onerror="this.style.opacity=.18">'
+    : '<span class="ino">&#129371;</span>';
+  const badges = (c.is_limited ? '<span class="ib-lim">L</span>' : '')
+    + (c.in_collection ? '' : '<span class="ib-lock">&#128274;</span>');
+  return '<div class="icard' + (c.in_collection ? '' : ' locked') + '" title="' + escapeHtml(c.name) + '" onclick="openCanPageById(\'' + c.id + '\')">'
+    + img + badges + '</div>';
+}
+window.mtCanImgHtml = mtCanImgHtml;
+
+// ════════════════════ CANETTES BUES (journal) ════════════════════
+let _drinkCan = null, _drinkCans = [];
+window.openDrinkModal = function () {
+  _drinkCan = null;
+  const s = document.getElementById('dr-search'); if (s) s.value = '';
+  const p = document.getElementById('dr-price'); if (p) p.value = '';
+  const pk = document.getElementById('dr-picked'); if (pk) pk.textContent = 'Aucune canette sélectionnée';
+  document.getElementById('modal-drink').classList.add('on');
+  const ready = allCans.length ? Promise.resolve(allCans) : mtFetchCans().then((c) => { allCans = c.slice(0); return allCans; });
+  ready.then((cans) => { _drinkCans = cans.slice(0); renderDrinkGrid(''); });
+};
+window.filterDrink = function () { renderDrinkGrid((document.getElementById('dr-search') || {}).value || ''); };
+function renderDrinkGrid(q) {
+  const el = document.getElementById('dr-grid'); if (!el) return;
+  const s = String(q || '').toLowerCase();
+  const list = _drinkCans.filter((c) => !s || (c.name || '').toLowerCase().includes(s) || (c.series || '').toLowerCase().includes(s));
+  if (!list.length) { el.innerHTML = '<div class="dr-empty">Aucune canette trouvée</div>'; return; }
+  el.innerHTML = list.slice(0, 150).map((c) => '<div class="pk-item' + (_drinkCan === c.id ? ' on' : '') + '" onclick="pickDrinkCan(\'' + c.id + '\')">'
+    + '<div class="pk-thumb">' + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'&#129371;\'">' : '&#129371;') + '</div>'
+    + '<div class="pk-name">' + escapeHtml(c.name) + '</div></div>').join('');
+}
+window.pickDrinkCan = function (id) {
+  _drinkCan = id;
+  const c = _drinkCans.find((x) => x.id === id);
+  const pk = document.getElementById('dr-picked');
+  if (pk) pk.innerHTML = c ? '&#10003; ' + escapeHtml(c.name) : 'Aucune canette sélectionnée';
+  const p = document.getElementById('dr-price');
+  if (p && !p.value && c && c.price) p.value = c.price;
+  renderDrinkGrid((document.getElementById('dr-search') || {}).value || '');
+};
+window.saveDrink = function () {
+  if (!_drinkCan) { toast('Choisis une canette', 'err'); return; }
+  const can = _drinkCans.find((x) => x.id === _drinkCan) || allCans.find((x) => x.id === _drinkCan) || {};
+  const price = parseFloat((document.getElementById('dr-price') || {}).value) || 0;
+  addDoc(collection(db, 'drinks'), {
+    uid: user.uid, can_id: _drinkCan, can_name: can.name || '', series: can.series || null,
+    price: price, drank_at: fst(), created_at: fst(),
+  }).then(() => {
+    toast('Canette bue enregistrée ✓');
+    closeModal('drink');
+    loadHome();                                    // compteurs + top 3 toujours à jour
+    if (document.getElementById('modal-rank').classList.contains('on')) openRankModal();
+    if (mtCurrentSec() === 'can' && _detailCan && _detailCan.id === _drinkCan) renderCanPage();
+  }).catch((e) => toast('Erreur : ' + e.message, 'err'));
+};
+// résumé des canettes bues (utilisé par le tableau de bord et le classement)
+function mtDrinkRows() {
+  return getDocs(query(collection(db, 'drinks'), where('uid', '==', user.uid))).then((snap) => {
+    const rows = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const byCan = {};
+    rows.forEach((r) => {
+      const k = r.can_id || ('name:' + (r.can_name || '?'));
+      if (!byCan[k]) byCan[k] = { can_id: r.can_id || null, name: r.can_name || 'Canette', count: 0, spent: 0 };
+      byCan[k].count += 1;
+      byCan[k].spent += parseFloat(r.price) || 0;
+    });
+    const list = Object.values(byCan).sort((x, y) => y.count - x.count || y.spent - x.spent || x.name.localeCompare(y.name, 'fr'));
+    const totalSpent = rows.reduce((s, r) => s + (parseFloat(r.price) || 0), 0);
+    return { rows: rows, list: list, total: rows.length, spent: totalSpent };
+  });
+}
+function mtCanImg(canId, name) {
+  if (!canId) return '&#129371;';
+  const c = allCans.find((x) => x.id === canId) || _admCansAll.find((x) => x.id === canId);
+  if (c && c.image_url) return '<img src="' + escapeHtml(c.image_url) + '" alt="">';
+  return '&#129371;';
+}
+window.openRankModal = function () {
+  const ct = document.getElementById('rank-ct');
+  document.getElementById('modal-rank').classList.add('on');
+  ct.innerHTML = lHtml();
+  mtDrinkRows().then((r) => {
+    if (!r.list.length) { ct.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE BUE', 'Utilise le bouton + en bas à droite pour enregistrer ta première canette.'); return; }
+    let h = '<div class="rank-hd"><span>' + r.total + ' canette' + (r.total > 1 ? 's' : '') + ' bue' + (r.total > 1 ? 's' : '') + '</span>'
+      + '<b>' + r.spent.toFixed(2) + '€ dépensés</b></div><div class="rank-list">';
+    r.list.forEach((x, i) => {
+      h += '<div class="rank-item' + (i < 3 ? ' top' : '') + '">'
+        + '<span class="rank-pos">' + (i + 1) + '</span>'
+        + '<span class="rank-th">' + mtCanImg(x.can_id, x.name) + '</span>'
+        + '<span class="rank-n">' + escapeHtml(x.name) + '</span>'
+        + '<span class="rank-c">' + x.count + '×</span>'
+        + '<span class="rank-s">' + (x.spent > 0 ? x.spent.toFixed(2) + '€' : '—') + '</span></div>';
+    });
+    ct.innerHTML = h + '</div>';
+  }).catch((e) => { ct.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
 
 // ════════════════════ FICHE D'UNE CANETTE ════════════════════
 let _canHist = [], _canBack = 'collection';
@@ -734,10 +841,9 @@ function renderCanPage() {
       : '<div class="cp-state locked">&#128274; À DÉBLOQUER</div>';
 
     const infos = [
-      ['Série', can.series], ['Variante', can.variant], ['Famille', can.family],
+      ['Série', can.series], ['Variante', can.variant],
       ['Pays', can.country], ['Année', can.year], ['Volume', can.volume], ['Langue', can.language],
       ['Capsule', can.cap_color], ['Dominante', can.full_color],
-      ['Édition', can.edition ? (MT_EDLBL[can.edition] || can.edition) : ''],
       ['Prix payé', can.price ? fmtPrice(can.price) : ''], ['Ajoutée le', can.added_at ? fmtDate(can.added_at) : ''],
       ['Type', can.purchase_type || ''],
     ].filter((x) => x[1] !== undefined && x[1] !== null && x[1] !== '');
@@ -1260,7 +1366,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v51';
+const MT_BUILD = 'mt-v52';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1866,7 +1972,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=51', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=52', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

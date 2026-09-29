@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=51">
+<link rel="stylesheet" href="css/style.css?v=52">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -125,6 +125,10 @@
   <div class="logo" onclick="goLandingApp()">
     <img class="logo-word" src="img/logo-wordmark.png" alt="MonsterTracker"/>
   </div>
+  <div class="nav-user" id="nav-user" onclick="toggleNavMenu()">
+    <span class="nav-ava" id="nav-ava"></span>
+    <b id="nav-name">-</b>
+  </div>
   <span id="nav-tabs-anchor" style="display:none;"></span>
   <div class="ntabs" id="user-tabs">
     <button class="ntab on" id="tab-home"       onclick="goTab('home',this)">Accueil</button>
@@ -142,7 +146,6 @@
     <button class="ntab"    id="tab-adm-settings" onclick="goTab('adm-settings',this)">&#9881; Réglages</button>
   </div>
   <div class="app-nav-r">
-    <div class="nav-who">Salut, <b id="nav-name">-</b></div>
     <button id="support-btn" class="btn-rd" style="display:none;border-color:rgba(0,161,0,.4);color:var(--g);" onclick="location.href='support.html'">&#128272; SUPPORT</button>
     <button id="pwa-install-btn" onclick="doInstall()">&#11015; INSTALLER</button>
     <button class="btn-rd" onclick="doLogout()">Déconnexion</button>
@@ -164,7 +167,8 @@
     <div class="sbox"><div class="sval" id="h-owned">-</div><div class="slbl2">Possédées</div></div>
     <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total dispo.</div></div>
     <div class="sbox val"><div class="sval" id="h-value">-</div><div class="slbl2">Valeur €</div></div>
-    <div class="sbox"><div class="sval" id="h-friends">-</div><div class="slbl2">Amis</div></div>
+    <div class="sbox"><div class="sval" id="h-drinks">-</div><div class="slbl2">Canettes bues</div></div>
+    <div class="sbox"><div class="sval" id="h-spent">-</div><div class="slbl2">Argent dépensé</div></div>
   </div>
   <div class="prog-wrap">
     <div class="prog-lbl"><span>Complétion</span><b id="h-pct">0%</b></div>
@@ -176,7 +180,8 @@
   </div>
   <div class="home-grid">
     <div class="home-card"><div class="hc-t">Ajouts récents</div><div id="h-recent"></div></div>
-    <div class="home-card"><div class="hc-t">Mes amis</div><div id="h-friends-act"></div></div>
+    <div class="home-card"><div class="hc-t">Les plus bues</div><div id="h-top"></div>
+      <button class="btn-ghost hc-btn" onclick="openRankModal()">&#127942; CLASSEMENT COMPLET</button></div>
   </div>
 </div>
 
@@ -186,8 +191,10 @@
   <div class="srow">
     <div class="sbox"><div class="sval" id="c-owned">-</div><div class="slbl2">Possédées</div></div>
     <div class="sbox"><div class="sval" id="c-total">-</div><div class="slbl2">Total</div></div>
-    <div class="sbox"><div class="sval" id="c-pct">-</div><div class="slbl2">Complétion</div></div>
-    <div class="sbox val"><div class="sval" id="c-value">-</div><div class="slbl2">Valeur</div></div>
+    <div class="sbox wide">
+      <div class="slbl2" style="margin-bottom:9px;">Complétion</div>
+      <div class="crow"><div class="cbar"><i id="c-prog" style="width:0%"></i></div><b class="cpct" id="c-pct">0%</b></div>
+    </div>
   </div>
   <div class="catbar">
     <input class="sinput" id="col-search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
@@ -485,6 +492,9 @@
 </div>
 
 </div><!-- /app-main -->
+
+<!-- BOUTON ROND : AJOUTER UNE CANETTE BUE -->
+<button class="fab" id="fab-drink" onclick="openDrinkModal()" title="Ajouter une canette bue" aria-label="Ajouter une canette bue">&#43;</button>
 </div><!-- /page-app -->
 
 <!-- ══════════ MODALES ══════════ -->
@@ -624,6 +634,31 @@
 </div>
 </div>
 
+<!-- AJOUTER UNE CANETTE BUE -->
+<div class="moverlay" id="modal-drink">
+<div class="modal" style="max-width:560px;">
+  <div class="mhdr"><h3>AJOUTER UNE CANETTE BUE</h3><button class="mclose" onclick="closeModal('drink')">&#x2715;</button></div>
+  <div class="mbody">
+    <div class="dr-pick" id="dr-picked">Aucune canette sélectionnée</div>
+    <input class="sinput" type="text" id="dr-search" placeholder="Rechercher une canette..." oninput="filterDrink()" style="margin:12px 0 13px;"/>
+    <div class="pk-grid dr-grid" id="dr-grid"></div>
+    <div class="mdiv"></div>
+    <div class="field"><label>Prix payé (€)</label><input class="minput" type="text" inputmode="decimal" id="dr-price" placeholder="ex : 1.50"/></div>
+    <div class="dr-hint">La date et l'heure sont enregistrées automatiquement. Achète et bois autant de canettes que tu veux : chacune compte dans tes statistiques.</div>
+  </div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('drink')">ANNULER</button><button class="btn-add" onclick="saveDrink()">&#10003; ENREGISTRER</button></div>
+</div>
+</div>
+
+<!-- CLASSEMENT DES CANETTES BUES -->
+<div class="moverlay" id="modal-rank">
+<div class="modal" style="max-width:600px;">
+  <div class="mhdr"><h3>&#127942; CLASSEMENT DES CANETTES</h3><button class="mclose" onclick="closeModal('rank')">&#x2715;</button></div>
+  <div class="mbody" style="padding:0;"><div id="rank-ct"></div></div>
+  <div class="mfoot"><button class="btn-ghost" onclick="closeModal('rank')">FERMER</button></div>
+</div>
+</div>
+
 <!-- Réponse admin -->
 <div class="moverlay" id="modal-view">
   <div class="modal" style="max-width:560px;">
@@ -656,6 +691,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=51"></script>
+<script type="module" src="js/app.js?v=52"></script>
 </body>
 </html>
