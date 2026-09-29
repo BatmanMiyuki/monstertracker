@@ -423,7 +423,7 @@ function canCardHtml(can, btnsHtml) {
   const lk = can.in_collection ? '' : ' locked';
   const img = can.image_url ? '<img src="' + escapeHtml(can.image_url) + '" alt="' + escapeHtml(can.name) + '" onerror="this.style.display=\'none\'">' : '<span style="font-size:52px;">&#129371;</span>';
   const lim = can.is_limited ? '<div class="lim-tag">Limitée</div>' : '';
-  const lockTag = can.in_collection ? '' : '<div class="lock-tag">&#128274; À DÉBLOQUER</div>';
+  const lockTag = can.in_collection ? '' : '<div class="lock-tag">À DÉBLOQUER</div>';
   const eband = (can.edition && MT_EDIMG[can.edition]) ? '<img class="eband" src="' + MT_EDIMG[can.edition] + '" alt="">' : '';
   const owned = can.in_collection ? '<div class="owned-ov"><div class="owned-tag">✓ Possédée</div></div>' : '';
   const price = can.price ? '<div class="cprice">' + fmtPrice(can.price) + '</div>' : '';
@@ -697,8 +697,7 @@ function mtCanImgHtml(c) {
   const img = c.image_url
     ? '<img src="' + escapeHtml(c.image_url) + '" alt="' + escapeHtml(c.name) + '" loading="lazy" onerror="this.style.opacity=.18">'
     : '<span class="ino">&#129371;</span>';
-  const badges = (c.is_limited ? '<span class="ib-lim">L</span>' : '')
-    + (c.in_collection ? '' : '<span class="ib-lock">&#128274;</span>');
+  const badges = c.is_limited ? '<span class="ib-lim">L</span>' : '';
   return '<div class="icard' + (c.in_collection ? '' : ' locked') + '" title="' + escapeHtml(c.name) + '" onclick="openCanPageById(\'' + c.id + '\')">'
     + img + badges + '</div>';
 }
@@ -882,7 +881,7 @@ function renderCanPage() {
     const owned = !!can.in_collection;
     const state = owned
       ? '<div class="cp-state owned">&#10003; DANS MA COLLECTION</div>'
-      : '<div class="cp-state locked">&#128274; À DÉBLOQUER</div>';
+      : '<div class="cp-state locked">À DÉBLOQUER</div>';
 
     const infos = [
       ['Série', can.series], ['Variante', can.variant],
@@ -898,7 +897,7 @@ function renderCanPage() {
     const actions = owned
       ? '<div class="cp-unlocked">&#10003; CANETTE DÉBLOQUÉE <span>dans ta collection</span></div>' + wishBtn
         + (can.col_doc_id ? '<button class="cbtn rm" onclick="removeColFromPage()">&#10005; Retirer</button>' : '')
-      : '<button class="btn-unlock" onclick="openAddModal()">&#128275; DÉBLOQUER CETTE CANETTE</button>' + wishBtn;
+      : '<button class="btn-unlock" onclick="openAddModal()">DÉBLOQUER CETTE CANETTE</button>' + wishBtn;
 
     let hero = '<div class="cp-hero" style="--acc:' + accent + ';">'
       + '<div class="cp-photo">' + photo + eband + (can.is_limited ? '<div class="lim-tag">Limitée</div>' : '') + state + '</div>'
@@ -1413,7 +1412,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v53';
+const MT_BUILD = 'mt-v54';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2019,7 +2018,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=53', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=54', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
