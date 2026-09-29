@@ -95,6 +95,60 @@ function compressImage(file, maxDim, quality) {
   });
 }
 
+// ── Images : toutes les canettes au même format ──
+// Détecte la canette sur son fond, la recadre et la replace centrée dans un
+// cadre 400x600 à 92 % de la hauteur. Peu importe la taille de la photo d'origine.
+const MT_IMG_W = 400, MT_IMG_H = 600, MT_IMG_FILL = 0.92, MT_IMG_SEUIL = 60;
+function mtNormalize(imgUrl) {
+  return new Promise((res) => {
+    if (!imgUrl) return res(imgUrl);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const w0 = img.naturalWidth, h0 = img.naturalHeight;
+        if (w0 < 8 || h0 < 8) return res(imgUrl);
+        const src = document.createElement('canvas');
+        src.width = w0; src.height = h0;
+        const sx = src.getContext('2d');
+        sx.drawImage(img, 0, 0);
+        const d = sx.getImageData(0, 0, w0, h0).data;
+        const coin = (x, y) => { const i = (y * w0 + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+        const cs = [coin(0, 0), coin(w0 - 1, 0), coin(0, h0 - 1), coin(w0 - 1, h0 - 1)];
+        const r = Math.round((cs[0][0] + cs[1][0] + cs[2][0] + cs[3][0]) / 4);
+        const g = Math.round((cs[0][1] + cs[1][1] + cs[2][1] + cs[3][1]) / 4);
+        const b = Math.round((cs[0][2] + cs[1][2] + cs[2][2] + cs[3][2]) / 4);
+        let x0 = w0, y0 = h0, x1 = -1, y1 = -1;
+        for (let y = 0; y < h0; y++) {
+          for (let x = 0; x < w0; x++) {
+            const i = (y * w0 + x) * 4;
+            if (Math.abs(d[i] - r) + Math.abs(d[i + 1] - g) + Math.abs(d[i + 2] - b) > MT_IMG_SEUIL) {
+              if (x < x0) x0 = x; if (x > x1) x1 = x;
+              if (y < y0) y0 = y; if (y > y1) y1 = y;
+            }
+          }
+        }
+        if (x1 < 0) return res(imgUrl);
+        const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+        if (bw < w0 * 0.05 || bh < h0 * 0.05) return res(imgUrl);
+        let dh = Math.round(MT_IMG_H * MT_IMG_FILL);
+        let dw = Math.max(1, Math.round(bw * (dh / bh)));
+        if (dw > MT_IMG_W) { dw = MT_IMG_W; dh = Math.round(bh * (MT_IMG_W / bw)); }
+        const out = document.createElement('canvas');
+        out.width = MT_IMG_W; out.height = MT_IMG_H;
+        const o = out.getContext('2d');
+        o.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+        o.fillRect(0, 0, MT_IMG_W, MT_IMG_H);
+        o.imageSmoothingEnabled = true; o.imageSmoothingQuality = 'high';
+        o.drawImage(src, x0, y0, bw, bh, Math.round((MT_IMG_W - dw) / 2), Math.round((MT_IMG_H - dh) / 2), dw, dh);
+        res(out.toDataURL('image/jpeg', 0.85));
+      } catch (e) { res(imgUrl); }
+    };
+    img.onerror = () => res(imgUrl);
+    img.src = imgUrl;
+  });
+}
+window.mtNormalize = mtNormalize;
+
 // ── Navigation ──
 window.go = (p) => {
   document.querySelectorAll('.page').forEach((x) => x.classList.remove('active'));
@@ -1459,7 +1513,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v57';
+const MT_BUILD = 'mt-v58';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1779,7 +1833,8 @@ window.openCanModal = function (canId) {
 window.handleImgFile = function (input) {
   const file = input.files[0]; if (!file) return;
   if (file.size > 5 * 1024 * 1024) { toast('Image trop lourde (max 5 Mo).', 'err'); input.value = ''; return; }
-  compressImage(file, 400, 0.8).then((dataUrl) => {
+  toast('Mise au format de l\'image...');
+  compressImage(file, 900, 0.92).then((dataUrl) => mtNormalize(dataUrl)).then((dataUrl) => {
     const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
     prev.src = dataUrl; prev.style.display = 'block'; lbl.style.display = 'none';
     document.getElementById('cm-img-url').value = '';
@@ -1788,14 +1843,19 @@ window.handleImgFile = function (input) {
 };
 window.previewUrl = function (url) {
   const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
-  if (url) { prev.src = url; prev.style.display = 'block'; lbl.style.display = 'none'; document.getElementById('cm-img-file').value = ''; }
+  const u = (url || '').trim();
+  if (u) { prev.src = u; prev.style.display = 'block'; lbl.style.display = 'none'; document.getElementById('cm-img-file').value = ''; }
   else { prev.style.display = 'none'; lbl.style.display = 'block'; }
+  if (u.indexOf('data:image') === 0) {
+    mtNormalize(u).then((nu) => { prev.src = nu; document.getElementById('cm-img-url').dataset.norm = nu; });
+  } else { delete document.getElementById('cm-img-url').dataset.norm; }
 };
 window.saveCan = function () {
   const name = document.getElementById('cm-name').value.trim();
   if (!name) { toast('Nom requis', 'err'); return; }
   const fi = document.getElementById('cm-img-file');
-  const imageUrl = (fi.dataset && fi.dataset.compressed) || document.getElementById('cm-img-url').value.trim();
+  const urlEl = document.getElementById('cm-img-url');
+  const imageUrl = (fi.dataset && fi.dataset.compressed) || (urlEl.dataset && urlEl.dataset.norm) || urlEl.value.trim();
   const body = {
     name, series: document.getElementById('cm-series').value || null, variant: document.getElementById('cm-variant').value || null,
     variant_diff: document.getElementById('cm-diff').value.trim() || null,
@@ -1815,6 +1875,39 @@ window.saveCan = function () {
     const fs = document.getElementById('sec-adm-fams');
     if (fs && fs.classList.contains('on')) loadAdmFams();
   }).catch((e) => toast(e.message, 'err'));
+};
+// Remet TOUTES les images du catalogue au même format (bouton admin).
+window.mtNormalizeAllCans = function () {
+  if (!confirm('Remettre toutes les images de canettes au même format (400x600, canette à 92 % de la hauteur) ?\n\nLes images déjà au bon format ne changent pas.')) return;
+  const ct = document.getElementById('adm-cans-ct');
+  if (ct) ct.innerHTML = '<div class="loading"><div class="spin"></div>Mise au format des images...</div>';
+  getDocs(collection(db, 'cans')).then((snap) => {
+    const list = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()))
+      .filter((c) => c.image_url && String(c.image_url).indexOf('data:image') === 0);
+    if (!list.length) { toast('Aucune image à retraiter'); loadAdmCans(); return; }
+    const out = [];
+    let i = 0;
+    const suivant = () => {
+      if (i >= list.length) return ecrire();
+      const c = list[i++];
+      if (ct) ct.innerHTML = '<div class="loading"><div class="spin"></div>Mise au format des images... ' + i + ' / ' + list.length + '</div>';
+      mtNormalize(c.image_url).then((nu) => { out.push([c.id, nu, nu !== c.image_url]); suivant(); });
+    };
+    const ecrire = () => {
+      const chg = out.filter((o) => o[2]);
+      if (!chg.length) { toast('Toutes les images sont déjà au bon format ✓'); loadAdmCans(); return; }
+      let k = 0;
+      const lot = () => {
+        if (k >= chg.length) { toast(chg.length + ' image' + (chg.length > 1 ? 's' : '') + ' remise' + (chg.length > 1 ? 's' : '') + ' au même format ✓'); loadAdmCans(); return; }
+        const b = fbatch();
+        chg.slice(k, k + 10).forEach((o) => { b.update(doc(db, 'cans', o[0]), { image_url: o[1], updated_at: fst() }); });
+        k += 10;
+        b.commit().then(lot).catch((e) => { toast(e.message, 'err'); loadAdmCans(); });
+      };
+      lot();
+    };
+    suivant();
+  }).catch((e) => { toast(e.message, 'err'); loadAdmCans(); });
 };
 window.publishCan = (id, pub) => updateDoc(doc(db, 'cans', id), { is_published: pub }).then(() => { toast(pub ? 'Publiée ✓' : 'Dépubliée'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
 window.deleteCan = (id) => { if (!confirm('Supprimer cette canette ?')) return; deleteDoc(doc(db, 'cans', id)).then(() => { toast('Supprimée ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err')); };
@@ -2080,7 +2173,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=57', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=58', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
