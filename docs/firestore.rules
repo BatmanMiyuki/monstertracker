@@ -1,115 +1,126 @@
 rules_version = '2';
 
 // ════════════════════════════════════════════════════════════════
-//  MonsterTracker — règles Firestore complètes
-//  À coller dans : Firebase → Firestore Database → Règles → Publier
-//  (remplace TOUT le contenu de la page par ce texte)
+//  MonsterTracker — RÈGLES FIRESTORE COMPLÈTES
+//
+//  Où les coller :
+//    Console Firebase → Firestore Database → onglet « Règles »
+//    → tu effaces TOUT ce qui est écrit → tu colles ce texte → PUBLIER
+//
+//  Ce que ça autorise :
+//    • chacun gère sa collection, sa wishlist, ses favoris, ses canettes bues
+//    • les profils sont lisibles (inscription + recherche d'amis)
+//    • les collections d'amis sont visibles, pas modifiables
+//    • seuls les admins touchent au catalogue, aux annonces et aux réglages
 // ════════════════════════════════════════════════════════════════
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ─────────── raccourcis ───────────
-    function connecte() {
-      return request.auth != null;
-    }
-    function moi() {
-      return request.auth.uid;
-    }
-    // L'admin est l'utilisateur qui a « role: admin » dans son profil
+    function connecte() { return request.auth != null; }
+    function moi()      { return request.auth.uid; }
     function estAdmin() {
-      return connecte()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return connecte() && (
+        request.auth.token.admin == true
+        || (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
     }
 
-    // ─────────── profils utilisateurs ───────────
+    // ─────────── PROFILS UTILISATEURS ───────────
     match /users/{uid} {
-      allow read:   if connecte();                                  // profils des amis + admin
+      // lecture publique : vérifier que le pseudo / l'email ne sont pas déjà pris
+      // à l'inscription, et chercher un ami par pseudo ou par code ami
+      allow read: if true;
       allow create: if connecte() && uid == moi();
       allow update: if connecte() && (uid == moi() || estAdmin());
-      allow delete: if estAdmin();
+      // suppression de son propre compte depuis les Paramètres, ou par l'admin
+      allow delete: if connecte() && (uid == moi() || estAdmin());
     }
 
-    // ─────────── catalogue des canettes ───────────
-    match /cans/{doc} {
-      allow read:   if true;                                        // visible par tout le monde
-      allow create, update, delete: if estAdmin();
+    // ─────────── CATALOGUE DES CANETTES ───────────
+    match /cans/{canId} {
+      allow read: if resource.data.is_published == true || estAdmin();
+      allow write: if estAdmin();
     }
 
-    // ─────────── ma collection ───────────
-    match /collection/{doc} {
-      allow read:   if connecte();                                  // permet de voir la collection d'un ami
-      allow create: if connecte() && request.resource.data.uid == moi();
-      allow update: if connecte() && (request.resource.data.uid == moi() || estAdmin());
-      allow delete: if connecte() && (resource.data.uid == moi() || estAdmin());
-    }
-
-    // ─────────── wishlist ───────────
-    match /wishlist/{doc} {
-      allow read:   if connecte();
-      allow create: if connecte() && request.resource.data.uid == moi();
-      allow update: if connecte() && (request.resource.data.uid == moi() || estAdmin());
-      allow delete: if connecte() && (resource.data.uid == moi() || estAdmin());
-    }
-
-    // ─────────── canettes bues (statistiques) ───────────
-    match /drinks/{doc} {
-      allow read:   if connecte() && (resource.data.uid == moi() || estAdmin());
+    // ─────────── MA COLLECTION ───────────
+    match /collection/{docId} {
+      allow read: if connecte();                       // permet de voir la collection d'un ami
       allow create: if connecte() && request.resource.data.uid == moi();
       allow update, delete: if connecte() && (resource.data.uid == moi() || estAdmin());
     }
 
-    // ─────────── 3 canettes favorites du profil ───────────
-    match /favorites/{doc} {
-      allow read:   if connecte();
+    // ─────────── WISHLIST ───────────
+    match /wishlist/{docId} {
+      allow read: if connecte() && (resource.data.uid == moi() || estAdmin());
+      allow create: if connecte() && request.resource.data.uid == moi();
+      allow update, delete: if connecte() && (resource.data.uid == moi() || estAdmin());
+    }
+
+    // ─────────── 3 CANETTES FAVORITES DU PROFIL ───────────
+    match /favorites/{docId} {
+      allow read: if connecte() && (resource.data.uid == moi() || estAdmin());
       allow create, update: if connecte() && request.resource.data.uid == moi();
       allow delete: if connecte() && (resource.data.uid == moi() || estAdmin());
     }
 
-    // ─────────── amis ───────────
-    match /friends/{doc} {
-      allow read:   if connecte();
+    // ─────────── CANETTES BUES (statistiques) ───────────
+    match /drinks/{docId} {
+      allow read: if connecte() && (resource.data.uid == moi() || estAdmin());
+      allow create: if connecte() && request.resource.data.uid == moi();
+      allow update, delete: if connecte() && (resource.data.uid == moi() || estAdmin());
+    }
+
+    // ─────────── AMIS ───────────
+    match /friends/{docId} {
+      allow read: if connecte() && (resource.data.uid == moi() || resource.data.friendUid == moi());
+      // on écrit les DEUX documents de l'amitié (le mien + celui de l'ami)
       allow create, update: if connecte()
         && (request.resource.data.uid == moi() || request.resource.data.friendUid == moi());
       allow delete: if connecte()
         && (resource.data.uid == moi() || resource.data.friendUid == moi() || estAdmin());
     }
 
-    // ─────────── demandes d'amis ───────────
-    match /friend_requests/{doc} {
-      allow read:   if connecte();
-      allow create, update: if connecte()
-        && (request.resource.data.from_uid == moi() || request.resource.data.to_uid == moi());
-      allow delete: if connecte()
+    // ─────────── DEMANDES D'AMIS ───────────
+    match /friend_requests/{docId} {
+      allow read: if connecte() && (resource.data.from_uid == moi() || resource.data.to_uid == moi() || estAdmin());
+      allow create: if connecte() && request.resource.data.from_uid == moi();
+      allow update, delete: if connecte()
         && (resource.data.from_uid == moi() || resource.data.to_uid == moi() || estAdmin());
     }
 
-    // ─────────── discussion entre amis ───────────
-    match /chats/{doc} {
-      allow read:   if connecte() && (moi() in resource.data.participants || estAdmin());
-      allow create: if connecte() && request.resource.data.from_uid == moi();
-      allow update: if connecte() && (moi() in resource.data.participants || estAdmin());
-      allow delete: if connecte() && (moi() in resource.data.participants || estAdmin());
+    // ─────────── DISCUSSION ENTRE AMIS ───────────
+    match /chats/{docId} {
+      allow read: if connecte() && (moi() in resource.data.participants || estAdmin());
+      allow create: if connecte() && moi() in request.resource.data.participants;
+      allow update, delete: if connecte() && (moi() in resource.data.participants || estAdmin());
     }
 
-    // ─────────── messages de contact / support ───────────
-    match /messages/{doc} {
-      allow read:   if connecte() && (resource.data.uid == moi() || estAdmin());
-      allow create: if true;              // permet « mot de passe oublié » avant la connexion
-      allow update, delete: if estAdmin();
+    // ─────────── MESSAGES AU SUPPORT ───────────
+    match /messages/{docId} {
+      // « Mot de passe oublié » peut être envoyé sans être connecté (uid = null)
+      allow create: if (connecte() && request.resource.data.uid == moi()) || request.resource.data.uid == null;
+      allow read: if estAdmin() || (connecte() && resource.data.uid == moi());
+      allow update, delete: if estAdmin() || (connecte() && resource.data.uid == moi());
     }
 
-    // ─────────── annonces ───────────
-    match /updates/{doc} {
-      allow read:   if true;
-      allow create, update, delete: if estAdmin();
+    // ─────────── ANNONCES ───────────
+    match /updates/{docId} {
+      allow read: if true;
+      allow write: if estAdmin();
     }
 
-    // ─────────── réglages (images des séries, maintenance, code support) ───────────
-    match /settings/{doc} {
-      allow read:   if connecte();
-      allow create, update, delete: if estAdmin();
+    // ─────────── RÉGLAGES (photos des séries, maintenance, code support) ───────────
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if estAdmin();
+    }
+
+    // ─────────── TOUT LE RESTE EST INTERDIT ───────────
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
