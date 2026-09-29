@@ -110,7 +110,9 @@ window.goTab = (s, btn) => {
   document.querySelectorAll('.ntab').forEach((x) => x.classList.remove('on'));
   document.getElementById('sec-' + s).classList.add('on');
   if (btn) btn.classList.add('on');
-  const m = { home: loadHome, catalogue: loadCatalogue, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings, 'adm-fams': loadAdmFams };
+  const m = { home: loadHome, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings, 'adm-fams': loadAdmFams };
+  if (s === 'can') renderCanPage();
+  if (s === 'collection') loadCollection();
   if (m[s]) m[s]();
 };
 window.showForgot = () => { document.getElementById('forgot-panel').style.display = 'block'; };
@@ -414,8 +416,10 @@ function accentBg(color) {
 }
 function canCardHtml(can, btnsHtml) {
   const accent = can.is_limited ? '#ff9600' : (can.accent_color || '#39ff14');
+  const lk = can.in_collection ? '' : ' locked';
   const img = can.image_url ? '<img src="' + escapeHtml(can.image_url) + '" alt="' + escapeHtml(can.name) + '" onerror="this.style.display=\'none\'">' : '<span style="font-size:52px;">&#129371;</span>';
   const lim = can.is_limited ? '<div class="lim-tag">Limitée</div>' : '';
+  const lockTag = can.in_collection ? '' : '<div class="lock-tag">&#128274; À DÉBLOQUER</div>';
   const eband = (can.edition && MT_EDIMG[can.edition]) ? '<img class="eband" src="' + MT_EDIMG[can.edition] + '" alt="">' : '';
   const owned = can.in_collection ? '<div class="owned-ov"><div class="owned-tag">✓ Possédée</div></div>' : '';
   const price = can.price ? '<div class="cprice">' + fmtPrice(can.price) + '</div>' : '';
@@ -427,8 +431,8 @@ function canCardHtml(can, btnsHtml) {
   if (can.full_color) infos.push('<span class="cinfo"><b>FULL</b> ' + escapeHtml(can.full_color) + '</span>');
   const infosHtml = infos.length ? '<div class="cinfs">' + infos.join('') + '</div>' : '';
   const cardBorder = can.is_limited ? 'border:2px solid #ff9600;border-bottom:3px solid #ff9600;' : 'border-bottom:3px solid ' + accent + ';';
-  return '<div class="ccard" style="' + cardBorder + '">'
-    + '<div class="cthumb' + (can.image_url ? ' has-img' + (MT_BAKED.test(can.image_url) ? ' baked' : '') : '') + '" style="' + (can.image_url ? '' : 'background:' + accentBg(accent)) + '">' + img + eband + lim + owned + '</div>'
+  return '<div class="ccard' + lk + '" style="' + cardBorder + '">'
+    + '<div class="cthumb' + (can.image_url ? ' has-img' + (MT_BAKED.test(can.image_url) ? ' baked' : '') : '') + '" style="' + (can.image_url ? '' : 'background:' + accentBg(accent)) + '">' + img + eband + lim + lockTag + owned + '</div>'
     + '<div class="cbody"><div class="cname">' + escapeHtml(can.name) + '</div><div class="csub">' + sub + '</div>' + infosHtml + price
     + (btnsHtml ? '<div class="cbtns">' + btnsHtml + '</div>' : '')
     + '</div></div>';
@@ -480,26 +484,9 @@ window.loadHome = function () {
 };
 
 // ════════════════════ CATALOGUE ════════════════════
-window.loadCatalogue = function () {
-  document.getElementById('cat-ct').innerHTML = lHtml();
-  const colIds = new Set(), wlIds = new Set();
-  mtLoadSerMedia().then(() => getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid)))).then((s) => {
-    s.docs.forEach((d) => colIds.add(d.data().can_id));
-    return getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid)));
-  }).then((s) => {
-    s.docs.forEach((d) => wlIds.add(d.data().can_id));
-    return getDocs(query(collection(db, 'cans'), where('is_published', '==', true)));
-  }).then((snap) => {
-    allCans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data(), { in_collection: colIds.has(d.id), in_wishlist: wlIds.has(d.id) }));
-    allCans.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
-    renderSerieChips();
-    renderCat(allCans);
-    mtCatDraftNote();
-  }).catch((e) => { document.getElementById('cat-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
-};
 // Note brouillons (admin) : dit pourquoi certaines fiches ne sont pas dans le catalogue
 window.mtCatDraftNote = function () {
-  const el = document.getElementById('cat-note');
+  const el = document.getElementById('col-note');
   if (!el) return;
   el.innerHTML = '';
   if (!user || user.role !== 'admin') return;
@@ -513,13 +500,13 @@ window.mtCatDraftNote = function () {
 let _catSerie = 'Toutes';
 window.setCatSerie = function (serie) { _catSerie = serie; window.filterCans(); };
 window.filterCans = function () {
-  const q = (document.getElementById('search').value || '').toLowerCase();
+  const q = (document.getElementById('col-search').value || '').toLowerCase();
   let list = allCans.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.series || '').toLowerCase().includes(q) || (c.variant || '').toLowerCase().includes(q));
   if (_catSerie !== 'Toutes') list = list.filter((c) => mtSerKey(c.series) === mtSerKey(_catSerie));
-  renderCat(list);
+  renderCol(list);
 };
 function renderSerieChips() {
-  const el = document.getElementById('cat-series'); if (!el) return;
+  const el = document.getElementById('col-series'); if (!el) return;
   const g = mtSerGroups(allCans);
   let html = '<button class="schip' + (_catSerie === 'Toutes' ? ' on' : '') + '" onclick="setCatSerie(\'Toutes\')">Toutes (' + allCans.length + ')</button>';
   Object.keys(g).map((k) => g[k]).sort((x, y) => x.label.localeCompare(y.label, 'fr')).forEach((sr) => {
@@ -528,7 +515,8 @@ function renderSerieChips() {
   });
   el.innerHTML = html;
 }
-window.openCanDetailById = (id) => openCanDetail(allCans.find((x) => x.id === id));
+window.openCanDetailById = (id) => openCanPage(id);
+window.openCanPageById = (id) => openCanPage(id);
 window.toggleCol = function (id, owned) {
   if (owned) {
     getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid), where('can_id', '==', id))).then((snap) => {
@@ -577,38 +565,7 @@ window.confirmAddCol = function () {
 };
 
 // ── Détail ──
-function openCanDetail(can) {
-  if (!can) return;
-  _detailCan = can;
-  document.getElementById('cd-title').textContent = can.name;
-  document.getElementById('cd-name').textContent = can.name;
-  document.getElementById('cd-series').textContent = [can.series, can.variant].filter(Boolean).join(' · ') || '';
-  document.getElementById('cd-limited').style.display = can.is_limited ? 'block' : 'none';
-  const imgWrap = document.getElementById('cd-img-wrap');
-  imgWrap.style.backgroundImage = can.image_url ? 'radial-gradient(ellipse 42% 12% at 50% 84%,rgba(255,255,255,.30),rgba(255,255,255,.12) 55%,transparent 78%),radial-gradient(ellipse 75% 30% at 50% 93%,rgba(255,255,255,.10),transparent 72%)' : '';
-  imgWrap.innerHTML = can.image_url
-    ? '<img src="' + escapeHtml(can.image_url) + '" alt="" class="' + (MT_BAKED.test(can.image_url) ? '' : 'cut-refl') + '" style="width:160px;height:180px;object-fit:contain;background:transparent;" onerror="this.parentElement.innerHTML=\'&#129371;\'">'
-    : "<span style='font-size:60px;'>&#129371;</span>";
-  if (can.edition && MT_EDIMG[can.edition]) imgWrap.innerHTML += '<img class="eband" src="' + MT_EDIMG[can.edition] + '" alt="">';
-  const fields = [{ label: 'Pays', val: can.country }, { label: 'Année', val: can.year }, { label: 'Volume', val: can.volume }, { label: 'Langue', val: can.language }, { label: 'Couleur capsule', val: can.cap_color }, { label: 'Couleur dominante', val: can.full_color }];
-  let mh = '';
-  fields.forEach((f) => { if (f.val) mh += '<div><span style="color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:1px;">' + f.label + '</span><div style="font-weight:700;font-size:13px;margin-top:2px;">' + escapeHtml(f.val) + '</div></div>'; });
-  document.getElementById('cd-meta').innerHTML = mh || '<div style="color:var(--mu);font-size:12px;">Pas de métadonnées</div>';
-  const libLine = document.getElementById('cd-libline');
-  if (libLine) {
-    const n = mtCanLibCount(can);
-    const fam = mtNorm(can.family) ? can.family : '';
-    libLine.innerHTML = (fam && n > 1)
-      ? '<button class="cd-liblink" onclick="openCanLib(\'' + can.id + '\')">&#128218; Voir les ' + n + ' éditions de la famille « ' + escapeHtml(fam) + ' »</button>'
-      : '';
-  }
-  const descWrap = document.getElementById('cd-desc-wrap');
-  if (can.description) { document.getElementById('cd-desc').textContent = can.description; descWrap.style.display = 'block'; }
-  else descWrap.style.display = 'none';
-  document.getElementById('cd-add-btn').style.display = can.in_collection ? 'none' : 'inline-flex';
-  document.getElementById('modal-can-detail').classList.add('on');
-}
-window.openAddModal = function () { if (_detailCan) { closeModal('can-detail'); openAddColModal(_detailCan); } };
+window.openAddModal = function () { if (_detailCan) { openAddColModal(_detailCan); } };
 
 function mtNorm(s) {
   return (s === null || s === undefined ? '' : String(s)).toLowerCase()
@@ -641,17 +598,26 @@ function mtModelLabel(can) {
 }
 function mtFamilyCans(can) { return allCans.filter((c) => mtFamilyKey(c) === mtFamilyKey(can)); }
 function mtVersionCount(can) { return mtFamilyCans(can).length; }
-function mtCurrentSec() { const el = document.querySelector('.sec.on'); return el ? el.id.replace('sec-', '') : 'catalogue'; }
-function mtAfterChange() { loadCatalogue(); }
+function mtCurrentSec() { const el = document.querySelector('.sec.on'); return el ? el.id.replace('sec-', '') : 'collection'; }
+function mtAfterChange() {
+  if (mtCurrentSec() === 'can') renderCanPage();
+  else if (mtCurrentSec() === 'collection') loadCollection();
+}
 function mtFetchCans() {
-  const colIds = new Set(), wlIds = new Set();
+  const colIds = new Set(), wlIds = new Set(), colDocs = {};
   return getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((s) => {
-    s.docs.forEach((d) => colIds.add(d.data().can_id));
+    s.docs.forEach((d) => { const x = d.data(); colIds.add(x.can_id); colDocs[x.can_id] = Object.assign({ _docId: d.id }, x); });
     return getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid)));
   }).then((s) => {
     s.docs.forEach((d) => wlIds.add(d.data().can_id));
     return getDocs(query(collection(db, 'cans'), where('is_published', '==', true)));
-  }).then((snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data(), { in_collection: colIds.has(d.id), in_wishlist: wlIds.has(d.id) })));
+  }).then((snap) => snap.docs.map((d) => {
+    const cd = colDocs[d.id] || {};
+    return Object.assign({}, d.data(), {
+      id: d.id, in_collection: colIds.has(d.id), in_wishlist: wlIds.has(d.id),
+      col_doc_id: cd._docId || null, price: cd.price || null, purchase_type: cd.purchase_type || null, added_at: cd.added_at || null,
+    });
+  }));
 }
 
 // ── Cartes réutilisables ──
@@ -661,168 +627,174 @@ function mtCanBtns(can) {
   return colBtn + wlBtn;
 }
 function mtCanCardWrap(can, extraHtml, cls) {
-  return '<div class="cwrap' + (cls ? ' ' + cls : '') + '" onclick="openCanDetailById(\'' + can.id + '\')">'
+  return '<div class="cwrap' + (cls ? ' ' + cls : '') + '" onclick="openCanPageById(\'' + can.id + '\')">'
     + canCardHtml(can, mtCanBtns(can)) + (extraHtml || '') + '</div>';
 }
-// Clé de regroupement du catalogue : la FAMILLE, jamais autre chose.
-// Sans famille → la canette reste seule (aucun rassemblement automatique).
-function mtGroupKey(c) { const f = mtFamilyKey(c); return f ? ('fam:' + f) : ('solo:' + c.id); }
-function mtGroupBlock(list) {
-  // Une carte par famille. Les autres éditions se voient en cliquant : la carte
-  // ouvre la bibliothèque de la famille.
-  if (list.length === 1) return mtCanCardWrap(list[0]);
-  const sorted = list.slice().sort((a2, b2) =>
-    (a2.country || '').localeCompare(b2.country || '', 'fr') ||
-    (a2.volume || '').localeCompare(b2.volume || '', 'fr') ||
-    ((a2.year || 0) - (b2.year || 0)));
-  const rep = sorted.find((c) => c.in_collection) || sorted.find((c) => c.image_url) || sorted[0];
-  const own = sorted.filter((c) => c.in_collection).length;
-  const more = '<div class="vmore" onclick="event.stopPropagation();openCanLib(\'' + rep.id + '\')">&#128218; Voir les ' + sorted.length + ' éditions</div>';
-  return '<div class="vwrap">' + mtCanCardWrap(rep, more)
-    + '<div class="vbadge">' + sorted.length + ' éditions<span>' + own + '/' + sorted.length + ' possédées</span></div></div>';
-}
-
-function mtModelBlock(versions) {
-  // AUCUNE canette cachée : un modèle affiche TOUTES ses versions.
-  if (versions.length === 1) return mtCanCardWrap(versions[0]);
-  const list = versions.slice().sort((a2, b2) =>
-    (a2.country || '').localeCompare(b2.country || '', 'fr') ||
-    (a2.volume || '').localeCompare(b2.volume || '', 'fr') ||
-    ((a2.year || 0) - (b2.year || 0)));
-  const own = list.filter((c) => c.in_collection).length;
-  const done = own === list.length ? '<span class="vgdone">COMPLET ✓</span>' : '';
-  let h = '<div class="vgroupfull"><div class="vghead"><span class="vgname">' + escapeHtml(mtModelLabel(list[0])) + '</span>' + done
-    + '<span class="vgcount">' + list.length + ' versions · ' + own + ' possédée' + (own > 1 ? 's' : '') + '</span></div><div class="cgrid">';
-  list.forEach((c) => { h += mtCanCardWrap(c); });
-  return h + '</div></div>';
-}
-
-// ════════════════════ BIBLIOTHÈQUE D'UNE CANETTE (ses éditions) ════════════════════
-let _libKey = null, _libName = '', _libBack = 'catalogue', _libFocus = null;
-function mtVersionsOf(key) {
-  if (!key) return [];
-  if (key.indexOf('fam:') === 0) { const f = key.slice(4); return allCans.filter((c) => mtFamilyKey(c) === f); }
-  if (key.indexOf('name:') === 0) { const n = key.slice(5); return allCans.filter((c) => mtNameKey(c) === n); }
-  return allCans.filter((c) => c.id === key);
-}
-function mtCanLibCount(c) { return mtVersionsOf(mtGroupKey(c)).length; }
-window.openCanLib = function (id, backTab) {
-  const can = allCans.find((x) => x.id === id) || _admCansAll.find((x) => x.id === id);
-  if (!can) return;
-  const here = mtCurrentSec();
-  _libKey = mtGroupKey(can);
-  _libName = mtNorm(can.family) ? can.family : (can.name || 'Cette canette');
-  _libBack = (backTab && backTab !== 'lib') ? backTab : (here === 'lib' ? _libBack : here);
-  _libFocus = can.id;
-  closeModal('can-detail');
-  const back = _libBack === 'lib' ? 'catalogue' : _libBack;
-  goTab('lib', document.getElementById('tab-' + back) || document.getElementById('tab-catalogue'));
-  renderCanLib();
+// ════════════════════ MA COLLECTION ════════════════════
+window.removeCol = (docId) => deleteDoc(doc(db, 'collection', docId)).then(() => { toast('Retirée'); mtAfterChange(); }).catch((e) => toast(e.message, 'err'));
+window.removeColFromPage = function () {
+  const can = _detailCan;
+  if (!can || !can.col_doc_id) { toast('Canette non trouvée', 'err'); return; }
+  removeCol(can.col_doc_id);
 };
-window.backFromLibrary = function () { goTab(_libBack, document.getElementById('tab-' + _libBack)); };
-function renderCanLib() {
-  const ct = document.getElementById('lib-ct');
-  if (!ct) return;
-  ct.innerHTML = lHtml();
-  const head = document.getElementById('lib-head');
-  if (head) head.innerHTML = '';
+
+// ════════════════════ MA COLLECTION (toutes les canettes) ════════════════════
+window.loadCollection = function () {
+  const el = document.getElementById('col-ct');
+  if (!el) return;
+  el.innerHTML = lHtml();
   mtFetchCans().then((cans) => {
     allCans = cans.slice(0);
-    const list = mtVersionsOf(_libKey).sort((x, y) =>
-      (x.name || '').localeCompare(y.name || '', 'fr') ||
-      (x.country || '').localeCompare(y.country || '', 'fr') ||
-      (x.volume || '').localeCompare(y.volume || '', 'fr') ||
-      ((x.year || 0) - (y.year || 0)) ||
-      (x.name || '').localeCompare(y.name || '', 'fr'));
-    if (!list.length) { ct.innerHTML = eHtml('&#129371;', 'AUCUNE ÉDITION', 'Aucune édition trouvée pour cette canette.'); return; }
-    const rep = list.find((c) => c.id === _libFocus) || list[0];
-    const own = list.filter((c) => c.in_collection).length;
-    const pct = Math.round((own / list.length) * 100);
-    const t = document.getElementById('lib-title');
-    if (t) t.textContent = (_libKey.indexOf('fam:') === 0 ? 'FAMILLE — ' : 'BIBLIOTHÈQUE — ') + String(_libName).toUpperCase();
-    const sub = document.getElementById('lib-sub');
-    if (sub) sub.textContent = _libKey.indexOf('fam:') === 0 ? 'Toutes les canettes de cette famille' : 'Cette canette';
-    if (head) {
-      head.innerHTML = '<div class="libhero">'
-        + mtSerImg(rep.series || _libName, '')
-        + '<div class="libhero-s"><div class="libhero-p"><i style="width:' + pct + '%"></i></div>'
-        + '<div class="libhero-t">' + list.length + ' édition' + (list.length > 1 ? 's' : '') + ' · '
-        + '<b style="color:var(--g)">' + own + '</b> possédée' + (own > 1 ? 's' : '') + ' · '
-        + '<b style="color:var(--g)">' + (list.length - own) + '</b> à trouver'
-        + (own === list.length ? ' · <b style="color:var(--g)">COMPLET ✓</b>' : '')
-        + '</div></div></div>';
-    }
-    let html = '<div class="cgrid">';
-    list.forEach((c) => { html += mtCanCardWrap(c, '', c.id === _libFocus ? 'libfocus' : ''); });
-    ct.innerHTML = html + '</div>';
-  }).catch((e) => { ct.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
-}
-
-// ════════════════════ CATALOGUE GROUPÉ (anti-doublons) ════════════════════
-let MT_GROUP = true;
-try { MT_GROUP = localStorage.getItem('mt_group') !== '0'; } catch (e) {}
-window.toggleCatGroup = function () {
-  MT_GROUP = !MT_GROUP;
-  try { localStorage.setItem('mt_group', MT_GROUP ? '1' : '0'); } catch (e) {}
-  window.filterCans();
+    allCans.sort((x, y) => (x.name || '').localeCompare(y.name || '', 'fr'));
+    const owned = allCans.filter((c) => c.in_collection);
+    const totalValue = owned.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
+    const pct = allCans.length ? Math.round((owned.length / allCans.length) * 100) : 0;
+    const so = document.getElementById('c-owned'); if (so) so.textContent = owned.length;
+    const st = document.getElementById('c-total'); if (st) st.textContent = allCans.length;
+    const sp = document.getElementById('c-pct'); if (sp) sp.textContent = pct + '%';
+    const sv = document.getElementById('c-value'); if (sv) sv.textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
+    renderSerieChips();
+    renderCol(allCans);
+    mtCatDraftNote();
+  }).catch((e) => { el.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
 
-function renderCat(cans) {
-  const el = document.getElementById('cat-ct');
-  const tg = document.getElementById('cat-group-toggle');
-  if (tg) { tg.classList.toggle('on', MT_GROUP); tg.innerHTML = MT_GROUP ? '&#9638; VUE GROUPÉE' : '&#9637; VUE COMPLÈTE'; }
-  if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE TROUVÉE', 'Aucun résultat.'); return; }
+function renderCol(cans) {
+  const el = document.getElementById('col-ct');
+  if (!el) return;
+  if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Aucune canette ne correspond à ta recherche.'); return; }
   const groups = mtSerGroups(cans);
   let html = '';
   Object.keys(groups).map((k) => groups[k]).sort((x, y) => x.label.localeCompare(y.label, 'fr')).forEach((sr) => {
-    const list = sr.list;
+    const list = sr.list.slice().sort((x, y) =>
+      (x.in_collection === y.in_collection ? 0 : (x.in_collection ? -1 : 1))
+      || (x.name || '').localeCompare(y.name || '', 'fr')
+      || (x.country || '').localeCompare(y.country || '', 'fr'));
     const own = list.filter((c) => c.in_collection).length;
-    const models = {};
-    list.forEach((c) => { const k = mtGroupKey(c); (models[k] = models[k] || []).push(c); });
-    const nbModels = Object.keys(models).length;
+    const rest = list.length - own;
     html += '<div class="serlib"><div class="serhead">'
-      + mtSerImg(sr.label, 'serlogo')
       + '<span class="sername">' + escapeHtml(sr.label) + '</span>'
-      + '<span class="sercount">' + (MT_GROUP
-        ? nbModels + ' canette' + (nbModels > 1 ? 's' : '') + ' · ' + list.length + ' version' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : '')
-        : list.length + ' canette' + (list.length > 1 ? 's' : '') + ' · ' + own + ' possédée' + (own > 1 ? 's' : ''))
-      + '</span>'
-      + '</div><div class="cgrid">';
-    if (MT_GROUP) {
-      Object.keys(models).sort((a, b) => {
-        const oa = models[a].filter((c) => c.in_collection).length, ob = models[b].filter((c) => c.in_collection).length;
-        if (oa !== ob) return ob - oa;
-        return (models[a][0].name || '').localeCompare(models[b][0].name || '', 'fr');
-      }).forEach((k) => { html += mtGroupBlock(models[k]); });
-    } else {
-      list.forEach((can) => { html += mtCanCardWrap(can); });
-    }
+      + '<span class="sercount">' + list.length + ' canette' + (list.length > 1 ? 's' : '')
+      + ' · <b style="color:var(--g)">' + own + '</b> possédée' + (own > 1 ? 's' : '')
+      + (rest ? ' · ' + rest + ' à débloquer' : ' · COMPLET ✓')
+      + '</span></div><div class="cgrid">';
+    list.forEach((c) => { html += mtCanCardWrap(c); });
     html += '</div></div>';
   });
   el.innerHTML = html;
 }
 
-// ════════════════════ MA COLLECTION ════════════════════
-window.loadCollection = function () {
-  document.getElementById('col-ct').innerHTML = lHtml();
-  getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((colSnap) => {
-    const colItems = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
-    colItems.sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0));
-    const totalValue = colItems.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
-    getDocs(query(collection(db, 'cans'), where('is_published', '==', true))).then((s) => {
-      const pct = s.size > 0 ? Math.round((colItems.length / s.size) * 100) : 0;
-      document.getElementById('c-owned').textContent = colItems.length;
-      document.getElementById('c-total').textContent = s.size;
-      document.getElementById('c-pct').textContent = pct + '%';
-      document.getElementById('c-value').textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
-    });
-    if (!colItems.length) { document.getElementById('col-ct').innerHTML = eHtml('&#129371;', 'COLLECTION VIDE', 'Va dans le catalogue pour ajouter tes premières canettes !'); return; }
-    let html = '<div class="cgrid">';
-    colItems.forEach((c) => { html += '<div>' + canCardHtml(c, '<button class="cbtn rm" onclick="removeCol(\'' + c.id + '\')">✕ Retirer</button>') + '</div>'; });
-    document.getElementById('col-ct').innerHTML = html + '</div>';
-  }).catch((e) => { document.getElementById('col-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+// ════════════════════ FICHE D'UNE CANETTE ════════════════════
+let _canHist = [], _canBack = 'collection';
+const MT_ING_BASE = [
+  'Eau gazéifiée', 'Sucre', 'Taurine (0,4 %)', 'Arômes',
+  "Correcteurs d'acidité (acide citrique, citrates de sodium)",
+  'Extrait de racine de ginseng (0,08 %)', 'Caféine (0,03 %)',
+  'Vitamines B2, B3, B6, B12', 'Colorant caramel E150d',
+  'Édulcorants (sucralose, acésulfame K)', 'Extrait de graines de guarana', 'Chlorure de sodium',
+];
+const MT_NUTRI_BASE = [['Énergie', '47 kcal / 197 kJ'], ['Glucides', '11 g'], ['dont sucres', '11 g'], ['Protéines', '< 0,1 g'], ['Sel', '0,2 g'], ['Caféine', '32 mg']];
+
+window.openCanPage = function (id, keepHist) {
+  if (!id) return;
+  const cur = mtCurrentSec();
+  if (cur !== 'can') { _canBack = cur; _canHist = []; }
+  if (!keepHist) _canHist.push(id);
+  closeModal('can');
+  goTab('can', null);
 };
-window.removeCol = (docId) => deleteDoc(doc(db, 'collection', docId)).then(() => { toast('Retirée'); loadCollection(); }).catch((e) => toast(e.message, 'err'));
+window.backFromCan = function () {
+  _canHist.pop();
+  if (_canHist.length) { renderCanPage(); return; }
+  goTab(_canBack || 'collection', document.getElementById('tab-' + (_canBack || 'collection')));
+};
+
+function renderCanPage() {
+  const ct = document.getElementById('cp-ct');
+  if (!ct) return;
+  const id = _canHist[_canHist.length - 1];
+  ct.innerHTML = lHtml();
+  mtFetchCans().then((cans) => {
+    allCans = cans.slice(0);
+    const can = allCans.find((x) => x.id === id);
+    if (!can) { ct.innerHTML = eHtml('&#129371;', 'CANETTE INTROUVABLE', "Cette canette n'existe plus ou n'est plus publiée."); return; }
+    _detailCan = can;
+    const accent = can.is_limited ? '#ff9600' : (can.accent_color || '#39ff14');
+    const t = document.getElementById('cp-title'); if (t) t.textContent = can.name;
+    const s = document.getElementById('cp-sub');
+    if (s) s.textContent = [can.series, can.variant, can.country, can.year].filter(Boolean).join(' · ') || 'Canette Monster Energy';
+
+    // ── photo + infos principales ──
+    const photo = can.image_url
+      ? '<img class="cp-img' + (MT_BAKED.test(can.image_url) ? '' : ' cut-refl') + '" src="' + escapeHtml(can.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'<span class=&quot;cp-noimg&quot;>&#129371;</span>\'">'
+      : '<span class="cp-noimg">&#129371;</span>';
+    const eband = (can.edition && MT_EDIMG[can.edition]) ? '<img class="eband" src="' + MT_EDIMG[can.edition] + '" alt="">' : '';
+    const state = can.in_collection
+      ? '<div class="cp-state owned">&#10003; DANS MA COLLECTION</div>'
+      : '<div class="cp-state locked">&#128274; À DÉBLOQUER</div>';
+
+    const infos = [
+      ['Série', can.series], ['Variante', can.variant], ['Famille', can.family],
+      ['Pays', can.country], ['Année', can.year], ['Volume', can.volume], ['Langue', can.language],
+      ['Capsule', can.cap_color], ['Dominante', can.full_color],
+      ['Édition', can.edition ? (MT_EDLBL[can.edition] || can.edition) : ''],
+      ['Prix payé', can.price ? fmtPrice(can.price) : ''], ['Ajoutée le', can.added_at ? fmtDate(can.added_at) : ''],
+      ['Type', can.purchase_type || ''],
+    ].filter((x) => x[1] !== undefined && x[1] !== null && x[1] !== '');
+    let meta = '';
+    infos.forEach((f) => { meta += '<div class="cp-mi"><b>' + f[0] + '</b><span>' + escapeHtml(String(f[1])) + '</span></div>'; });
+
+    const actions = mtCanBtns(can)
+      + (can.in_collection && can.col_doc_id ? '<button class="cbtn rm" onclick="removeColFromPage()">&#10005; Retirer de ma collection</button>' : '');
+
+    let hero = '<div class="cp-hero" style="--acc:' + accent + ';">'
+      + '<div class="cp-photo">' + photo + eband + (can.is_limited ? '<div class="lim-tag">Limitée</div>' : '') + state + '</div>'
+      + '<div class="cp-side"><div class="cp-tag">' + (can.edition && MT_EDLBL[can.edition] ? escapeHtml(MT_EDLBL[can.edition]) : (can.series || 'Monster Energy')) + '</div>'
+      + '<h2 class="cp-h2">' + escapeHtml(can.name) + '</h2>'
+      + '<div class="cp-meta">' + meta + '</div>'
+      + '<div class="cp-actions">' + actions + '</div></div></div>';
+
+    // ── variantes (même famille) ──
+    const fam = mtFamilyKey(can);
+    const sibs = fam ? allCans.filter((c) => mtFamilyKey(c) === fam && c.id !== can.id) : [];
+    let varHtml = '';
+    if (!fam) {
+      varHtml = '<div class="cp-empty">Cette canette n\'est pas dans une famille — aucune variante à afficher.</div>';
+    } else if (!sibs.length) {
+      varHtml = '<div class="cp-empty">Seule canette de la famille « ' + escapeHtml(can.family) + ' » pour le moment.</div>';
+    } else {
+      varHtml = '<div class="cp-vgrid">';
+      sibs.forEach((c) => {
+        const ph = c.image_url
+          ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.style.display=\'none\'">'
+          : '<span class="cpv-no">&#129371;</span>';
+        varHtml += '<div class="cpv' + (c.in_collection ? ' own' : '') + '" onclick="openCanPage(\'' + c.id + '\')">'
+          + '<div class="cpv-ph">' + ph + '</div>'
+          + '<div class="cpv-n">' + escapeHtml(c.name) + '</div>'
+          + '<div class="cpv-s">' + escapeHtml([c.country, c.volume, c.year].filter(Boolean).join(' · ') || '—') + '</div>'
+          + '<div class="cpv-b">' + (c.in_collection ? '&#10003; Possédée' : '+ À débloquer') + '</div></div>';
+      });
+      varHtml += '</div>';
+    }
+
+    // ── ingrédients ──
+    const perso = String(can.ingredients || '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    const liste = perso.length ? perso : MT_ING_BASE;
+    let ingHtml = '<div class="cp-ing"><div><div class="cp-ing-t">Composition</div><ul class="cp-ing-l">';
+    liste.forEach((x) => { ingHtml += '<li>' + escapeHtml(x) + '</li>'; });
+    ingHtml += '</ul>' + (perso.length ? '' : '<div class="cp-note">Composition type d\'une Monster Energy. Tu peux la remplacer canette par canette dans l\'admin (champ Ingrédients).</div>') + '</div>';
+    ingHtml += '<div><div class="cp-ing-t">Pour 100 ml</div><div class="cp-nutri">';
+    MT_NUTRI_BASE.forEach((n) => { ingHtml += '<div class="cp-nr"><span>' + n[0] + '</span><b>' + n[1] + '</b></div>'; });
+    ingHtml += '</div>' + (perso.length ? '' : '<div class="cp-note">Valeurs types — à ajuster selon l\'édition.</div>') + '</div></div>';
+
+    let body = '';
+    if (can.description) body += '<div class="cp-block"><div class="cp-h">À PROPOS</div><div class="cp-desc">' + escapeHtml(can.description) + '</div></div>';
+    body += '<div class="cp-block"><div class="cp-h">LES VARIANTES' + (fam ? ' — FAMILLE « ' + escapeHtml(String(can.family).toUpperCase()) + ' »' : '') + '</div>' + varHtml + '</div>';
+    body += '<div class="cp-block"><div class="cp-h">INGRÉDIENTS</div>' + ingHtml + '</div>';
+
+    ct.innerHTML = hero + body;
+  }).catch((e) => { ct.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+}
 
 // ════════════════════ AMIS ════════════════════
 window.loadFriends = function () {
@@ -1288,7 +1260,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v50';
+const MT_BUILD = 'mt-v51';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1581,6 +1553,7 @@ window.openCanModal = function (canId) {
     document.getElementById('cm-color').value = (c && c.accent_color) || '#39ff14';
     document.getElementById('cm-limited').checked = !!(c && c.is_limited);
     document.getElementById('cm-edition').value = (c && c.edition) || '';
+    document.getElementById('cm-ingredients').value = (c && c.ingredients) || '';
     document.getElementById('cm-img-file').value = '';
     const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
     if (c && c.image_url) { prev.src = c.image_url; prev.style.display = 'block'; lbl.style.display = 'none'; }
@@ -1616,6 +1589,7 @@ window.saveCan = function () {
     full_color: document.getElementById('cm-fc').value || null, volume: document.getElementById('cm-vol').value || null,
     is_limited: document.getElementById('cm-limited').checked,
     edition: document.getElementById('cm-edition').value || null,
+    ingredients: document.getElementById('cm-ingredients').value.trim() || null,
     image_url: imageUrl || null,
     accent_color: document.getElementById('cm-color').value || '#39ff14',
     updated_at: fst(),
@@ -1892,7 +1866,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=50', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=51', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
