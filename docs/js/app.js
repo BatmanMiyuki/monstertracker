@@ -466,9 +466,11 @@ window.loadHome = function () {
     const colItems = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
     const totalValue = colItems.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
     getDocs(query(collection(db, 'cans'), where('is_published', '==', true))).then((cansSnap) => {
-      const pct = cansSnap.size > 0 ? Math.round((colItems.length / cansSnap.size) * 100) : 0;
+      const _cansPub = cansSnap.docs.map((d) => Object.assign({ id: d.id }, d.data(), { in_collection: colItems.some((c) => c.can_id === d.id) }));
+      const _uq = mtUniqueNames(_cansPub);
+      const pct = _uq.total > 0 ? Math.round((_uq.owned / _uq.total) * 100) : 0;
       document.getElementById('h-owned').textContent = colItems.length;
-      document.getElementById('h-total').textContent = cansSnap.size;
+      document.getElementById('h-total').textContent = _uq.total;
       document.getElementById('h-value').textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
       document.getElementById('h-pct').textContent = pct + '%';
       document.getElementById('h-prog').style.width = pct + '%';
@@ -517,10 +519,10 @@ window.filterCans = function () {
 function renderSerieChips() {
   const el = document.getElementById('col-series'); if (!el) return;
   const g = mtSerGroups(allCans);
-  let html = '<button class="schip' + (_catSerie === 'Toutes' ? ' on' : '') + '" onclick="setCatSerie(\'Toutes\')">Toutes (' + allCans.length + ')</button>';
+  let html = '<button class="schip' + (_catSerie === 'Toutes' ? ' on' : '') + '" onclick="setCatSerie(\'Toutes\')">Toutes (' + mtUniqueNames(allCans).total + ')</button>';
   Object.keys(g).map((k) => g[k]).sort((x, y) => x.label.localeCompare(y.label, 'fr')).forEach((sr) => {
     const on = _catSerie !== 'Toutes' && mtSerKey(_catSerie) === sr.key;
-    html += '<button class="schip' + (on ? ' on' : '') + '" onclick="setCatSerie(\'' + sr.label.replace(/'/g, "\\'") + '\')">' + escapeHtml(sr.label) + ' (' + sr.list.length + ')</button>';
+    html += '<button class="schip' + (on ? ' on' : '') + '" onclick="setCatSerie(\'' + sr.label.replace(/'/g, "\\'") + '\')">' + escapeHtml(sr.label) + ' (' + mtUniqueNames(sr.list).total + ')</button>';
   });
   el.innerHTML = html;
 }
@@ -656,9 +658,10 @@ window.loadCollection = function () {
     allCans = cans.slice(0);
     allCans.sort((x, y) => (x.name || '').localeCompare(y.name || '', 'fr'));
     const owned = allCans.filter((c) => c.in_collection);
-    const pct = allCans.length ? Math.round((owned.length / allCans.length) * 100) : 0;
+    const uq = mtUniqueNames(allCans);
+    const pct = uq.total ? Math.round((uq.owned / uq.total) * 100) : 0;
     const so = document.getElementById('c-owned'); if (so) so.textContent = owned.length;
-    const st = document.getElementById('c-total'); if (st) st.textContent = allCans.length;
+    const st = document.getElementById('c-total'); if (st) st.textContent = uq.total;
     const sp = document.getElementById('c-pct'); if (sp) sp.textContent = pct + '%';
     const sbar = document.getElementById('c-prog'); if (sbar) sbar.style.width = pct + '%';
     renderSerieChips();
@@ -666,6 +669,19 @@ window.loadCollection = function () {
     mtCatDraftNote();
   }).catch((e) => { el.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
+
+// Regroupe des canettes par NOM : une seule entrée affichée par canette,
+// les autres éditions se voient dans la page de la canette.
+function mtUniqueNames(cans) {
+  const parNom = {};
+  cans.forEach((c) => { const k = mtNorm(c.name) || ('id:' + c.id); (parNom[k] = parNom[k] || []).push(c); });
+  const uniques = Object.keys(parNom).map((k) => {
+    const eds = parNom[k];
+    const rep = eds.find((c) => c.in_collection) || eds.find((c) => c.image_url) || eds[0];
+    return { rep: rep, n: eds.length, own: eds.filter((c) => c.in_collection).length };
+  });
+  return { uniques: uniques, total: uniques.length, owned: uniques.filter((u) => u.own > 0).length };
+}
 
 function renderCol(cans) {
   const el = document.getElementById('col-ct');
@@ -678,27 +694,32 @@ function renderCol(cans) {
       (x.in_collection === y.in_collection ? 0 : (x.in_collection ? -1 : 1))
       || (x.name || '').localeCompare(y.name || '', 'fr')
       || (x.country || '').localeCompare(y.country || '', 'fr'));
-    const own = list.filter((c) => c.in_collection).length;
-    const rest = list.length - own;
+    // Uno seule entrée par canette : les autres éditions (famille) se
+    // retrouvent dans la page de la canette, comme avant.
+    const uniques = mtUniqueNames(sr.list).uniques;
+    const own = uniques.filter((u) => u.own > 0).length;
+    const rest = uniques.length - own;
     html += '<div class="serlib"><div class="serhead">'
       + '<span class="sername">' + escapeHtml(sr.label) + '</span>'
-      + '<span class="sercount">' + list.length + ' canette' + (list.length > 1 ? 's' : '')
+      + '<span class="sercount">' + uniques.length + ' canette' + (uniques.length > 1 ? 's' : '')
       + ' · <b style="color:var(--g)">' + own + '</b> possédée' + (own > 1 ? 's' : '')
       + (rest ? ' · ' + rest + ' à débloquer' : ' · COMPLET ✓')
       + '</span></div><div class="imgrid">';
-    list.forEach((c) => { html += mtCanImgHtml(c); });
+    uniques.forEach((u) => { html += mtCanImgHtml(u.rep, u.n, u.own); });
     html += '</div></div>';
   });
   el.innerHTML = html;
 }
 
 // Un seul visuel par canette : pas de bloc, pas de texte — juste l'image.
-function mtCanImgHtml(c) {
+function mtCanImgHtml(c, nbEd, nbOwn) {
   const img = c.image_url
     ? '<img src="' + escapeHtml(c.image_url) + '" alt="' + escapeHtml(c.name) + '" loading="lazy" onerror="this.style.opacity=.18">'
     : '<span class="ino">&#129371;</span>';
-  const badges = c.is_limited ? '<span class="ib-lim">L</span>' : '';
-  return '<div class="icard' + (c.in_collection ? '' : ' locked') + '" title="' + escapeHtml(c.name) + '" onclick="openCanPageById(\'' + c.id + '\')">'
+  const badges = (c.is_limited ? '<span class="ib-lim">L</span>' : '')
+    + (nbEd > 1 ? '<span class="ib-more"' + (nbOwn ? '' : ' style="opacity:.7"') + '>' + nbEd + ' éd.</span>' : '');
+  const titre = escapeHtml(c.name) + (nbEd > 1 ? ' — ' + nbEd + ' éditions' + (nbOwn ? ' (' + nbOwn + ' possédée' + (nbOwn > 1 ? 's' : '') + ')' : '') : '');
+  return '<div class="icard' + (nbOwn ? '' : ' locked') + '" title="' + titre + '" onclick="openCanPageById(\'' + c.id + '\')">'
     + img + badges + '</div>';
 }
 window.mtCanImgHtml = mtCanImgHtml;
@@ -908,10 +929,14 @@ function renderCanPage() {
 
     // ── variantes (même famille) ──
     const fam = mtFamilyKey(can);
-    const sibs = fam ? allCans.filter((c) => mtFamilyKey(c) === fam && c.id !== can.id) : [];
+    const nomKey = mtNorm(can.name);
+    const sibs = fam
+      ? allCans.filter((c) => mtFamilyKey(c) === fam && c.id !== can.id)
+      // pas de famille : on montre quand même les autres éditions du même nom
+      : allCans.filter((c) => mtNorm(c.name) === nomKey && c.id !== can.id);
     let varHtml = '';
     if (!fam) {
-      varHtml = '<div class="cp-empty">Cette canette n\'est pas dans une famille — aucune variante à afficher.</div>';
+      varHtml = '<div class="cp-empty">Aucune autre édition de cette canette pour le moment.</div>';
     } else if (!sibs.length) {
       varHtml = '<div class="cp-empty">Seule canette de la famille « ' + escapeHtml(can.family) + ' » pour le moment.</div>';
     } else {
@@ -941,7 +966,7 @@ function renderCanPage() {
 
     let body = '';
     if (can.description) body += '<div class="cp-block"><div class="cp-h">À PROPOS</div><div class="cp-desc">' + escapeHtml(can.description) + '</div></div>';
-    body += '<div class="cp-block"><div class="cp-h">LES VARIANTES' + (fam ? ' — FAMILLE « ' + escapeHtml(String(can.family).toUpperCase()) + ' »' : '') + '</div>' + varHtml + '</div>';
+    body += '<div class="cp-block"><div class="cp-h">LES VARIANTES' + (fam ? ' — FAMILLE « ' + escapeHtml(String(can.family).toUpperCase()) + ' »' : (sibs.length ? ' — AUTRES ÉDITIONS' : '')) + '</div>' + varHtml + '</div>';
     body += '<div class="cp-block"><div class="cp-h">INGRÉDIENTS</div>' + ingHtml + '</div>';
 
     ct.innerHTML = hero + body;
@@ -1412,7 +1437,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v54';
+const MT_BUILD = 'mt-v55';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2018,7 +2043,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=54', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=55', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
