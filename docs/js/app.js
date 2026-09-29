@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, deleteUser } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, getDocs, onSnapshot, serverTimestamp, writeBatch, limit } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, getDocs, onSnapshot, serverTimestamp, writeBatch, limit, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyAlanpPYiUG8tg0P8prqMjYiHH2QmEqKcc',
@@ -719,11 +719,23 @@ window.filterDrink = function () { renderDrinkGrid((document.getElementById('dr-
 function renderDrinkGrid(q) {
   const el = document.getElementById('dr-grid'); if (!el) return;
   const s = String(q || '').toLowerCase();
-  const list = _drinkCans.filter((c) => !s || (c.name || '').toLowerCase().includes(s) || (c.series || '').toLowerCase().includes(s));
+  const trouvees = _drinkCans.filter((c) => !s || (c.name || '').toLowerCase().includes(s) || (c.series || '').toLowerCase().includes(s));
+  // UNE seule entrée par canette : on ne montre pas toutes les variantes
+  const parNom = {};
+  trouvees.forEach((c) => {
+    const k = mtNorm(c.name) || ('id:' + c.id);
+    const cur = parNom[k];
+    if (!cur || (c.in_collection && !cur.in_collection) || (!cur.image_url && c.image_url)) parNom[k] = c;
+  });
+  const list = Object.keys(parNom).map((k) => parNom[k]);
   if (!list.length) { el.innerHTML = '<div class="dr-empty">Aucune canette trouvée</div>'; return; }
-  el.innerHTML = list.slice(0, 150).map((c) => '<div class="pk-item' + (_drinkCan === c.id ? ' on' : '') + '" onclick="pickDrinkCan(\'' + c.id + '\')">'
-    + '<div class="pk-thumb">' + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'&#129371;\'">' : '&#129371;') + '</div>'
-    + '<div class="pk-name">' + escapeHtml(c.name) + '</div></div>').join('');
+  el.innerHTML = list.slice(0, 150).map((c) => {
+    const n = trouvees.filter((x) => mtNorm(x.name) === mtNorm(c.name)).length;
+    return '<div class="pk-item' + (_drinkCan === c.id ? ' on' : '') + '" title="' + escapeHtml(c.name) + (n > 1 ? ' · ' + n + ' éditions' : '') + '" onclick="pickDrinkCan(\'' + c.id + '\')">'
+      + '<div class="pk-thumb">' + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'&#129371;\'">' : '&#129371;') + '</div>'
+      + '<div class="pk-name">' + escapeHtml(c.name) + '</div>'
+      + (n > 1 ? '<div class="pk-more">' + n + ' éditions</div>' : '') + '</div>';
+  }).join('');
 }
 window.pickDrinkCan = function (id) {
   _drinkCan = id;
@@ -738,21 +750,52 @@ window.saveDrink = function () {
   if (!_drinkCan) { toast('Choisis une canette', 'err'); return; }
   const can = _drinkCans.find((x) => x.id === _drinkCan) || allCans.find((x) => x.id === _drinkCan) || {};
   const price = parseFloat((document.getElementById('dr-price') || {}).value) || 0;
-  addDoc(collection(db, 'drinks'), {
-    uid: user.uid, can_id: _drinkCan, can_name: can.name || '', series: can.series || null,
-    price: price, drank_at: fst(), created_at: fst(),
-  }).then(() => {
+  const fini = () => {
     toast('Canette bue enregistrée ✓');
     closeModal('drink');
     loadHome();                                    // compteurs + top 3 toujours à jour
     if (document.getElementById('modal-rank').classList.contains('on')) openRankModal();
     if (mtCurrentSec() === 'can' && _detailCan && _detailCan.id === _drinkCan) renderCanPage();
-  }).catch((e) => toast('Erreur : ' + e.message, 'err'));
+  };
+  const entree = {
+    uid: user.uid, can_id: _drinkCan, can_name: can.name || '', series: can.series || null,
+    price: price, drank_at: fst(), created_at: fst(),
+  };
+  addDoc(collection(db, 'drinks'), entree)
+    .then(fini)
+    .catch(() => {
+      // collection « drinks » pas encore autorisée par les règles Firestore :
+      // on range la canette bue dans le document de l'utilisateur
+      const repli = Object.assign({}, entree, { _k: 'd' + Date.now() + Math.random().toString(36).slice(2, 7) });
+      updateDoc(doc(db, 'users', user.uid), { drinks: arrayUnion(repli) })
+        .then(fini)
+        .catch((e2) => toast('Erreur : ' + e2.message, 'err'));
+    });
 };
+// Les canettes bues sont d'abord rangées dans la collection « drinks ».
+// Si les règles Firestore ne l'autorisent pas encore, elles sont rangées dans
+// le document de l'utilisateur — comme ça la fonction marche tout de suite.
+function mtLoadDrinks() {
+  const pCol = getDocs(query(collection(db, 'drinks'), where('uid', '==', user.uid)))
+    .then((s) => s.docs.map((d) => Object.assign({ id: d.id }, d.data())))
+    .catch(() => []);
+  const pDoc = getDoc(doc(db, 'users', user.uid))
+    .then((s) => (s.exists() && Array.isArray(s.data().drinks)) ? s.data().drinks : [])
+    .catch(() => []);
+  return Promise.all([pCol, pDoc]).then((r) => {
+    const vus = {}, out = [];
+    r[0].concat(r[1]).forEach((x) => {
+      if (!x) return;
+      const k = x.id || x._k || ((x.can_id || x.can_name) + '|' + JSON.stringify(x.drank_at || ''));
+      if (vus[k]) return;
+      vus[k] = 1; out.push(x);
+    });
+    return out;
+  });
+}
 // résumé des canettes bues (utilisé par le tableau de bord et le classement)
 function mtDrinkRows() {
-  return getDocs(query(collection(db, 'drinks'), where('uid', '==', user.uid))).then((snap) => {
-    const rows = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+  return mtLoadDrinks().then((rows) => {
     const byCan = {};
     rows.forEach((r) => {
       const k = r.can_id || ('name:' + (r.can_name || '?'));
@@ -836,7 +879,8 @@ function renderCanPage() {
       ? '<img class="cp-img' + (MT_BAKED.test(can.image_url) ? '' : ' cut-refl') + '" src="' + escapeHtml(can.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'<span class=&quot;cp-noimg&quot;>&#129371;</span>\'">'
       : '<span class="cp-noimg">&#129371;</span>';
     const eband = (can.edition && MT_EDIMG[can.edition]) ? '<img class="eband" src="' + MT_EDIMG[can.edition] + '" alt="">' : '';
-    const state = can.in_collection
+    const owned = !!can.in_collection;
+    const state = owned
       ? '<div class="cp-state owned">&#10003; DANS MA COLLECTION</div>'
       : '<div class="cp-state locked">&#128274; À DÉBLOQUER</div>';
 
@@ -850,8 +894,11 @@ function renderCanPage() {
     let meta = '';
     infos.forEach((f) => { meta += '<div class="cp-mi"><b>' + f[0] + '</b><span>' + escapeHtml(String(f[1])) + '</span></div>'; });
 
-    const actions = mtCanBtns(can)
-      + (can.in_collection && can.col_doc_id ? '<button class="cbtn rm" onclick="removeColFromPage()">&#10005; Retirer de ma collection</button>' : '');
+    const wishBtn = '<button class="cbtn wl ' + (can.in_wishlist ? 'on' : '') + '" onclick="event.stopPropagation();toggleWl(\'' + can.id + '\',' + !!can.in_wishlist + ')">' + (can.in_wishlist ? '&#9829;' : '&#9825;') + ' Wish</button>';
+    const actions = owned
+      ? '<div class="cp-unlocked">&#10003; CANETTE DÉBLOQUÉE <span>dans ta collection</span></div>' + wishBtn
+        + (can.col_doc_id ? '<button class="cbtn rm" onclick="removeColFromPage()">&#10005; Retirer</button>' : '')
+      : '<button class="btn-unlock" onclick="openAddModal()">&#128275; DÉBLOQUER CETTE CANETTE</button>' + wishBtn;
 
     let hero = '<div class="cp-hero" style="--acc:' + accent + ';">'
       + '<div class="cp-photo">' + photo + eband + (can.is_limited ? '<div class="lim-tag">Limitée</div>' : '') + state + '</div>'
@@ -1366,7 +1413,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v52';
+const MT_BUILD = 'mt-v53';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1972,7 +2019,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=52', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=53', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

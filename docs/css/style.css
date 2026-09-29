@@ -795,3 +795,21 @@ body.light .icard.locked img{filter:grayscale(1) brightness(1.12) opacity(.45);}
 body.light .top3-i{background:#f4f4f4;}
 body.light .fab{box-shadow:0 10px 26px rgba(0,0,0,.2);}
 @media(max-width:560px){.fab{right:16px;bottom:16px;width:56px;height:56px;font-size:31px;} .rank-s{min-width:52px;}}
+
+/* ════════════════════════════════════════════════════════════
+   v53 — police Black 900, bouton DÉBLOQUER, recherche sans doublons
+   ════════════════════════════════════════════════════════════ */
+
+/* ── police de l'app : Barlow Black 900 ── */
+body{font-weight:900;}
+body .field input,body .field textarea,body .field select,body .minput,body .mta,body .sinput,body .fr-add input{font-weight:900;}
+body .cp-desc,body .cp-note,body .upd-content,body .hero-p,body .lg-p{font-weight:600;}   /* les longs paragraphes restent lisibles */
+body .cp-nr,body .cp-ing-l li,body .csub,body .cinfo{font-weight:700;}
+
+/* ── fiche d'une canette : débloquer ── */
+.btn-unlock{background:var(--g);color:#000;border:none;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:2.5px;padding:14px 22px;cursor:pointer;text-transform:uppercase;transition:all .2s;min-width:250px;}
+.btn-unlock:hover{background:var(--g-hov);box-shadow:0 0 22px var(--glow);transform:translateY(-1px);}
+.cp-unlocked{display:inline-flex;align-items:center;gap:9px;background:rgba(var(--g-r),var(--g-g),var(--g-b),.12);border:1px solid rgba(var(--g-r),var(--g-g),var(--g-b),.38);color:var(--g);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:900;letter-spacing:1.8px;padding:11px 15px;}
+.cp-unlocked span{color:var(--mu);font-size:11px;letter-spacing:.5px;font-weight:700;}
+.pk-more{font-size:9px;color:var(--mu);letter-spacing:.6px;margin-top:2px;text-transform:uppercase;}
+body.light .cp-unlocked span{color:#5f5f5f;}
