@@ -494,7 +494,6 @@ function canCardHtml(can, btnsHtml) {
   const lockTag = can.in_collection ? '' : '<div class="lock-tag">À DÉBLOQUER</div>';
   const eband = (can.edition && MT_EDIMG[can.edition]) ? '<img class="eband" src="' + MT_EDIMG[can.edition] + '" alt="">' : '';
   const owned = can.in_collection ? '<div class="owned-ov"><div class="owned-tag">✓ Possédée</div></div>' : '';
-  const price = can.price ? '<div class="cprice">' + fmtPrice(can.price) + '</div>' : '';
   const sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
   const infos = [];
   if (can.volume) infos.push('<span class="cinfo"><b>VOL</b> ' + escapeHtml(can.volume) + '</span>');
@@ -511,7 +510,7 @@ function canCardHtml(can, btnsHtml) {
 
 // ════════════════════ ACCUEIL ════════════════════
 window.loadHome = function () {
-  ['h-owned', 'h-total', 'h-value', 'h-drinks', 'h-spent'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = '...'; });
+  ['h-owned', 'h-total', 'h-drinks', 'h-spent'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = '...'; });
   ['chart-series', 'chart-vol', 'h-recent', 'h-top'].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = lHtml(); });
   mtDrinkRows().then((r) => {
     const nd = document.getElementById('h-drinks'); if (nd) nd.textContent = r.total;
@@ -531,14 +530,12 @@ window.loadHome = function () {
   });
   getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((colSnap) => {
     const colItems = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
-    const totalValue = colItems.reduce((s, c) => s + (parseFloat(c.price) || 0), 0);
     getDocs(query(collection(db, 'cans'), where('is_published', '==', true))).then((cansSnap) => {
       const _cansPub = cansSnap.docs.map((d) => Object.assign({ id: d.id }, d.data(), { in_collection: colItems.some((c) => c.can_id === d.id) }));
       const _uq = mtUniqueNames(_cansPub);
       const pct = _uq.total > 0 ? Math.round((_uq.owned / _uq.total) * 100) : 0;
       document.getElementById('h-owned').textContent = colItems.length;
       document.getElementById('h-total').textContent = _uq.total;
-      document.getElementById('h-value').textContent = totalValue > 0 ? totalValue.toFixed(2) + '€' : '—';
       document.getElementById('h-pct').textContent = pct + '%';
       document.getElementById('h-prog').style.width = pct + '%';
     });
@@ -608,9 +605,7 @@ window.toggleCol = function (id, owned) {
 function openAddColModal(can) {
   document.getElementById('ac-can-id').value = can.id;
   document.getElementById('ac-can-name').textContent = can.name;
-  document.getElementById('ac-price').value = '';
-  document.getElementById('ac-purchase-type').value = '';
-  ['ac-btn-store', 'ac-btn-online', 'ac-btn-gift'].forEach((bid) => { const b = document.getElementById(bid); if (b) { b.style.background = ''; b.style.color = ''; } });
+  // v61 : plus de prix ni de « achetée où » à la saisie — on ajoute simplement la canette.
   document.getElementById('modal-add-col').classList.add('on');
 }
 window.toggleWl = function (id, inWl) {
@@ -622,22 +617,14 @@ window.toggleWl = function (id, inWl) {
     addDoc(collection(db, 'wishlist'), { uid: user.uid, can_id: id, added_at: fst() }).then(() => { toast('Ajoutée à la wishlist ♥'); mtAfterChange(); });
   }
 };
-window.selectPurchase = function (type) {
-  document.getElementById('ac-purchase-type').value = type;
-  const map = { store: 'ac-btn-store', online: 'ac-btn-online', gift: 'ac-btn-gift' };
-  Object.keys(map).forEach((k) => { const b = document.getElementById(map[k]); if (b) { b.style.background = k === type ? 'var(--g)' : ''; b.style.color = k === type ? '#000' : ''; } });
-};
 window.confirmAddCol = function () {
   const canId = document.getElementById('ac-can-id').value;
-  const price = document.getElementById('ac-price').value;
-  const pt = document.getElementById('ac-purchase-type').value;
   getDoc(doc(db, 'cans', canId)).then((canDoc) => {
     const cd = canDoc.exists() ? canDoc.data() : {};
     return addDoc(collection(db, 'collection'), {
       uid: user.uid, can_id: canId, name: cd.name || '', series: cd.series || null, variant: cd.variant || null,
       country: cd.country || null, year: cd.year || null, image_url: cd.image_url || null, is_limited: cd.is_limited || false,
-      language: cd.language || null, accent_color: cd.accent_color || null,
-      price: price ? parseFloat(price) : null, purchase_type: pt || null, added_at: fst(),
+      accent_color: cd.accent_color || null, added_at: fst(),
     });
   }).then(() => { closeModal('add-col'); toast('Ajoutée à ta collection ✓'); mtAfterChange(); }).catch((e) => toast(e.message, 'err'));
 };
@@ -816,7 +803,8 @@ window.openDrinkModal = function () {
   _drinkCan = null;
   const s = document.getElementById('dr-search'); if (s) s.value = '';
   const p = document.getElementById('dr-price'); if (p) p.value = '';
-  const pk = document.getElementById('dr-picked'); if (pk) pk.textContent = 'Aucune canette sélectionnée';
+  const q = document.getElementById('dr-qty'); if (q) q.value = '1';
+  if (window.mtDrinkTotal) mtDrinkTotal();
   document.getElementById('modal-drink').classList.add('on');
   const ready = allCans.length ? Promise.resolve(allCans) : mtFetchCans().then((c) => { allCans = c.slice(0); return allCans; });
   ready.then((cans) => { _drinkCans = cans.slice(0); renderDrinkGrid(''); });
@@ -843,6 +831,16 @@ function renderDrinkGrid(q) {
       + (n > 1 ? '<div class="pk-more">' + n + ' éditions</div>' : '') + '</div>';
   }).join('');
 }
+// Aperçu du total : « 10 × 1,39 € = 13,90 € »
+window.mtDrinkTotal = function () {
+  const el = document.getElementById('dr-total'); if (!el) return;
+  const q = Math.max(1, Math.min(99, parseInt((document.getElementById('dr-qty') || {}).value, 10) || 1));
+  const p = parseFloat((document.getElementById('dr-price') || {}).value) || 0;
+  if (q > 1 && p > 0) el.innerHTML = '<b>' + q + '</b> canettes bues · <b>' + (q * p).toFixed(2).replace('.', ',') + ' €</b> ajoutés';
+  else if (q > 1) el.innerHTML = '<b>' + q + '</b> canettes bues ajoutées au compteur';
+  else if (p > 0) el.innerHTML = '<b>1</b> canette bue · <b>' + p.toFixed(2).replace('.', ',') + ' €</b> ajouté';
+  else el.innerHTML = '';
+};
 window.pickDrinkCan = function (id) {
   _drinkCan = id;
   const c = _drinkCans.find((x) => x.id === id);
@@ -856,24 +854,35 @@ window.saveDrink = function () {
   if (!_drinkCan) { toast('Choisis une canette', 'err'); return; }
   const can = _drinkCans.find((x) => x.id === _drinkCan) || allCans.find((x) => x.id === _drinkCan) || {};
   const price = parseFloat((document.getElementById('dr-price') || {}).value) || 0;
+  // QUANTITÉ : on enregistre autant de canettes bues d'un coup (ex : 10 Mango Loco)
+  const qte = Math.max(1, Math.min(99, parseInt((document.getElementById('dr-qty') || {}).value, 10) || 1));
   const fini = () => {
-    toast('Canette bue enregistrée ✓');
+    toast(qte > 1 ? qte + ' canettes bues enregistrées ✓ (+' + (qte * price).toFixed(2) + '€)' : 'Canette bue enregistrée ✓');
     closeModal('drink');
     loadHome();                                    // compteurs + top 3 toujours à jour
     if (document.getElementById('modal-rank').classList.contains('on')) openRankModal();
     if (mtCurrentSec() === 'can' && _detailCan && _detailCan.id === _drinkCan) renderCanPage();
   };
-  const entree = {
-    uid: user.uid, can_id: _drinkCan, can_name: can.name || '', series: can.series || null,
-    price: price, drank_at: fst(), created_at: fst(),
+  const base = { uid: user.uid, can_id: _drinkCan, can_name: can.name || '', series: can.series || null, price: price };
+  const entrees = [];
+  for (let i = 0; i < qte; i++) entrees.push(Object.assign({}, base, { drank_at: fst(), created_at: fst() }));
+  // 1re écriture seule : si les règles Firestore refusent encore la collection
+  // « drinks », on bascule tout de suite sur le rangement dans le document user.
+  // Ensuite le reste part par paquets de 10 (rapide, sans surcharger Firestore).
+  const ecrireReste = (reste) => {
+    if (!reste.length) return Promise.resolve();
+    return Promise.all(reste.slice(0, 10).map((e) => addDoc(collection(db, 'drinks'), e)))
+      .then(() => ecrireReste(reste.slice(10)));
   };
-  addDoc(collection(db, 'drinks'), entree)
+  const ecrire = () => addDoc(collection(db, 'drinks'), entrees[0])
+    .then(() => ecrireReste(entrees.slice(1)));
+  ecrire()
     .then(fini)
     .catch(() => {
       // collection « drinks » pas encore autorisée par les règles Firestore :
-      // on range la canette bue dans le document de l'utilisateur
-      const repli = Object.assign({}, entree, { _k: 'd' + Date.now() + Math.random().toString(36).slice(2, 7) });
-      updateDoc(doc(db, 'users', user.uid), { drinks: arrayUnion(repli) })
+      // on range les canettes bues dans le document de l'utilisateur
+      const repli = entrees.map((e, i) => Object.assign({}, e, { _k: 'd' + Date.now() + i + Math.random().toString(36).slice(2, 7) }));
+      updateDoc(doc(db, 'users', user.uid), { drinks: arrayUnion.apply(null, repli) })
         .then(fini)
         .catch((e2) => toast('Erreur : ' + e2.message, 'err'));
     });
@@ -995,7 +1004,7 @@ function renderCanPage() {
       ['Série', can.series], ['Variante', mtVarClean(can.variant)],
       ['Pays', can.country], ['Année', can.year], ['Volume', can.volume],
       ['Capsule', can.cap_color], ['Dominante', can.full_color],
-      ['Prix payé', can.price ? fmtPrice(can.price) : ''], ['Ajoutée le', can.added_at ? fmtDate(can.added_at) : ''],
+      ['Ajoutée le', can.added_at ? fmtDate(can.added_at) : ''],
       ['Type', can.purchase_type || ''],
     ].filter((x) => x[1] !== undefined && x[1] !== null && x[1] !== '');
     let meta = '';
@@ -1527,7 +1536,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v60';
+const MT_BUILD = 'mt-v61';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2187,7 +2196,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=60', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=61', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

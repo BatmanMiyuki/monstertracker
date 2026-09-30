@@ -839,3 +839,8 @@ body.light .cpv-d{color:#a97700;}
 .fc-rowact .fc-main{background:transparent;border:1px solid var(--br);border-radius:4px;padding:6px 9px;font-size:15px;line-height:1;cursor:pointer;}
 .fc-rowact .fc-main:hover{border-color:#ffc800;}
 .fc-rowact .fc-main.on{border-color:#ffc800;background:rgba(255,200,0,.12);}
+
+/* ── v61 : total en direct dans la modale « canette bue » ── */
+.dr-total{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--mu);margin:-2px 0 10px;}
+.dr-total b{color:#ffc800;font-size:15px;}
+body.light .dr-total b{color:#a97700;}

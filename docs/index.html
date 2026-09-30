@@ -166,7 +166,6 @@
   <div class="srow">
     <div class="sbox"><div class="sval" id="h-owned">-</div><div class="slbl2">Possédées</div></div>
     <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total dispo.</div></div>
-    <div class="sbox val"><div class="sval" id="h-value">-</div><div class="slbl2">Valeur €</div></div>
     <div class="sbox"><div class="sval" id="h-drinks">-</div><div class="slbl2">Canettes bues</div></div>
     <div class="sbox"><div class="sval" id="h-spent">-</div><div class="slbl2">Argent dépensé</div></div>
   </div>
@@ -541,17 +540,8 @@
   <div class="mhdr"><h3>AJOUTER À MA COLLECTION</h3><button class="mclose" onclick="closeModal('add-col')">&#x2715;</button></div>
   <div class="mbody">
     <div id="ac-can-name" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;margin-bottom:16px;color:var(--g);"></div>
-    <div class="field"><label>Prix payé (€) <span style="color:var(--mu);font-weight:400;">(optionnel)</span></label><input type="number" step="0.01" min="0" id="ac-price" class="minput" placeholder="ex : 2.50"/></div>
-    <div class="field">
-      <label>Achetée où ?</label>
-      <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
-        <button id="ac-btn-store" class="btn-ghost" onclick="selectPurchase('store')" style="flex:1;padding:12px;font-size:13px;">&#127978; Magasin</button>
-        <button id="ac-btn-online" class="btn-ghost" onclick="selectPurchase('online')" style="flex:1;padding:12px;font-size:13px;">&#127760; En ligne</button>
-        <button id="ac-btn-gift" class="btn-ghost" onclick="selectPurchase('gift')" style="flex:1;padding:12px;font-size:13px;">&#127873; Cadeau</button>
-      </div>
-    </div>
+    <div class="dr-hint" style="margin-top:4px;">Cette canette rejoint ta collection et compte dans ta complétion.</div>
     <input type="hidden" id="ac-can-id"/>
-    <input type="hidden" id="ac-purchase-type"/>
   </div>
   <div class="mfoot"><button class="btn-ghost" onclick="closeModal('add-col')">ANNULER</button><button class="btn-add" onclick="confirmAddCol()">AJOUTER &#10148;</button></div>
 </div>
@@ -646,8 +636,12 @@
     <input class="sinput" type="text" id="dr-search" placeholder="Rechercher une canette..." oninput="filterDrink()" style="margin:12px 0 13px;"/>
     <div class="pk-grid dr-grid" id="dr-grid"></div>
     <div class="mdiv"></div>
-    <div class="field"><label>Prix payé (€)</label><input class="minput" type="text" inputmode="decimal" id="dr-price" placeholder="ex : 1.50"/></div>
-    <div class="dr-hint">La date et l'heure sont enregistrées automatiquement. Achète et bois autant de canettes que tu veux : chacune compte dans tes statistiques.</div>
+    <div class="mrow">
+      <div class="field"><label>Prix payé (l'unité, €)</label><input class="minput" type="text" inputmode="decimal" id="dr-price" placeholder="ex : 1.39" oninput="mtDrinkTotal()"/></div>
+      <div class="field"><label>Quantité</label><input class="minput" type="number" min="1" max="99" step="1" value="1" id="dr-qty" oninput="mtDrinkTotal()"/></div>
+    </div>
+    <div class="dr-total" id="dr-total"></div>
+    <div class="dr-hint">La date et l'heure sont enregistrées automatiquement. Ex : 10 Mango Loco à 1,39 € = +10 au compteur et 13,90 € d'argent dépensé.</div>
   </div>
   <div class="mfoot"><button class="btn-ghost" onclick="closeModal('drink')">ANNULER</button><button class="btn-add" onclick="saveDrink()">&#10003; ENREGISTRER</button></div>
 </div>
@@ -694,6 +688,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=60"></script>
+<script type="module" src="js/app.js?v=61"></script>
 </body>
 </html>
