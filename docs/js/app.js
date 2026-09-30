@@ -498,7 +498,6 @@ function canCardHtml(can, btnsHtml) {
   const sub = [can.series, can.variant, can.country, can.year].filter(Boolean).map(escapeHtml).join(' · ') || '—';
   const infos = [];
   if (can.volume) infos.push('<span class="cinfo"><b>VOL</b> ' + escapeHtml(can.volume) + '</span>');
-  if (can.language) infos.push('<span class="cinfo"><b>LANG</b> ' + escapeHtml(can.language) + '</span>');
   if (can.cap_color) infos.push('<span class="cinfo"><b>CAP</b> ' + escapeHtml(can.cap_color) + '</span>');
   if (can.full_color) infos.push('<span class="cinfo"><b>FULL</b> ' + escapeHtml(can.full_color) + '</span>');
   const infosHtml = infos.length ? '<div class="cinfs">' + infos.join('') + '</div>' : '';
@@ -513,7 +512,7 @@ function canCardHtml(can, btnsHtml) {
 // ════════════════════ ACCUEIL ════════════════════
 window.loadHome = function () {
   ['h-owned', 'h-total', 'h-value', 'h-drinks', 'h-spent'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = '...'; });
-  ['chart-series', 'chart-lang', 'h-recent', 'h-top'].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = lHtml(); });
+  ['chart-series', 'chart-vol', 'h-recent', 'h-top'].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = lHtml(); });
   mtDrinkRows().then((r) => {
     const nd = document.getElementById('h-drinks'); if (nd) nd.textContent = r.total;
     const ns = document.getElementById('h-spent'); if (ns) ns.textContent = r.spent > 0 ? r.spent.toFixed(2) + '€' : '—';
@@ -553,12 +552,12 @@ window.loadHome = function () {
       });
       elRec.innerHTML = rhtml + '</div>';
     } else elRec.innerHTML = eHtml('&#129371;', 'Aucune canette ajoutée', 'Commence à ajouter des canettes à ta collection !');
-    const seriesMap = {}, langMap = {};
+    const seriesMap = {}, volMap = {};
     const _sg = mtSerGroups(colItems.filter((c) => c.series));
     Object.keys(_sg).forEach((k) => { seriesMap[_sg[k].label] = _sg[k].list.length; });
-    colItems.forEach((c) => { if (c.language) langMap[c.language] = (langMap[c.language] || 0) + 1; });
+    colItems.forEach((c) => { if (c.volume) volMap[c.volume] = (volMap[c.volume] || 0) + 1; });
     drawPieChart(Object.entries(seriesMap).map((e) => ({ label: e[0], count: e[1] })).sort((a, b) => b.count - a.count), 'chart-series');
-    drawPieChart(Object.entries(langMap).map((e) => ({ label: e[0], count: e[1] })).sort((a, b) => b.count - a.count), 'chart-lang');
+    drawPieChart(Object.entries(volMap).map((e) => ({ label: e[0], count: e[1] })).sort((a, b) => b.count - a.count), 'chart-vol');
   }).catch((e) => console.error('loadHome', e));
 };
 
@@ -994,7 +993,7 @@ function renderCanPage() {
 
     const infos = [
       ['Série', can.series], ['Variante', mtVarClean(can.variant)],
-      ['Pays', can.country], ['Année', can.year], ['Volume', can.volume], ['Langue', can.language],
+      ['Pays', can.country], ['Année', can.year], ['Volume', can.volume],
       ['Capsule', can.cap_color], ['Dominante', can.full_color],
       ['Prix payé', can.price ? fmtPrice(can.price) : ''], ['Ajoutée le', can.added_at ? fmtDate(can.added_at) : ''],
       ['Type', can.purchase_type || ''],
@@ -1528,12 +1527,12 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v59';
+const MT_BUILD = 'mt-v60';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
 // Champs d'identité d'une canette, dans l'ordre d'affichage
-const MT_FCH = [['VOL', 'volume'], ['LANGUE', 'language'], ['CAP', 'cap_color'], ['FULL', 'full_color']];
+const MT_FCH = [['VOL', 'volume'], ['CAP', 'cap_color'], ['FULL', 'full_color']];
 const MT_FOPT = [['PAYS', 'country'], ['ANNÉE', 'year']];
 function mtIsVoid(v) { return v === null || v === undefined || v === ''; }
 // Liste des infos absentes de la fiche (pour le compteur « à compléter »)
@@ -1830,7 +1829,7 @@ window.openCanModal = function (canId) {
   const setup = (c) => {
     document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
     document.getElementById('cm-id').value = (c && c.id) || '';
-    const map = { name: 'name', series: 'series', variant: 'variant', diff: 'variant_diff', lang: 'language', cap: 'cap_color', fc: 'full_color', vol: 'volume', 'img-url': 'image_url' };
+    const map = { name: 'name', series: 'series', variant: 'variant', diff: 'variant_diff', cap: 'cap_color', fc: 'full_color', vol: 'volume', 'img-url': 'image_url' };
     Object.keys(map).forEach((f) => { document.getElementById('cm-' + f).value = (c && c[map[f]]) || ''; });
     document.getElementById('cm-color').value = (c && c.accent_color) || '#39ff14';
     document.getElementById('cm-limited').checked = !!(c && c.is_limited);
@@ -1874,7 +1873,7 @@ window.saveCan = function () {
   const body = {
     name, series: document.getElementById('cm-series').value || null, variant: document.getElementById('cm-variant').value || null,
     variant_diff: document.getElementById('cm-diff').value.trim() || null,
-    language: document.getElementById('cm-lang').value || null, cap_color: document.getElementById('cm-cap').value || null,
+    cap_color: document.getElementById('cm-cap').value || null,
     full_color: document.getElementById('cm-fc').value || null, volume: document.getElementById('cm-vol').value || null,
     is_limited: document.getElementById('cm-limited').checked,
     edition: document.getElementById('cm-edition').value || null,
@@ -2188,7 +2187,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=59', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=60', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
