@@ -1030,13 +1030,22 @@ function renderCanPage() {
         + (can.col_doc_id ? '<button class="cbtn rm" onclick="removeColFromPage()">&#10005; Retirer</button>' : '')
       : '<button class="btn-unlock" onclick="openAddModal()">DÉBLOQUER CETTE CANETTE</button>' + wishBtn;
 
+    // Images de la canette (bannières, logos…) : affichées DANS le bloc de la canette
+    const cimgs = Array.isArray(can.can_images) ? can.can_images.filter(Boolean) : [];
+    window.__cpImgs = cimgs;
+    const heroImgs = cimgs.length
+      ? '<div class="cp-himgs">' + cimgs.map((u, i) =>
+          '<div class="cp-himg" title="Agrandir" onclick="mtShowCanImg(' + i + ')"><img src="' + escapeHtml(u) + '" alt="" loading="lazy"/></div>').join('') + '</div>'
+      : '';
+
     let hero = '<div class="cp-hero" style="--acc:' + accent + ';">'
       + '<div class="cp-photo">' + photoFix + eband + (can.is_limited ? '<div class="lim-tag">Limitée</div>' : '') + state + '</div>'
       + '<div class="cp-side"><div class="cp-tag">' + (can.edition && MT_EDLBL[can.edition] ? escapeHtml(MT_EDLBL[can.edition]) : (can.series || 'Monster Energy')) + '</div>'
       + '<h2 class="cp-h2">' + escapeHtml(can.name) + '</h2>'
       + (mtVarClean(can.variant_diff) ? '<div class="cp-diff"><b>CE QUI CHANGE</b>' + escapeHtml(mtVarClean(can.variant_diff)) + '</div>' : '')
       + '<div class="cp-meta">' + meta + '</div>'
-      + '<div class="cp-actions">' + actions + '</div></div></div>';
+      + '<div class="cp-actions">' + actions + '</div></div>'
+      + heroImgs + '</div>';
 
     // ── variantes (même famille) ──
     const fam = mtFamilyKey(can);
@@ -1077,17 +1086,7 @@ function renderCanPage() {
     MT_NUTRI_BASE.forEach((n) => { ingHtml += '<div class="cp-nr"><span>' + n[0] + '</span><b>' + n[1] + '</b></div>'; });
     ingHtml += '</div>' + (perso.length ? '' : '<div class="cp-note">Valeurs types — à ajuster selon l\'édition.</div>') + '</div></div>';
 
-    // ── images propres à la canette ──
-    const cimgs = Array.isArray(can.can_images) ? can.can_images.filter(Boolean) : [];
-    window.__cpImgs = cimgs;
-    const imgsHtml = cimgs.length
-      ? '<div class="cp-block"><div class="cp-h">IMAGES' + (cimgs.length > 1 ? ' (' + cimgs.length + ')' : '') + '</div><div class="cp-imgs">'
-        + cimgs.map((u, i) => '<div class="cp-imgc" title="Agrandir" onclick="mtShowCanImg(' + i + ')"><img src="' + escapeHtml(u) + '" alt="" loading="lazy"/></div>').join('')
-        + '</div></div>'
-      : '';
-
     let body = '';
-    body += imgsHtml;
     if (can.description) body += '<div class="cp-block"><div class="cp-h">À PROPOS</div><div class="cp-desc">' + escapeHtml(can.description) + '</div></div>';
     body += '<div class="cp-block"><div class="cp-h">LES VARIANTES' + (fam ? ' — FAMILLE « ' + escapeHtml(String(can.family).toUpperCase()) + ' »' : (sibs.length ? ' — AUTRES ÉDITIONS' : '')) + '</div>' + varHtml + '</div>';
     body += '<div class="cp-block"><div class="cp-h">INGRÉDIENTS</div>' + ingHtml + '</div>';
@@ -1560,7 +1559,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v63';
+const MT_BUILD = 'mt-v64';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2309,7 +2308,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=63', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=64', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

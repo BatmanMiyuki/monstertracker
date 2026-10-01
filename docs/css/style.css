@@ -851,9 +851,10 @@ body.light .dr-total b{color:#a97700;}
 .cimg-item img{width:100%;height:100%;object-fit:contain;}
 .cimg-del{position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:4px;background:rgba(255,53,53,.9);color:#fff;font-size:11px;cursor:pointer;line-height:1;}
 .cimg-empty{font-size:12px;color:var(--mu);margin-top:8px;}
-.cp-imgs{display:flex;flex-wrap:wrap;gap:12px;}
-.cp-imgc{flex:1 1 260px;max-width:100%;height:150px;background:#070707;border:1px solid var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:zoom-in;overflow:hidden;transition:border-color .2s;}
-.cp-imgc:hover{border-color:var(--g);}
-.cp-imgc img{max-width:100%;max-height:100%;object-fit:contain;}
-body.light .cimg-item,body.light .cp-imgc{background:#f7f7f7;}
-@media (max-width:700px){ .cp-imgc{height:110px;flex:1 1 100%;} }
+/* images de la canette, dans son bloc */
+.cp-himgs{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:12px;}
+.cp-himg{flex:1 1 240px;max-width:100%;height:140px;background:#070707;border:1px solid var(--br);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:zoom-in;overflow:hidden;transition:border-color .2s,transform .18s;}
+.cp-himg:hover{border-color:var(--g);transform:translateY(-2px);}
+.cp-himg img{max-width:100%;max-height:100%;object-fit:contain;}
+body.light .cimg-item,body.light .cp-himg{background:#f7f7f7;}
+@media (max-width:760px){ .cp-himg{height:106px;flex:1 1 100%;} }
