@@ -862,8 +862,9 @@ body.light .cimg-item,body.light .cp-himg{background:#f7f7f7;}
 /* ── v65 : performance d'affichage ──
    Les cartes hors écran ne sont plus dessinées par le navigateur → défilement
    fluide même avec tout le catalogue. La taille est réservée pour éviter les sauts. */
-.icard{content-visibility:auto;contain-intrinsic-size:auto 300px;}
-.ccard{content-visibility:auto;contain-intrinsic-size:auto 340px;}
-.cp-himg img,.cthumb img,.icard img,.pk-thumb img,.rec-thumb img{content-visibility:auto;}
-.imgrid,.serlib{contain:layout style;}
+/* ⚠ NE JAMAIS mettre content-visibility / contain-intrinsic-size sur .icard :
+   la carte tire sa taille de son format 2:3 (aspect-ratio) et la hauteur de
+   réserve de 300 px écrasait ce format → les canettes s'affichaient géantes
+   (300x450 au lieu de 128x192) pendant quelques secondes. Idem sur les <img>. */
+.imgrid,.serlib{contain:layout style;}   /* isole le rendu des listes sans figer leur taille */
 body.light .icard{background:#fff;}
