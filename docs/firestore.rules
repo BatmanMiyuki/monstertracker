@@ -75,7 +75,8 @@ service cloud.firestore {
 
     // ─────────── AMIS ───────────
     match /friends/{docId} {
-      allow read: if connecte() && (resource.data.uid == moi() || resource.data.friendUid == moi());
+      // l'admin doit pouvoir lire (espace support) ; l'utilisateur seulement ses amitiés
+      allow read: if connecte() && (resource.data.uid == moi() || resource.data.friendUid == moi() || estAdmin());
       // on écrit les DEUX documents de l'amitié (le mien + celui de l'ami)
       allow create, update: if connecte()
         && (request.resource.data.uid == moi() || request.resource.data.friendUid == moi());

@@ -1020,7 +1020,6 @@ function renderCanPage() {
       ['Pays', can.country], ['Année', can.year], ['Volume', can.volume],
       ['Capsule', can.cap_color], ['Dominante', can.full_color],
       ['Ajoutée le', can.added_at ? fmtDate(can.added_at) : ''],
-      ['Type', can.purchase_type || ''],
     ].filter((x) => x[1] !== undefined && x[1] !== null && x[1] !== '');
     let meta = '';
     infos.forEach((f) => { meta += '<div class="cp-mi"><b>' + f[0] + '</b><span>' + escapeHtml(String(f[1])) + '</span></div>'; });
@@ -1078,7 +1077,17 @@ function renderCanPage() {
     MT_NUTRI_BASE.forEach((n) => { ingHtml += '<div class="cp-nr"><span>' + n[0] + '</span><b>' + n[1] + '</b></div>'; });
     ingHtml += '</div>' + (perso.length ? '' : '<div class="cp-note">Valeurs types — à ajuster selon l\'édition.</div>') + '</div></div>';
 
+    // ── images propres à la canette ──
+    const cimgs = Array.isArray(can.can_images) ? can.can_images.filter(Boolean) : [];
+    window.__cpImgs = cimgs;
+    const imgsHtml = cimgs.length
+      ? '<div class="cp-block"><div class="cp-h">IMAGES' + (cimgs.length > 1 ? ' (' + cimgs.length + ')' : '') + '</div><div class="cp-imgs">'
+        + cimgs.map((u, i) => '<div class="cp-imgc" title="Agrandir" onclick="mtShowCanImg(' + i + ')"><img src="' + escapeHtml(u) + '" alt="" loading="lazy"/></div>').join('')
+        + '</div></div>'
+      : '';
+
     let body = '';
+    body += imgsHtml;
     if (can.description) body += '<div class="cp-block"><div class="cp-h">À PROPOS</div><div class="cp-desc">' + escapeHtml(can.description) + '</div></div>';
     body += '<div class="cp-block"><div class="cp-h">LES VARIANTES' + (fam ? ' — FAMILLE « ' + escapeHtml(String(can.family).toUpperCase()) + ' »' : (sibs.length ? ' — AUTRES ÉDITIONS' : '')) + '</div>' + varHtml + '</div>';
     body += '<div class="cp-block"><div class="cp-h">INGRÉDIENTS</div>' + ingHtml + '</div>';
@@ -1551,7 +1560,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v62';
+const MT_BUILD = 'mt-v63';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1849,6 +1858,52 @@ window.saveFamPicker = function () {
   }).catch((e) => toast(e.message, 'err'));
 };
 
+// ── Images de la canette (bannières, logos…) — plusieurs par canette ──
+let _canImgs = [];
+function mtRenderCanImgs() {
+  const el = document.getElementById('cm-imgs-list');
+  if (!el) return;
+  if (!_canImgs.length) { el.innerHTML = '<div class="cimg-empty">Aucune image pour cette canette.</div>'; return; }
+  el.innerHTML = _canImgs.map((u, i) =>
+    '<div class="cimg-item"><img src="' + escapeHtml(u) + '" alt=""/>'
+    + '<button class="cimg-del" title="Supprimer cette image" onclick="mtDelCanImg(' + i + ')">&#10005;</button></div>').join('');
+}
+window.mtAddCanImgs = function (input) {
+  const files = Array.prototype.slice.call(input.files || []);
+  if (!files.length) return;
+  toast('Ajout des images...');
+  Promise.all(files.map((f) => (f.size > 5 * 1024 * 1024)
+    ? Promise.reject(new Error('Image trop lourde (max 5 Mo) : ' + f.name))
+    : compressImage(f, 1200, 0.86).catch(() => null)))
+    .then((imgs) => {
+      imgs.filter(Boolean).forEach((u) => _canImgs.push(u));
+      mtRenderCanImgs();
+      input.value = '';
+      toast(_canImgs.length + ' image' + (_canImgs.length > 1 ? 's' : '') + ' pour cette canette');
+    })
+    .catch((e) => { toast(e.message, 'err'); input.value = ''; });
+};
+window.mtAddCanImgUrl = function () {
+  const el = document.getElementById('cm-imgs-url');
+  const v = ((el || {}).value || '').trim();
+  if (!v) { toast('Colle une URL d\'image', 'err'); return; }
+  _canImgs.push(v);
+  if (el) el.value = '';
+  mtRenderCanImgs();
+  toast('Image ajoutée ✓');
+};
+window.mtDelCanImg = function (i) {
+  _canImgs.splice(i, 1);
+  mtRenderCanImgs();
+};
+// Agrandir une image depuis la page de la canette
+window.mtShowCanImg = function (i) {
+  const u = (window.__cpImgs || [])[i];
+  if (!u) return;
+  document.getElementById('mview-title').textContent = 'IMAGE';
+  document.getElementById('mview-body').innerHTML = '<img src="' + escapeHtml(u) + '" alt="" style="width:100%;border:1px solid var(--br);border-radius:8px;"/>';
+  document.getElementById('modal-view').classList.add('on');
+};
 window.openCanModal = function (canId) {
   const setup = (c) => {
     document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
@@ -1859,6 +1914,10 @@ window.openCanModal = function (canId) {
     document.getElementById('cm-limited').checked = !!(c && c.is_limited);
     document.getElementById('cm-edition').value = (c && c.edition) || '';
     document.getElementById('cm-ingredients').value = (c && c.ingredients) || '';
+    _canImgs = (c && Array.isArray(c.can_images)) ? c.can_images.filter(Boolean).slice(0) : [];
+    const cuf = document.getElementById('cm-imgs-url'); if (cuf) cuf.value = '';
+    const cif = document.getElementById('cm-imgs-file'); if (cif) cif.value = '';
+    mtRenderCanImgs();
     document.getElementById('cm-img-file').value = '';
     const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
     if (c && c.image_url) { prev.src = c.image_url; prev.style.display = 'block'; lbl.style.display = 'none'; }
@@ -1902,6 +1961,7 @@ window.saveCan = function () {
     is_limited: document.getElementById('cm-limited').checked,
     edition: document.getElementById('cm-edition').value || null,
     ingredients: document.getElementById('cm-ingredients').value.trim() || null,
+    can_images: _canImgs.length ? _canImgs.slice(0) : null,
     image_url: imageUrl || null,
     accent_color: document.getElementById('cm-color').value || '#39ff14',
     updated_at: fst(),
@@ -1973,6 +2033,43 @@ window.saveUpdate = function () {
 window.delUpdate = (id) => { if (!confirm('Supprimer cette annonce ?')) return; deleteDoc(doc(db, 'updates', id)).then(() => { toast('Supprimée ✓'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err')); };
 
 // ════════════════════ ADMIN : UTILISATEURS ════════════════════
+// Remise à zéro d'un compte (admin) — même opération que le bouton de l'espace support
+window.resetUserAccount = function (uid, code, name) {
+  const saisie = prompt('REMETTRE À ZÉRO LE COMPTE DE « ' + name + ' »\n\n'
+    + 'Tout sera effacé : collection, canettes bues, statistiques, wishlist, favoris et amis.\n'
+    + 'Le compte repart à 0 (pseudo, email et mot de passe conservés).\n\n'
+    + 'Tape son code (' + code + ') pour confirmer :');
+  if (saisie === null) return;
+  if (String(saisie).trim().toUpperCase() !== String(code).toUpperCase()) { toast('Code incorrect — rien n\'a été effacé.', 'err'); return; }
+  toast('Remise à zéro...');
+  const cibles = [['collection', 'uid'], ['drinks', 'uid'], ['wishlist', 'uid'], ['favorites', 'uid'],
+    ['friends', 'uid'], ['friends', 'friendUid'], ['friend_requests', 'from_uid'], ['friend_requests', 'to_uid'],
+    ['chats', 'participants', 'array-contains']];
+  const vus = {}; let total = 0; let refuses = 0;
+  const suite = (i) => {
+    if (i >= cibles.length) {
+      return updateDoc(doc(db, 'users', uid), { drinks: [] }).catch(() => null).then(() => {
+        toast(total + ' élément(s) supprimé(s) — compte remis à zéro ✓' + (refuses ? ' (' + refuses + ' catégorie(s) refusée(s))' : ''));
+        loadAdmUsers();
+      });
+    }
+    const nomCol = cibles[i][0], champ = cibles[i][1], op = cibles[i][2] || '==';
+    return getDocs(query(collection(db, nomCol), where(champ, op, uid)))
+      .catch(() => { refuses++; return null; })
+      .then((snap) => {
+        if (!snap) return suite(i + 1);
+        const refs = snap.docs.filter((d) => !vus[nomCol + '/' + d.id]).map((d) => { vus[nomCol + '/' + d.id] = 1; return d.ref; });
+        const lots = [];
+        for (let k = 0; k < refs.length; k += 400) {
+          const b = fbatch();
+          refs.slice(k, k + 400).forEach((r) => b.delete(r));
+          lots.push(b.commit());
+        }
+        return Promise.all(lots).then(() => { total += refs.length; return suite(i + 1); });
+      });
+  };
+  suite(0).catch((e) => toast(e.message, 'err'));
+};
 window.loadAdmUsers = function () {
   document.getElementById('adm-users-ct').innerHTML = lHtml();
   const q = ((document.getElementById('user-search') || {}).value || '').toLowerCase();
@@ -1983,7 +2080,8 @@ window.loadAdmUsers = function () {
   }).then((users) => {
     let rows = '';
     users.forEach((u) => {
-      const delBtn = u.role !== 'admin' ? '<button class="tdel" onclick="delUser(\'' + u.uid + '\',\'' + escapeHtml(u.username).replace(/'/g, '&#39;') + '\')">Suppr.</button>' : '—';
+      const rstBtn = u.role !== 'admin' ? '<button class="tdel" style="border-color:#ff9600;color:#ff9600;margin-left:6px;" title="Remettre ce compte à zéro (collection, canettes bues, statistiques, amis)" onclick="resetUserAccount(\'' + u.uid + '\',\'' + escapeHtml(u.user_code || '') + '\',\'' + escapeHtml(u.username).replace(/'/g, '&#39;') + '\')">Réinit.</button>' : '';
+      const delBtn = u.role !== 'admin' ? '<button class="tdel" onclick="delUser(\'' + u.uid + '\',\'' + escapeHtml(u.username).replace(/'/g, '&#39;') + '\')">Suppr.</button>' + rstBtn : '—';
       rows += '<tr><td><div style="display:flex;align-items:center;gap:9px;">' + avatarHtml(u, 30) + '<div class="tname">' + escapeHtml(u.username) + '</div></div></td>'
         + '<td style="font-family:monospace;font-size:11px;color:var(--mu);">' + escapeHtml(u.user_code || '—') + '</td>'
         + '<td><span class="tbadge ' + (u.role === 'admin' ? 'lim' : 'std') + '">' + escapeHtml(u.role) + '</span></td>'
@@ -2211,7 +2309,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=62', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=63', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

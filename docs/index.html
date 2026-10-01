@@ -597,6 +597,19 @@
     </div>
     <input class="minput" type="text" id="cm-img-url" placeholder="Ou colle une URL d'image..." oninput="previewUrl(this.value)" style="margin-top:6px;"/>
     <div class="mdiv"></div>
+    <div class="mlbl">Images de la canette</div>
+    <div style="font-size:12px;color:var(--mu);line-height:1.5;margin-bottom:8px;">Bannières, logos… elles s'affichent dans le bloc <b style="color:var(--tx);">IMAGES</b> de la page de la canette.</div>
+    <div class="img-zone" id="cimg-zone">
+      <input type="file" accept="image/*" id="cm-imgs-file" multiple onchange="mtAddCanImgs(this)"/>
+      <div class="img-lbl">Clique pour ajouter des images</div>
+      <div class="img-sub">Plusieurs images d'un coup — JPG, PNG, WEBP</div>
+    </div>
+    <div class="cimg-list" id="cm-imgs-list"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <input class="minput" type="text" id="cm-imgs-url" placeholder="Ou colle une URL d'image…" style="flex:1;"/>
+      <button class="btn-ghost" style="padding:0 16px;" onclick="mtAddCanImgUrl()">+ AJOUTER</button>
+    </div>
+    <div class="mdiv"></div>
     <label class="chk"><input type="checkbox" id="cm-limited"/> <span>Édition limitée</span></label>
     <p style="font-size:11px;color:#ff9600;margin-top:10px;">La canette sera enregistrée en brouillon. Publie-la pour la rendre visible aux utilisateurs.</p>
   </div>
@@ -688,6 +701,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=62"></script>
+<script type="module" src="js/app.js?v=63"></script>
 </body>
 </html>

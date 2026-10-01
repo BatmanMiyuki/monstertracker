@@ -114,15 +114,18 @@
         </div>
       </div>
       <div class="sp-note">Pour rendre l'accès à l'utilisateur : envoie-lui l'email officiel de réinitialisation ci-dessous. Il choisira lui-même son nouveau mot de passe et pourra te le communiquer.</div>
+      <div class="sp-warn" style="margin-top:6px;">&#9888;&#65039; Remise à zéro : efface sa collection, ses canettes bues, ses statistiques, sa wishlist, ses favoris et ses amis. Le compte repart à 0 (pseudo, email et mot de passe conservés). Un code de confirmation est demandé.</div>
+      <div class="errmsg" id="sp-reset-err2"></div>
       <div class="errmsg" id="sp-reset-err"></div>
       <div class="okmsg" id="sp-reset-ok"></div>
       <button class="btn-full" onclick="spSendReset()">&#9993; ENVOYER L'EMAIL DE RÉINITIALISATION</button>
+      <button class="btn-ghost" id="sp-reset-btn" style="width:100%;margin-top:8px;border-color:var(--rd);color:var(--rd);" onclick="spResetUser()">&#8635; RÉINITIALISER LE COMPTE</button>
       <button class="btn-ghost" style="width:100%;margin-top:8px;" onclick="spShow('main')">&#8592; NOUVELLE RECHERCHE</button>
     </div>
 
   </div>
 </div>
 <div class="toasts" id="toasts"></div>
-<script type="module" src="js/support.js"></script>
+<script type="module" src="js/support.js?v=63"></script>
 </body>
 </html>
