@@ -56,6 +56,18 @@ function toast(msg, t) {
 }
 function lHtml() { return '<div class="loading"><div class="spin"></div>Chargement...</div>'; }
 function eHtml(i, t, p) { return '<div class="empty"><div class="ei">' + i + '</div><h3>' + escapeHtml(t) + '</h3><p>' + escapeHtml(p) + '</p></div>'; }
+// Lit un prix même écrit « 1,47 » ou « 1,47 € » (les deux séparateurs marchent)
+function mtParsePrice(v) {
+  if (v === null || v === undefined) return 0;
+  const t = String(v).replace(/[^0-9.,]/g, '').replace(',', '.').replace(/\.(?=.*\.)/g, '');
+  const n = parseFloat(t);
+  return isNaN(n) || n < 0 ? 0 : n;
+}
+window.mtParsePrice = mtParsePrice;
+function mtParseQty(v) {
+  const n = parseInt(String(v === null || v === undefined ? '' : v).replace(/[^0-9]/g, ''), 10);
+  return (isNaN(n) || n < 1) ? 1 : Math.min(n, 99999);
+}
 function fmtPrice(v) { return (v != null && parseFloat(v) > 0) ? parseFloat(v).toFixed(2) + '€' : '—'; }
 function tsToDate(ts) { if (!ts) return null; if (ts.toDate) return ts.toDate(); return new Date(ts); }
 function fmtDate(ts) { const d = tsToDate(ts); return d ? d.toLocaleDateString('fr-FR') : ''; }
@@ -834,11 +846,12 @@ function renderDrinkGrid(q) {
 // Aperçu du total : « 10 × 1,39 € = 13,90 € »
 window.mtDrinkTotal = function () {
   const el = document.getElementById('dr-total'); if (!el) return;
-  const q = Math.max(1, Math.min(99, parseInt((document.getElementById('dr-qty') || {}).value, 10) || 1));
-  const p = parseFloat((document.getElementById('dr-price') || {}).value) || 0;
-  if (q > 1 && p > 0) el.innerHTML = '<b>' + q + '</b> canettes bues · <b>' + (q * p).toFixed(2).replace('.', ',') + ' €</b> ajoutés';
+  const q = mtParseQty((document.getElementById('dr-qty') || {}).value);
+  const p = mtParsePrice((document.getElementById('dr-price') || {}).value);
+  const eur = (n) => n.toFixed(2).replace('.', ',') + ' €';
+  if (q > 1 && p > 0) el.innerHTML = '<b>' + q + '</b> canettes bues · <b>' + eur(q * p) + '</b> ajoutés';
   else if (q > 1) el.innerHTML = '<b>' + q + '</b> canettes bues ajoutées au compteur';
-  else if (p > 0) el.innerHTML = '<b>1</b> canette bue · <b>' + p.toFixed(2).replace('.', ',') + ' €</b> ajouté';
+  else if (p > 0) el.innerHTML = '<b>1</b> canette bue · <b>' + eur(p) + '</b> ajouté';
   else el.innerHTML = '';
 };
 window.pickDrinkCan = function (id) {
@@ -847,17 +860,17 @@ window.pickDrinkCan = function (id) {
   const pk = document.getElementById('dr-picked');
   if (pk) pk.innerHTML = c ? '&#10003; ' + escapeHtml(c.name) : 'Aucune canette sélectionnée';
   const p = document.getElementById('dr-price');
-  if (p && !p.value && c && c.price) p.value = c.price;
+  if (p && !p.value && c && c.price) p.value = String(mtParsePrice(c.price)).replace('.', ',');
   renderDrinkGrid((document.getElementById('dr-search') || {}).value || '');
 };
 window.saveDrink = function () {
   if (!_drinkCan) { toast('Choisis une canette', 'err'); return; }
   const can = _drinkCans.find((x) => x.id === _drinkCan) || allCans.find((x) => x.id === _drinkCan) || {};
-  const price = parseFloat((document.getElementById('dr-price') || {}).value) || 0;
-  // QUANTITÉ : on enregistre autant de canettes bues d'un coup (ex : 10 Mango Loco)
-  const qte = Math.max(1, Math.min(99, parseInt((document.getElementById('dr-qty') || {}).value, 10) || 1));
+  const price = mtParsePrice((document.getElementById('dr-price') || {}).value);
+  // QUANTITÉ : aucune limite — 314 Mango Loco à 1,47 € = +314 au compteur et 461,58 €
+  const qte = mtParseQty((document.getElementById('dr-qty') || {}).value);
   const fini = () => {
-    toast(qte > 1 ? qte + ' canettes bues enregistrées ✓ (+' + (qte * price).toFixed(2) + '€)' : 'Canette bue enregistrée ✓');
+    toast(qte > 1 ? qte + ' canettes bues ✓ +' + (qte * price).toFixed(2).replace('.', ',') + '€ dépensés' : 'Canette bue enregistrée ✓');
     closeModal('drink');
     loadHome();                                    // compteurs + top 3 toujours à jour
     if (document.getElementById('modal-rank').classList.contains('on')) openRankModal();
@@ -868,14 +881,16 @@ window.saveDrink = function () {
   for (let i = 0; i < qte; i++) entrees.push(Object.assign({}, base, { drank_at: fst(), created_at: fst() }));
   // 1re écriture seule : si les règles Firestore refusent encore la collection
   // « drinks », on bascule tout de suite sur le rangement dans le document user.
-  // Ensuite le reste part par paquets de 10 (rapide, sans surcharger Firestore).
-  const ecrireReste = (reste) => {
+  // Le reste part en écritures groupées de 400 (Firestore accepte 500 max) :
+  // 314 canettes = 1 seul aller-retour, quasi instantané.
+  const parLots = (reste, taille) => {
     if (!reste.length) return Promise.resolve();
-    return Promise.all(reste.slice(0, 10).map((e) => addDoc(collection(db, 'drinks'), e)))
-      .then(() => ecrireReste(reste.slice(10)));
+    const b = fbatch();
+    reste.slice(0, taille).forEach((e) => { b.set(doc(collection(db, 'drinks')), e); });
+    return b.commit().then(() => parLots(reste.slice(taille), taille));
   };
   const ecrire = () => addDoc(collection(db, 'drinks'), entrees[0])
-    .then(() => ecrireReste(entrees.slice(1)));
+    .then(() => parLots(entrees.slice(1), 400));
   ecrire()
     .then(fini)
     .catch(() => {
@@ -1536,7 +1551,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v61';
+const MT_BUILD = 'mt-v62';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2196,7 +2211,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=61', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=62', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

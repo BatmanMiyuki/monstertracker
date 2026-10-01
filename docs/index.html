@@ -637,8 +637,8 @@
     <div class="pk-grid dr-grid" id="dr-grid"></div>
     <div class="mdiv"></div>
     <div class="mrow">
-      <div class="field"><label>Prix payé (l'unité, €)</label><input class="minput" type="text" inputmode="decimal" id="dr-price" placeholder="ex : 1.39" oninput="mtDrinkTotal()"/></div>
-      <div class="field"><label>Quantité</label><input class="minput" type="number" min="1" max="99" step="1" value="1" id="dr-qty" oninput="mtDrinkTotal()"/></div>
+      <div class="field"><label>Prix payé (l'unité, €)</label><input class="minput" type="text" inputmode="decimal" id="dr-price" placeholder="ex : 1,47" oninput="mtDrinkTotal()"/></div>
+      <div class="field"><label>Quantité</label><input class="minput" type="number" min="1" step="1" value="1" id="dr-qty" oninput="mtDrinkTotal()"/></div>
     </div>
     <div class="dr-total" id="dr-total"></div>
     <div class="dr-hint">La date et l'heure sont enregistrées automatiquement. Ex : 10 Mango Loco à 1,39 € = +10 au compteur et 13,90 € d'argent dépensé.</div>
@@ -688,6 +688,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=61"></script>
+<script type="module" src="js/app.js?v=62"></script>
 </body>
 </html>
