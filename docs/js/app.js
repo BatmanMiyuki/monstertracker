@@ -6,7 +6,7 @@
 // ════════════════════════════════════════════════════════════
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, deleteUser } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, getDocs, onSnapshot, serverTimestamp, writeBatch, limit, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, collection, query, where, orderBy, getDocs, onSnapshot, serverTimestamp, writeBatch, limit, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyAlanpPYiUG8tg0P8prqMjYiHH2QmEqKcc',
@@ -20,7 +20,15 @@ const auth = getAuth(app);
 // URL du serveur Node (version pro : lien de réinitialisation vivant dans l'email type).
 // Vide = mode sans serveur : l'email officiel Firebase part en parallèle.
 window.MT_RESET_API = '';
-const db = getFirestore(app);
+// v65 : cache local persistant (IndexedDB). Tout ce qui a déjà été téléchargé est
+// relu depuis le disque : l'app s'ouvre instantanément, le réseau ne sert plus
+// qu'à rafraîchir en arrière-plan.
+let db;
+try {
+  db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+} catch (e) {
+  db = getFirestore(app);
+}
 const fst = () => serverTimestamp();
 const fbatch = () => writeBatch(db);
 
@@ -29,6 +37,20 @@ let user = null, allCans = [], pickerMode = null, pickerCans = [];
 let _detailCan = null, _cfCat = '', _admMsgs = [], _delCode = '';
 let _inboxFilter = 'all', _isMaint = false, _maintUnsub = null;
 let _chatPoll = null, _badgePoll = null, _currentChatFriend = null;
+
+// ── Outils performance (v65) ──
+// Anti-rebond : évite de tout recalculer à chaque lettre tapée dans une recherche.
+function mtDebounce(fn, ms) {
+  let t = null;
+  return function () {
+    const a = arguments, c = this;
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(c, a), ms || 180);
+  };
+}
+// Photo à afficher dans les listes : la vignette si elle existe, sinon la photo.
+function mtThumb(c) { return (c && (c.thumb_url || c.image_url)) || ''; }
+window.mtThumb = mtThumb;
 
 // Lien QR ami : ?add=CODE → ajout automatique après connexion
 try {
@@ -97,7 +119,7 @@ function compressImage(file, maxDim, quality) {
         const c = document.createElement('canvas');
         c.width = Math.round(w * scale); c.height = Math.round(h * scale);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        res(c.toDataURL('image/jpeg', quality));
+        res(mtBestFormat(c, quality));
       };
       img.onerror = () => rej(new Error('Image illisible.'));
       img.src = e.target.result;
@@ -106,6 +128,17 @@ function compressImage(file, maxDim, quality) {
     r.readAsDataURL(file);
   });
 }
+
+// Format le plus léger accepté par le navigateur : WebP (≈ 45 % de moins que le
+// JPEG à qualité égale), avec repli automatique sur JPEG si besoin.
+function mtBestFormat(canvas, quality) {
+  try {
+    const w = canvas.toDataURL('image/webp', quality);
+    if (w && w.indexOf('data:image/webp') === 0) return w;
+  } catch (e) {}
+  return canvas.toDataURL('image/jpeg', quality);
+}
+window.mtBestFormat = mtBestFormat;
 
 // ── Images : toutes les canettes au même format ──
 // Détecte la canette sur son fond, la recadre et la replace centrée dans un
@@ -152,7 +185,7 @@ function mtNormalize(imgUrl) {
         o.fillRect(0, 0, MT_IMG_W, MT_IMG_H);
         o.imageSmoothingEnabled = true; o.imageSmoothingQuality = 'high';
         o.drawImage(src, x0, y0, bw, bh, Math.round((MT_IMG_W - dw) / 2), Math.round((MT_IMG_H - dh) / 2), dw, dh);
-        res(out.toDataURL('image/jpeg', 0.85));
+        res(mtBestFormat(out, 0.78));
       } catch (e) { res(imgUrl); }
     };
     img.onerror = () => res(imgUrl);
@@ -365,7 +398,12 @@ function startMaintListen() {
 function stopMaintListen() { if (_maintUnsub) { _maintUnsub(); _maintUnsub = null; } }
 
 // ── Badges ──
-function startPolling() { stopPolling(); updateBadges(); _badgePoll = setInterval(updateBadges, 20000); }
+function startPolling() {
+  stopPolling();
+  updateBadges();
+  _badgePoll = setInterval(() => { if (!document.hidden) updateBadges(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) updateBadges(); });
+}
 function stopPolling() { if (_badgePoll) { clearInterval(_badgePoll); _badgePoll = null; } }
 function setBadge(id, n, bg) { const el = document.getElementById(id); if (!el) return; el.textContent = n; if (bg) el.style.background = bg; el.style.display = n > 0 ? 'inline-flex' : 'none'; }
 function updateBadges() {
@@ -501,7 +539,8 @@ function accentBg(color) {
 function canCardHtml(can, btnsHtml) {
   const accent = can.is_limited ? '#ff9600' : (can.accent_color || '#39ff14');
   const lk = can.in_collection ? '' : ' locked';
-  const img = can.image_url ? '<img src="' + escapeHtml(can.image_url) + '" alt="' + escapeHtml(can.name) + '" onerror="this.style.display=\'none\'">' : '<span style="font-size:52px;">&#129371;</span>';
+  const _csrc = mtThumb(can);
+  const img = _csrc ? '<img src="' + escapeHtml(_csrc) + '" alt="' + escapeHtml(can.name) + '" loading="lazy" decoding="async" onerror="this.style.display=\'none\'">' : '<span style="font-size:52px;">&#129371;</span>';
   const lim = can.is_limited ? '<div class="lim-tag">Limitée</div>' : '';
   const lockTag = can.in_collection ? '' : '<div class="lock-tag">À DÉBLOQUER</div>';
   const eband = (can.edition && MT_EDIMG[can.edition]) ? '<img class="eband" src="' + MT_EDIMG[can.edition] + '" alt="">' : '';
@@ -540,23 +579,20 @@ window.loadHome = function () {
     const el = document.getElementById('h-top');
     if (el) el.innerHTML = eHtml('&#129371;', 'Statistiques indisponibles', 'Autorise la collection « drinks » dans les règles Firestore.');
   });
-  getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((colSnap) => {
-    const colItems = colSnap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
-    getDocs(query(collection(db, 'cans'), where('is_published', '==', true))).then((cansSnap) => {
-      const _cansPub = cansSnap.docs.map((d) => Object.assign({ id: d.id }, d.data(), { in_collection: colItems.some((c) => c.can_id === d.id) }));
-      const _uq = mtUniqueNames(_cansPub);
-      const pct = _uq.total > 0 ? Math.round((_uq.owned / _uq.total) * 100) : 0;
-      document.getElementById('h-owned').textContent = colItems.length;
-      document.getElementById('h-total').textContent = _uq.total;
-      document.getElementById('h-pct').textContent = pct + '%';
-      document.getElementById('h-prog').style.width = pct + '%';
-    });
-    const recent = colItems.sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0)).slice(0, 5);
+  mtFetchCans().then((cans) => {
+    const colItems = cans.filter((c) => c.in_collection);
+    const _uq = mtUniqueNames(cans);
+    const pct = _uq.total > 0 ? Math.round((_uq.owned / _uq.total) * 100) : 0;
+    document.getElementById('h-owned').textContent = colItems.length;
+    document.getElementById('h-total').textContent = _uq.total;
+    document.getElementById('h-pct').textContent = pct + '%';
+    document.getElementById('h-prog').style.width = pct + '%';
+    const recent = colItems.slice().sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0)).slice(0, 5);
     const elRec = document.getElementById('h-recent');
     if (recent.length) {
       let rhtml = '<div class="rec-list">';
       recent.forEach((r) => {
-        const thumb = r.image_url ? '<img src="' + escapeHtml(r.image_url) + '" alt="" onerror="this.style.display=\'none\'"/>' : '&#129371;';
+        const thumb = mtThumb(r) ? '<img src="' + escapeHtml(mtThumb(r)) + '" alt="" loading="lazy" decoding="async" onerror="this.style.display=\'none\'"/>' : '&#129371;';
         rhtml += '<div class="rec-item"><div class="rec-thumb">' + thumb + '</div><div><div class="rec-name">' + escapeHtml(r.name) + '</div><div class="rec-date">' + fmtDate(r.added_at) + '</div></div><div class="rec-ago">' + timeAgo(r.added_at) + '</div></div>';
       });
       elRec.innerHTML = rhtml + '</div>';
@@ -577,8 +613,8 @@ window.mtCatDraftNote = function () {
   if (!el) return;
   el.innerHTML = '';
   if (!user || user.role !== 'admin') return;
-  getDocs(collection(db, 'cans')).then((snap) => {
-    const drafts = snap.docs.filter((d) => !d.data().is_published).length;
+  mtAllCansCached().then((list) => {
+    const drafts = list.filter((c) => !c.is_published).length;
     if (!drafts) return;
     el.innerHTML = '<div class="cat-note-in">&#9888; ' + drafts + ' canette' + (drafts > 1 ? 's' : '') + ' en <b>brouillon</b> n\'apparaît pas ici — '
       + '<button onclick="goTab(\'adm-cans\', document.getElementById(\'tab-adm-cans\'))">ADMIN &#8594; CANETTES</button> pour les publier</div>';
@@ -677,25 +713,51 @@ function mtFamilyCans(can) { return allCans.filter((c) => mtFamilyKey(c) === mtF
 function mtVersionCount(can) { return mtFamilyCans(can).length; }
 function mtCurrentSec() { const el = document.querySelector('.sec.on'); return el ? el.id.replace('sec-', '') : 'collection'; }
 function mtAfterChange() {
+  window.mtClearCans();
   if (mtCurrentSec() === 'can') renderCanPage();
   else if (mtCurrentSec() === 'collection') loadCollection();
 }
-function mtFetchCans() {
-  const colIds = new Set(), wlIds = new Set(), colDocs = {};
-  return getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))).then((s) => {
-    s.docs.forEach((d) => { const x = d.data(); colIds.add(x.can_id); colDocs[x.can_id] = Object.assign({ _docId: d.id }, x); });
-    return getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid)));
-  }).then((s) => {
-    s.docs.forEach((d) => wlIds.add(d.data().can_id));
-    return getDocs(query(collection(db, 'cans'), where('is_published', '==', true)));
-  }).then((snap) => snap.docs.map((d) => {
-    const cd = colDocs[d.id] || {};
-    return Object.assign({}, d.data(), {
-      id: d.id, in_collection: colIds.has(d.id), in_wishlist: wlIds.has(d.id),
-      col_doc_id: cd._docId || null, price: cd.price || null, purchase_type: cd.purchase_type || null, added_at: cd.added_at || null,
+let _cansCache = { t: 0, data: null, p: null };
+const MT_CANS_TTL = 60000;   // 1 min : pendant ce temps, zéro requête réseau
+function mtFetchCans(force) {
+  if (!force && _cansCache.data && (Date.now() - _cansCache.t) < MT_CANS_TTL) return Promise.resolve(_cansCache.data);
+  if (_cansCache.p) return _cansCache.p;   // une seule requête en vol, même si 3 écrans la demandent
+  _cansCache.p = Promise.all([
+    getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid))),
+    getDocs(query(collection(db, 'wishlist'), where('uid', '==', user.uid))),
+    getDocs(query(collection(db, 'cans'), where('is_published', '==', true))),
+  ]).then((r) => {
+    const colSnap = r[0], wlSnap = r[1], cansSnap = r[2];
+    const colIds = new Set(), wlIds = new Set(), colDocs = {};
+    colSnap.docs.forEach((d) => { const x = d.data(); colIds.add(x.can_id); colDocs[x.can_id] = Object.assign({ _docId: d.id }, x); });
+    wlSnap.docs.forEach((d) => wlIds.add(d.data().can_id));
+    const data = cansSnap.docs.map((d) => {
+      const cd = colDocs[d.id] || {};
+      return Object.assign({}, d.data(), {
+        id: d.id, in_collection: colIds.has(d.id), in_wishlist: wlIds.has(d.id),
+        col_doc_id: cd._docId || null, price: cd.price || null, purchase_type: cd.purchase_type || null, added_at: cd.added_at || null,
+      });
     });
-  }));
+    _cansCache = { t: Date.now(), data: data, p: null };
+    return data;
+  }).catch((e) => { _cansCache.p = null; throw e; });
+  return _cansCache.p;
 }
+// Toutes les canettes, brouillons compris (écrans admin) — mises en cache aussi.
+let _allCansCache = { t: 0, data: null, p: null };
+function mtAllCansCached() {
+  if (_allCansCache.data && (Date.now() - _allCansCache.t) < MT_CANS_TTL) return Promise.resolve(_allCansCache.data);
+  if (_allCansCache.p) return _allCansCache.p;
+  _allCansCache.p = getDocs(collection(db, 'cans')).then((snap) => {
+    const data = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    _allCansCache = { t: Date.now(), data: data, p: null };
+    return data;
+  }).catch((e) => { _allCansCache.p = null; throw e; });
+  return _allCansCache.p;
+}
+window.mtAllCansCached = mtAllCansCached;
+// Après un ajout/retrait : on vide les caches pour que l'affichage soit juste.
+window.mtClearCans = function () { _cansCache = { t: 0, data: null, p: null }; _allCansCache = { t: 0, data: null, p: null }; };
 
 // ── Cartes réutilisables ──
 function mtCanBtns(can) {
@@ -798,8 +860,9 @@ function renderCol(cans) {
 
 // Un seul visuel par canette : pas de bloc, pas de texte — juste l'image.
 function mtCanImgHtml(c, nbEd, nbOwn) {
-  const img = c.image_url
-    ? '<img src="' + escapeHtml(c.image_url) + '" alt="' + escapeHtml(c.name) + '" loading="lazy" onload="mtImgFix(this)" onerror="this.style.opacity=.18">'
+  const src = mtThumb(c);
+  const img = src
+    ? '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(c.name) + '" loading="lazy" decoding="async" onload="mtImgFix(this)" onerror="this.style.opacity=.18">'
     : '<span class="ino">&#129371;</span>';
   const badges = (c.is_limited ? '<span class="ib-lim">L</span>' : '')
     + (nbEd > 1 ? '<span class="ib-more"' + (nbOwn ? '' : ' style="opacity:.7"') + '>' + nbEd + ' éd.</span>' : '');
@@ -838,7 +901,7 @@ function renderDrinkGrid(q) {
   el.innerHTML = list.slice(0, 150).map((c) => {
     const n = trouvees.filter((x) => mtNorm(x.name) === mtNorm(c.name)).length;
     return '<div class="pk-item' + (_drinkCan === c.id ? ' on' : '') + '" title="' + escapeHtml(c.name) + (n > 1 ? ' · ' + n + ' éditions' : '') + '" onclick="pickDrinkCan(\'' + c.id + '\')">'
-      + '<div class="pk-thumb">' + (c.image_url ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onerror="this.parentElement.innerHTML=\'&#129371;\'">' : '&#129371;') + '</div>'
+      + '<div class="pk-thumb">' + (mtThumb(c) ? '<img src="' + escapeHtml(mtThumb(c)) + '" alt="" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML=\'&#129371;\'">' : '&#129371;') + '</div>'
       + '<div class="pk-name">' + escapeHtml(c.name) + '</div>'
       + (n > 1 ? '<div class="pk-more">' + n + ' éditions</div>' : '') + '</div>';
   }).join('');
@@ -1518,8 +1581,8 @@ window.confirmDelete = function () {
 window.loadAdmCans = function () {
   document.getElementById('adm-cans-ct').innerHTML = lHtml();
   const q = ((document.getElementById('adm-search') || {}).value || '').toLowerCase();
-  getDocs(query(collection(db, 'cans'), orderBy('name'))).then((snap) => {
-    let cans = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+  mtAllCansCached().then((list) => {
+    let cans = list.slice(0).sort((x, y) => (x.name || '').localeCompare(y.name || '', 'fr'));
     _admCansAll = cans.slice(0);
     const _totEl = document.getElementById('adm-cans-total');
     if (_totEl) { const _np = cans.filter((c) => c.is_published).length; _totEl.textContent = cans.length + ' canette' + (cans.length > 1 ? 's' : '') + ' au total — ' + _np + ' publiée' + (_np > 1 ? 's' : '') + ' · ' + (cans.length - _np) + ' brouillon' + ((cans.length - _np) > 1 ? 's' : ''); }
@@ -1559,7 +1622,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v64';
+const MT_BUILD = 'mt-v65';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1624,8 +1687,8 @@ function mtFamStats() {
 window.loadAdmFams = function () {
   const ct = document.getElementById('adm-fams-ct');
   if (ct) ct.innerHTML = lHtml();
-  getDocs(query(collection(db, 'cans'), orderBy('name'))).then((snap) => {
-    _admCansAll = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+  mtAllCansCached().then((list) => {
+    _admCansAll = list.slice(0);
     renderAdmFams();
   }).catch((e) => { if (ct) ct.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
@@ -1973,6 +2036,52 @@ window.saveCan = function () {
     if (fs && fs.classList.contains('on')) loadAdmFams();
   }).catch((e) => toast(e.message, 'err'));
 };
+// Prépare une vignette légère pour chaque canette du catalogue (bouton admin).
+// Les listes et la collection affichent la vignette → images 4× plus légères,
+// défilement beaucoup plus fluide.
+window.mtOptimizeApp = function () {
+  if (!confirm('Alléger tout le catalogue ?\n\nChaque photo de canette est ré-encodée en WebP (environ 45 % plus léger que le JPEG à qualité identique). Le rendu ne change pas, les photos ne perdent pas de taille.')) return;
+  const ct = document.getElementById('adm-cans-ct');
+  if (ct) ct.innerHTML = '<div class="loading"><div class="spin"></div>Analyse du catalogue...</div>';
+  mtAllCansCached().then((list) => {
+    const todo = list.filter((c) => c.image_url && String(c.image_url).indexOf('data:image') === 0 && String(c.image_url).indexOf('data:image/webp') !== 0);
+    const deja = list.filter((c) => c.image_url && String(c.image_url).indexOf('data:image/webp') === 0).length;
+    if (!todo.length) { toast(deja ? 'Catalogue déjà optimisé ✓ (' + deja + ' photos WebP)' : 'Aucune photo à optimiser'); loadAdmCans(); return; }
+    const out = [];
+    let i = 0;
+    const suivant = () => {
+      if (i >= todo.length) return ecrire();
+      const c = todo[i++];
+      if (ct) ct.innerHTML = '<div class="loading"><div class="spin"></div>Conversion en WebP... ' + i + ' / ' + todo.length + '</div>';
+      mtNormalize(c.image_url).then((nu) => {
+        const gain = String(c.image_url).length - String(nu).length;
+        if (nu && String(nu).indexOf('data:image/webp') === 0 && gain > 0) out.push([c.id, nu, gain]);
+        suivant();
+      });
+    };
+    const ecrire = () => {
+      if (!out.length) { toast('Les photos sont déjà au format le plus léger ✓'); loadAdmCans(); return; }
+      const gainTotal = out.reduce((a, o) => a + o[2], 0);
+      let k = 0;
+      const lot = () => {
+        if (k >= out.length) {
+          toast(out.length + ' photo' + (out.length > 1 ? 's' : '') + ' allégée' + (out.length > 1 ? 's' : '')
+            + ' ✓ environ ' + (Math.round(gainTotal / 1024 / 1024 * 10) / 10) + ' Mo en moins à chaque chargement');
+          window.mtClearCans(); loadAdmCans(); return;
+        }
+        const b = fbatch();
+        out.slice(k, k + 10).forEach((o) => { b.update(doc(db, 'cans', o[0]), { image_url: o[1], updated_at: fst() }); });
+        b.commit().catch(() => {});
+        k += 10;
+        if (ct) ct.innerHTML = '<div class="loading"><div class="spin"></div>Enregistrement... ' + Math.min(k, out.length) + ' / ' + out.length + '</div>';
+        lot();
+      };
+      lot();
+    };
+    suivant();
+  }).catch((e) => { toast(e.message, 'err'); loadAdmCans(); });
+};
+
 // Remet TOUTES les images du catalogue au même format (bouton admin).
 window.mtNormalizeAllCans = function () {
   if (!confirm('Remettre toutes les images de canettes au même format (400x600, canette à 92 % de la hauteur) ?\n\nLes images déjà au bon format ne changent pas.')) return;
@@ -2231,8 +2340,8 @@ window.loadAdmSerImg = function () {
   const el = document.getElementById('adm-ser-img');
   if (!el) return;
   el.innerHTML = lHtml();
-  Promise.all([mtLoadSerMedia(), getDocs(query(collection(db, 'cans'), orderBy('name')))]).then((r) => {
-    const cans = r[1].docs.map((d) => Object.assign({ id: d.id }, d.data()));
+  Promise.all([mtLoadSerMedia(), mtAllCansCached()]).then((r) => {
+    const cans = r[1].slice(0);
     const g = mtSerGroups(cans.filter((c) => c.series));
     _admSerList = Object.keys(g).map((k) => g[k]).sort((x, y) => x.label.localeCompare(y.label, 'fr'));
     if (!_admSerList.length) { el.innerHTML = eHtml('&#128247;', 'AUCUNE SÉRIE', 'Ajoute des canettes avec une série pour choisir leurs photos.'); return; }
@@ -2308,7 +2417,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=64', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=65', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
@@ -2336,6 +2445,11 @@ document.addEventListener('keydown', (e) => {
 
 // ── Fermer modales au clic sur le fond ──
 document.querySelectorAll('.moverlay').forEach((ov) => ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('on'); }));
+
+// ── Recherches : on attend 200 ms après la dernière lettre (v65) ──
+['filterCans', 'loadAdmCans', 'loadAdmUsers', 'filterPicker', 'famSearch', 'filterDrink'].forEach((f) => {
+  if (typeof window[f] === 'function') window[f] = mtDebounce(window[f], 200);
+});
 
 // ── Démarrage : landing par défaut ──
 go('landing');

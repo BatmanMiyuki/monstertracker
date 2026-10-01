@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=53">
+<link rel="stylesheet" href="css/style.css?v=65">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -406,7 +406,7 @@
 
 <!-- ADMIN : CANETTES -->
 <div class="sec" id="sec-adm-cans">
-  <div class="adm-hdr"><div><h2>CANETTES</h2><p>Les nouvelles canettes sont en brouillon — Publie-les pour les rendre visibles</p><p id="adm-cans-total" style="margin-top:6px;font-size:12px;font-weight:800;letter-spacing:1px;color:var(--g);text-transform:uppercase;"></p></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn-ghost" onclick="mtNormalizeAllCans()" title="Recadre toutes les photos de canettes au même format (400x600)">&#128444; TOUTES MÊME TAILLE</button><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div></div>
+  <div class="adm-hdr"><div><h2>CANETTES</h2><p>Les nouvelles canettes sont en brouillon — Publie-les pour les rendre visibles</p><p id="adm-cans-total" style="margin-top:6px;font-size:12px;font-weight:800;letter-spacing:1px;color:var(--g);text-transform:uppercase;"></p></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn-ghost" onclick="mtNormalizeAllCans()" title="Recadre toutes les photos de canettes au même format (400x600)">&#128444; TOUTES MÊME TAILLE</button><button class="btn-ghost" onclick="mtOptimizeApp()" title="Crée une vignette légère pour chaque canette : catalogue plus rapide à charger">&#9889; ALLÉGER L'APP</button><button class="btn-add" onclick="openCanModal()">+ AJOUTER</button></div></div>
   <input class="sinput" id="adm-search" type="text" placeholder="Rechercher une canette..." oninput="loadAdmCans()"/>
   <div id="adm-cans-ct"></div>
 </div>
@@ -701,6 +701,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=64"></script>
+<script type="module" src="js/app.js?v=65"></script>
 </body>
 </html>

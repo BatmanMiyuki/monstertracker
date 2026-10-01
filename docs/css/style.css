@@ -858,3 +858,12 @@ body.light .dr-total b{color:#a97700;}
 .cp-himg img{max-width:100%;max-height:100%;object-fit:contain;}
 body.light .cimg-item,body.light .cp-himg{background:#f7f7f7;}
 @media (max-width:760px){ .cp-himg{height:106px;flex:1 1 100%;} }
+
+/* ── v65 : performance d'affichage ──
+   Les cartes hors écran ne sont plus dessinées par le navigateur → défilement
+   fluide même avec tout le catalogue. La taille est réservée pour éviter les sauts. */
+.icard{content-visibility:auto;contain-intrinsic-size:auto 300px;}
+.ccard{content-visibility:auto;contain-intrinsic-size:auto 340px;}
+.cp-himg img,.cthumb img,.icard img,.pk-thumb img,.rec-thumb img{content-visibility:auto;}
+.imgrid,.serlib{contain:layout style;}
+body.light .icard{background:#fff;}
