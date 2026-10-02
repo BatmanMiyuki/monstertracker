@@ -402,7 +402,9 @@ function startPolling() {
   stopPolling();
   updateBadges();
   _badgePoll = setInterval(() => { if (!document.hidden) updateBadges(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) updateBadges(); });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { window.mtClearCans(); updateBadges(); }
+  });
 }
 function stopPolling() { if (_badgePoll) { clearInterval(_badgePoll); _badgePoll = null; } }
 function setBadge(id, n, bg) { const el = document.getElementById(id); if (!el) return; el.textContent = n; if (bg) el.style.background = bg; el.style.display = n > 0 ? 'inline-flex' : 'none'; }
@@ -745,8 +747,8 @@ function mtFetchCans(force) {
 }
 // Toutes les canettes, brouillons compris (écrans admin) — mises en cache aussi.
 let _allCansCache = { t: 0, data: null, p: null };
-function mtAllCansCached() {
-  if (_allCansCache.data && (Date.now() - _allCansCache.t) < MT_CANS_TTL) return Promise.resolve(_allCansCache.data);
+function mtAllCansCached(force) {
+  if (!force && _allCansCache.data && (Date.now() - _allCansCache.t) < MT_CANS_TTL) return Promise.resolve(_allCansCache.data);
   if (_allCansCache.p) return _allCansCache.p;
   _allCansCache.p = getDocs(collection(db, 'cans')).then((snap) => {
     const data = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
@@ -756,8 +758,14 @@ function mtAllCansCached() {
   return _allCansCache.p;
 }
 window.mtAllCansCached = mtAllCansCached;
-// Après un ajout/retrait : on vide les caches pour que l'affichage soit juste.
+// Après une écriture (nouvelle canette, famille, publication, suppression…) :
+// on vide les caches pour que l'affichage soit immédiatement juste, sans refresh.
 window.mtClearCans = function () { _cansCache = { t: 0, data: null, p: null }; _allCansCache = { t: 0, data: null, p: null }; };
+window.mtAfterWrite = function () {
+  window.mtClearCans();
+  _mtSerMediaP = null;                       // photos de série : à relire
+  _mtSerMedia = {};
+};
 
 // ── Cartes réutilisables ──
 function mtCanBtns(can) {
@@ -1622,7 +1630,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v66';
+const MT_BUILD = 'mt-v67';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -1771,7 +1779,7 @@ function renderAdmFams() {
 // ── Retirer / modèle ──
 window.removeFromFamily = function (id, name) {
   updateDoc(doc(db, 'cans', id), { family: null, updated_at: fst() })
-    .then(() => { toast('Canette retirée de « ' + name + ' »'); loadAdmFams(); })
+    .then(() => { window.mtAfterWrite(); toast('Canette retirée de « ' + name + ' »'); loadAdmFams(); })
     .catch((e) => toast(e.message, 'err'));
 };
 window.setFamMain = function (id, name) {
@@ -1781,6 +1789,7 @@ window.setFamMain = function (id, name) {
   list.forEach((c) => { b.update(doc(db, 'cans', c.id), { is_main: c.id === id, updated_at: fst() }); });
   b.commit()
     .then(() => {
+      window.mtAfterWrite();
       list.forEach((c) => { c.is_main = c.id === id; });
       toast('Canette principale définie \u2605');
       renderAdmFams();
@@ -1791,6 +1800,7 @@ window.setFamModel = function (id, val) {
   const v = mtVarClean(val) || null;
   updateDoc(doc(db, 'cans', id), { variant: v, updated_at: fst() })
     .then(() => {
+      window.mtAfterWrite();
       const c = _admCansAll.find((x) => x.id === id);
       if (c) c.variant = v;
       toast(v ? 'Modèle « ' + v + ' » enregistré ✓' : 'Modèle retiré');
@@ -1814,6 +1824,7 @@ window.saveFamRename = function () {
   const b = fbatch();
   ids.forEach((id) => b.update(doc(db, 'cans', id), { family: nv, updated_at: fst() }));
   b.commit().then(() => {
+    window.mtAfterWrite();
     closeModal('fam-rename');
     toast('Famille renommée en « ' + nv + ' » ✓');
     _famRenaming = null;
@@ -1826,11 +1837,14 @@ window.deleteFamily = function (name) {
   if (!confirm('Vider la famille « ' + name + ' » ?\n\nLes ' + ids.length + ' canette' + (ids.length > 1 ? 's' : '') + ' ne sont pas supprimées : elles redeviennent « sans famille ».')) return;
   const b = fbatch();
   ids.forEach((id) => b.update(doc(db, 'cans', id), { family: null, updated_at: fst() }));
-  b.commit().then(() => { toast('Famille « ' + name + ' » vidée'); loadAdmFams(); }).catch((e) => toast(e.message, 'err'));
+  b.commit().then(() => { window.mtAfterWrite(); toast('Famille « ' + name + ' » vidée'); loadAdmFams(); }).catch((e) => toast(e.message, 'err'));
 };
 
 // ── Sélecteur de canettes (ajouter à une famille / en créer une) ──
 window.openFamPicker = function (family) {
+  // Toujours repartir des données fraîches : sinon une canette qui vient d'être
+  // créée (ou classée) n'apparaît pas dans la liste tant qu'on n'a pas rechargé.
+  mtAllCansCached(true).then((list) => { _admCansAll = list.slice(0); renderFamPicker(); }).catch(() => {});
   _famPickName = (family || '').trim();
   _famPickSel = new Set();
   _fpQuery = '';
@@ -1913,6 +1927,8 @@ window.saveFamPicker = function () {
   const b = fbatch();
   ids.forEach((id) => b.update(doc(db, 'cans', id), { family: name, updated_at: fst() }));
   b.commit().then(() => {
+    window.mtAfterWrite();
+    _admCansAll.forEach((c) => { if (_famPickSel.has(c.id)) c.family = name; });
     closeModal('fam-pick');
     toast(ids.length + ' canette' + (ids.length > 1 ? 's' : '') + ' dans « ' + name + ' » ✓');
     _famPickSel = new Set(); _famPickName = '';
@@ -1967,6 +1983,11 @@ window.mtShowCanImg = function (i) {
   document.getElementById('modal-view').classList.add('on');
 };
 window.openCanModal = function (canId) {
+  mtAllCansCached(true).then((list) => {
+    _admCansAll = list.slice(0);
+    const dl = document.getElementById('fp-fams-list');
+    if (dl) dl.innerHTML = Object.keys(mtFamList()).sort((a, b) => a.localeCompare(b, 'fr')).map((f) => '<option value="' + escapeHtml(f) + '"></option>').join('');
+  }).catch(() => {});
   const setup = (c) => {
     document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
     document.getElementById('cm-id').value = (c && c.id) || '';
@@ -2031,6 +2052,7 @@ window.saveCan = function () {
   const id = document.getElementById('cm-id').value;
   const p = id ? updateDoc(doc(db, 'cans', id), body) : addDoc(collection(db, 'cans'), Object.assign({}, body, { is_published: false, created_at: fst() }));
   p.then(() => {
+    window.mtAfterWrite();
     toast(id ? 'Modifiée ✓' : 'Ajoutée (brouillon)'); fi.dataset.compressed = ''; closeModal('can'); loadAdmCans();
     const fs = document.getElementById('sec-adm-fams');
     if (fs && fs.classList.contains('on')) loadAdmFams();
@@ -2104,7 +2126,7 @@ window.mtNormalizeAllCans = function () {
       if (!chg.length) { toast('Toutes les images sont déjà au bon format ✓'); loadAdmCans(); return; }
       let k = 0;
       const lot = () => {
-        if (k >= chg.length) { toast(chg.length + ' image' + (chg.length > 1 ? 's' : '') + ' remise' + (chg.length > 1 ? 's' : '') + ' au même format ✓'); loadAdmCans(); return; }
+        if (k >= chg.length) { window.mtAfterWrite(); toast(chg.length + ' image' + (chg.length > 1 ? 's' : '') + ' remise' + (chg.length > 1 ? 's' : '') + ' au même format ✓'); loadAdmCans(); return; }
         const b = fbatch();
         chg.slice(k, k + 10).forEach((o) => { b.update(doc(db, 'cans', o[0]), { image_url: o[1], updated_at: fst() }); });
         k += 10;
@@ -2115,8 +2137,8 @@ window.mtNormalizeAllCans = function () {
     suivant();
   }).catch((e) => { toast(e.message, 'err'); loadAdmCans(); });
 };
-window.publishCan = (id, pub) => updateDoc(doc(db, 'cans', id), { is_published: pub }).then(() => { toast(pub ? 'Publiée ✓' : 'Dépubliée'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
-window.deleteCan = (id) => { if (!confirm('Supprimer cette canette ?')) return; deleteDoc(doc(db, 'cans', id)).then(() => { toast('Supprimée ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err')); };
+window.publishCan = (id, pub) => updateDoc(doc(db, 'cans', id), { is_published: pub }).then(() => { window.mtAfterWrite(); toast(pub ? 'Publiée ✓' : 'Dépubliée'); loadAdmCans(); }).catch((e) => toast(e.message, 'err'));
+window.deleteCan = (id) => { if (!confirm('Supprimer cette canette ?')) return; deleteDoc(doc(db, 'cans', id)).then(() => { window.mtAfterWrite(); toast('Supprimée ✓'); loadAdmCans(); }).catch((e) => toast(e.message, 'err')); };
 
 // ════════════════════ ADMIN : ANNONCES ════════════════════
 window.loadAdmUpdates = function () {
@@ -2367,6 +2389,7 @@ function mtSaveSerImg(i, url) {
   const s = _admSerList[i];
   if (!s) return;
   setDoc(doc(db, 'settings', 'series_' + s.key), { key: s.key, series: s.label, image_url: url, updated_at: fst() })
+    .then(() => { _mtSerMediaP = null; _mtSerMedia = {}; window.mtClearCans(); })
     .then(() => { _mtSerMedia[s.key] = url; toast('Photo de « ' + s.label + ' » enregistrée ✓'); loadAdmSerImg(); })
     .catch((e) => toast((e && e.code === 'permission-denied') ? 'Refusé par Firestore : ajoute la collection settings aux règles.' : (e.message || 'Erreur'), 'err'));
 }
@@ -2386,7 +2409,7 @@ window.resetSerImg = function (i) {
   const s = _admSerList[i];
   if (!s) return;
   if (!confirm('Revenir à la photo automatique pour « ' + s.label + ' » ?')) return;
-  deleteDoc(doc(db, 'settings', 'series_' + s.key))
+  deleteDoc(doc(db, 'settings', 'series_' + s.key)).then(() => { _mtSerMediaP = null; _mtSerMedia = {}; window.mtClearCans(); })
     .then(() => { delete _mtSerMedia[s.key]; toast('Photo réinitialisée ✓'); loadAdmSerImg(); })
     .catch((e) => toast(e.message, 'err'));
 };
@@ -2417,7 +2440,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=66', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=67', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
