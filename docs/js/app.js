@@ -889,25 +889,26 @@ window.openDrinkModal = function () {
   const q = document.getElementById('dr-qty'); if (q) q.value = '1';
   if (window.mtDrinkTotal) mtDrinkTotal();
   document.getElementById('modal-drink').classList.add('on');
-  const ready = allCans.length ? Promise.resolve(allCans) : mtFetchCans().then((c) => { allCans = c.slice(0); return allCans; });
-  ready.then((cans) => { _drinkCans = cans.slice(0); renderDrinkGrid(''); });
+  // Même source que la collection (mtFetchCans) : ce qu'on voit ici = ce qu'on voit là.
+  mtFetchCans().then((cans) => { _drinkCans = cans.slice(0); renderDrinkGrid((document.getElementById('dr-search') || {}).value || ''); });
 };
 window.filterDrink = function () { renderDrinkGrid((document.getElementById('dr-search') || {}).value || ''); };
 function renderDrinkGrid(q) {
   const el = document.getElementById('dr-grid'); if (!el) return;
   const s = String(q || '').toLowerCase();
-  const trouvees = _drinkCans.filter((c) => !s || (c.name || '').toLowerCase().includes(s) || (c.series || '').toLowerCase().includes(s));
-  // UNE seule entrée par canette : on ne montre pas toutes les variantes
-  const parNom = {};
-  trouvees.forEach((c) => {
-    const k = mtNorm(c.name) || ('id:' + c.id);
-    const cur = parNom[k];
-    if (!cur || (c.in_collection && !cur.in_collection) || (!cur.image_url && c.image_url)) parNom[k] = c;
-  });
-  const list = Object.keys(parNom).map((k) => parNom[k]);
+  const match = (c) => !s || (c.name || '').toLowerCase().includes(s) || (c.series || '').toLowerCase().includes(s);
+  // Même regroupement que la collection : une famille = une seule entrée, et c'est
+  // la canette principale (★) qui s'affiche. Les variantes restent dans sa fiche.
+  // Une recherche qui ne trouve qu'une variante remonte quand même la principale.
+  const groupes = mtUniqueNames(_drinkCans);
+  const list = groupes.uniques
+    .filter((u) => match(u.rep) || _drinkCans.some((c) => match(c) && mtGroupKey(c) === mtGroupKey(u.rep)))
+    .map((u) => u.rep);
+  const nbEd = {};
+  groupes.uniques.forEach((u) => { nbEd[u.rep.id] = u.n; });
   if (!list.length) { el.innerHTML = '<div class="dr-empty">Aucune canette trouvée</div>'; return; }
   el.innerHTML = list.slice(0, 150).map((c) => {
-    const n = trouvees.filter((x) => mtNorm(x.name) === mtNorm(c.name)).length;
+    const n = nbEd[c.id] || 1;
     return '<div class="pk-item' + (_drinkCan === c.id ? ' on' : '') + '" title="' + escapeHtml(c.name) + (n > 1 ? ' · ' + n + ' éditions' : '') + '" onclick="pickDrinkCan(\'' + c.id + '\')">'
       + '<div class="pk-thumb">' + (mtThumb(c) ? '<img src="' + escapeHtml(mtThumb(c)) + '" alt="" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML=\'&#129371;\'">' : '&#129371;') + '</div>'
       + '<div class="pk-name">' + escapeHtml(c.name) + '</div>'
@@ -1630,7 +1631,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v67';
+const MT_BUILD = 'mt-v68';
 const MT_BUILD_DATE = '17/09/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2440,7 +2441,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=67', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=68', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
