@@ -868,3 +868,20 @@ body.light .cimg-item,body.light .cp-himg{background:#f7f7f7;}
    (300x450 au lieu de 128x192) pendant quelques secondes. Idem sur les <img>. */
 .imgrid,.serlib{contain:layout style;}   /* isole le rendu des listes sans figer leur taille */
 body.light .icard{background:#fff;}
+
+/* ── v69 · changement de variante + page « toutes les variantes » ── */
+.cp-hero.cp-swap .cp-photo{animation:cpFlip .6s cubic-bezier(.2,.8,.2,1) both}
+.cp-hero.cp-swap .cp-side{animation:cpSlide .55s .08s cubic-bezier(.2,.8,.2,1) both}
+@keyframes cpFlip{0%{opacity:0;transform:perspective(800px) rotateY(-90deg) scale(.92)}100%{opacity:1;transform:none}}
+@keyframes cpSlide{0%{opacity:0;transform:translateX(24px)}100%{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.cp-hero.cp-swap .cp-photo,.cp-hero.cp-swap .cp-side{animation:none}}
+.cp-vbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:var(--c1);border:1px solid var(--br);border-radius:12px;padding:14px 16px;margin-bottom:18px}
+.cp-vbar-t{font-size:13px;color:var(--mu);line-height:1.4}
+.cp-vbar-t b{color:var(--tx)}
+.cp-vbtn{font-weight:900;letter-spacing:1px;white-space:nowrap}
+.cpv.cur{outline:2px solid var(--g);outline-offset:2px}
+.cpv.pulse{animation:cpPulse .35s ease}
+@keyframes cpPulse{50%{transform:scale(.93)}}
+/* Page « toutes les variantes » : grille qui passe à la ligne (pas de défilement) */
+#cv-ct .cp-vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;overflow:visible}
+#cv-ct .cpv{width:auto;min-width:0}

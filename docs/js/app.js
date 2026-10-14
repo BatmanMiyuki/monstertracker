@@ -225,6 +225,7 @@ window.goTab = (s, btn) => {
   if (btn) btn.classList.add('on');
   const m = { home: loadHome, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings, 'adm-fams': loadAdmFams };
   if (s === 'can') renderCanPage();
+  if (s === 'cvar') renderVariantsPage();
   if (s === 'collection') loadCollection();
   if (m[s]) m[s]();
 };
@@ -642,6 +643,51 @@ function renderSerieChips() {
 }
 window.openCanDetailById = (id) => openCanPage(id);
 window.openCanPageById = (id) => openCanPage(id);
+window.openVariantsPage = function () { goTab('cvar', null); };
+// Toutes les variantes d'une canette (même famille, sinon même nom), la principale ★ en premier
+function mtVariantsOf(can) {
+  const fam = mtFamilyKey(can);
+  const others = fam
+    ? allCans.filter((c) => mtFamilyKey(c) === fam && c.id !== can.id)
+    : allCans.filter((c) => mtGroupKey(c) === mtGroupKey(can) && c.id !== can.id);
+  return [can].concat(others).sort((a, b) => (Number(!!b.is_main) - Number(!!a.is_main)) || (a.name || '').localeCompare(b.name || '', 'fr'));
+}
+function renderVariantsPage() {
+  const ct = document.getElementById('cv-ct');
+  if (!ct) return;
+  const id = _canHist[_canHist.length - 1];
+  ct.innerHTML = lHtml();
+  mtFetchCans().then((cans) => {
+    allCans = cans.slice(0);
+    const can = allCans.find((x) => x.id === id);
+    if (!can) { ct.innerHTML = eHtml('&#129371;', 'CANETTE INTROUVABLE', "Cette canette n'existe plus ou n'est plus publiée."); return; }
+    const list = mtVariantsOf(can);
+    const t = document.getElementById('cv-title'); if (t) t.textContent = 'TOUTES LES VARIANTES';
+    const st = document.getElementById('cv-sub');
+    if (st) st.textContent = (can.family ? 'Famille « ' + can.family + ' »' : can.name) + ' · ' + list.length + ' canette' + (list.length > 1 ? 's' : '');
+    let html = '<div class="cp-vgrid">';
+    list.forEach((c) => {
+      const ph = c.image_url
+        ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onload="mtImgFix(this)" onerror="this.style.display=\'none\'">'
+        : '<span class="cpv-no">&#129371;</span>';
+      const dif = mtDiffLabel(c);
+      const vsub = [c.country, c.volume, c.year].map((x) => mtVarClean(x)).filter(Boolean).join(' · ');
+      const cur = c.id === can.id;
+      html += '<div class="cpv' + (c.in_collection ? ' own' : '') + (cur ? ' cur' : '') + '" onclick="pickVariant(this,\'' + c.id + '\',' + cur + ')">'
+        + '<div class="cpv-ph">' + ph + '</div>'
+        + '<div class="cpv-n">' + (c.is_main ? '<span class="cpv-star" title="Canette principale">&#9733;</span> ' : '') + escapeHtml(c.name) + '</div>'
+        + (dif ? '<div class="cpv-d">' + escapeHtml(dif) + '</div>' : '')
+        + (vsub ? '<div class="cpv-s">' + escapeHtml(vsub) + '</div>' : '')
+        + '<div class="cpv-b">' + (cur ? 'ACTUELLE' : (c.in_collection ? '&#10003; Possédée' : '+ À débloquer')) + '</div></div>';
+    });
+    ct.innerHTML = html + '</div>';
+  }).catch((e) => { ct.innerHTML = eHtml('&#9888;&#65039;', 'ERREUR', e.message); });
+}
+// Clic sur une variante : petit rebond de la carte, puis la fiche s'ouvre avec l'animation de changement
+window.pickVariant = function (el, id, cur) {
+  if (el) el.classList.add('pulse');
+  setTimeout(() => { if (cur) goTab('can', null); else openCanPage(id, false, true); }, 180);
+};
 window.toggleCol = function (id, owned) {
   if (owned) {
     getDocs(query(collection(db, 'collection'), where('uid', '==', user.uid), where('can_id', '==', id))).then((snap) => {
@@ -1047,10 +1093,12 @@ const MT_ING_BASE = [
 ];
 const MT_NUTRI_BASE = [['Énergie', '47 kcal / 197 kJ'], ['Glucides', '11 g'], ['dont sucres', '11 g'], ['Protéines', '< 0,1 g'], ['Sel', '0,2 g'], ['Caféine', '32 mg']];
 
-window.openCanPage = function (id, keepHist) {
+let _mtSwapAnim = false;   // animation « changement de variante » sur la prochaine fiche
+window.openCanPage = function (id, keepHist, anim) {
   if (!id) return;
   const cur = mtCurrentSec();
-  if (cur !== 'can') { _canBack = cur; _canHist = []; }
+  if (cur !== 'can' && cur !== 'cvar') { _canBack = cur; _canHist = []; }
+  if (anim) _mtSwapAnim = true;
   if (!keepHist) _canHist.push(id);
   closeModal('can');
   goTab('can', null);
@@ -1071,6 +1119,7 @@ function renderCanPage() {
     const can = allCans.find((x) => x.id === id);
     if (!can) { ct.innerHTML = eHtml('&#129371;', 'CANETTE INTROUVABLE', "Cette canette n'existe plus ou n'est plus publiée."); return; }
     _detailCan = can;
+    const swap = _mtSwapAnim; _mtSwapAnim = false;
     const accent = can.is_limited ? '#ff9600' : (can.accent_color || '#39ff14');
     const t = document.getElementById('cp-title'); if (t) t.textContent = can.name;
     const s = document.getElementById('cp-sub');
@@ -1110,7 +1159,7 @@ function renderCanPage() {
           '<div class="cp-himg" title="Agrandir" onclick="mtShowCanImg(' + i + ')"><img src="' + escapeHtml(u) + '" alt="" loading="lazy"/></div>').join('') + '</div>'
       : '';
 
-    let hero = '<div class="cp-hero" style="--acc:' + accent + ';">'
+    let hero = '<div class="cp-hero' + (swap ? ' cp-swap' : '') + '" style="--acc:' + accent + ';">'
       + '<div class="cp-photo">' + photoFix + eband + (can.is_limited ? '<div class="lim-tag">Limitée</div>' : '') + state + '</div>'
       + '<div class="cp-side"><div class="cp-tag">' + (can.edition && MT_EDLBL[can.edition] ? escapeHtml(MT_EDLBL[can.edition]) : (can.series || 'Monster Energy')) + '</div>'
       + '<h2 class="cp-h2">' + escapeHtml(can.name) + '</h2>'
@@ -1131,21 +1180,8 @@ function renderCanPage() {
     } else if (!sibs.length) {
       varHtml = '<div class="cp-empty">Seule canette de la famille « ' + escapeHtml(can.family) + ' » pour le moment.</div>';
     } else {
-      varHtml = '<div class="cp-vgrid">';
-      sibs.forEach((c) => {
-        const ph = c.image_url
-          ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onload="mtImgFix(this)" onerror="this.style.display=\'none\'">'
-          : '<span class="cpv-no">&#129371;</span>';
-        const dif = mtDiffLabel(c);
-        const vsub = [c.country, c.volume, c.year].map((x) => mtVarClean(x)).filter(Boolean).join(' · ');
-        varHtml += '<div class="cpv' + (c.in_collection ? ' own' : '') + '" onclick="openCanPage(\'' + c.id + '\')">'
-          + '<div class="cpv-ph">' + ph + '</div>'
-          + '<div class="cpv-n">' + (c.is_main ? '<span class="cpv-star" title="Canette principale">&#9733;</span> ' : '') + escapeHtml(c.name) + '</div>'
-          + (dif ? '<div class="cpv-d">' + escapeHtml(dif) + '</div>' : '')
-          + (vsub ? '<div class="cpv-s">' + escapeHtml(vsub) + '</div>' : '')
-          + '<div class="cpv-b">' + (c.in_collection ? '&#10003; Possédée' : '+ À débloquer') + '</div></div>';
-      });
-      varHtml += '</div>';
+      varHtml = '<div class="cp-vbar"><div class="cp-vbar-t"><b>' + (sibs.length + 1) + ' variantes</b> dans la famille « ' + escapeHtml(can.family) + ' »</div>'
+        + '<button class="btn-ghost cp-vbtn" onclick="openVariantsPage()">VOIR TOUTES LES VARIANTES</button></div>';
     }
 
     // ── ingrédients ──
@@ -1630,9 +1666,9 @@ function mtFamThumb(c, w) {
     : '<span style="font-size:16px;">&#129371;</span>';
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
-const MT_APPVER = '3.0';
-const MT_BUILD = 'mt-v68';
-const MT_BUILD_DATE = '17/09/2026';
+const MT_APPVER = '1.0.0';
+const MT_BUILD = 'mt-v69';
+const MT_BUILD_DATE = '14/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
 // Champs d'identité d'une canette, dans l'ordre d'affichage
@@ -1992,9 +2028,8 @@ window.openCanModal = function (canId) {
   const setup = (c) => {
     document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
     document.getElementById('cm-id').value = (c && c.id) || '';
-    const map = { name: 'name', series: 'series', variant: 'variant', diff: 'variant_diff', cap: 'cap_color', fc: 'full_color', vol: 'volume', 'img-url': 'image_url' };
+    const map = { name: 'name', series: 'series', variant: 'variant', diff: 'variant_diff', cap: 'cap_color', fc: 'full_color', vol: 'volume' };
     Object.keys(map).forEach((f) => { document.getElementById('cm-' + f).value = (c && c[map[f]]) || ''; });
-    document.getElementById('cm-color').value = (c && c.accent_color) || '#39ff14';
     document.getElementById('cm-limited').checked = !!(c && c.is_limited);
     document.getElementById('cm-edition').value = (c && c.edition) || '';
     document.getElementById('cm-ingredients').value = (c && c.ingredients) || '';
@@ -2018,25 +2053,14 @@ window.handleImgFile = function (input) {
   compressImage(file, 900, 0.92).then((dataUrl) => mtNormalize(dataUrl)).then((dataUrl) => {
     const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
     prev.src = dataUrl; prev.style.display = 'block'; lbl.style.display = 'none';
-    document.getElementById('cm-img-url').value = '';
     input.dataset.compressed = dataUrl;
   });
-};
-window.previewUrl = function (url) {
-  const prev = document.getElementById('img-prev'), lbl = document.getElementById('img-lbl');
-  const u = (url || '').trim();
-  if (u) { prev.src = u; prev.style.display = 'block'; lbl.style.display = 'none'; document.getElementById('cm-img-file').value = ''; }
-  else { prev.style.display = 'none'; lbl.style.display = 'block'; }
-  if (u.indexOf('data:image') === 0) {
-    mtNormalize(u).then((nu) => { prev.src = nu; document.getElementById('cm-img-url').dataset.norm = nu; });
-  } else { delete document.getElementById('cm-img-url').dataset.norm; }
 };
 window.saveCan = function () {
   const name = document.getElementById('cm-name').value.trim();
   if (!name) { toast('Nom requis', 'err'); return; }
   const fi = document.getElementById('cm-img-file');
-  const urlEl = document.getElementById('cm-img-url');
-  const imageUrl = (fi.dataset && fi.dataset.compressed) || (urlEl.dataset && urlEl.dataset.norm) || urlEl.value.trim();
+  const imageUrl = (fi.dataset && fi.dataset.compressed) || null;
   const body = {
     name, series: document.getElementById('cm-series').value || null, variant: document.getElementById('cm-variant').value || null,
     variant_diff: document.getElementById('cm-diff').value.trim() || null,
@@ -2047,7 +2071,6 @@ window.saveCan = function () {
     ingredients: document.getElementById('cm-ingredients').value.trim() || null,
     can_images: _canImgs.length ? _canImgs.slice(0) : null,
     image_url: imageUrl || null,
-    accent_color: document.getElementById('cm-color').value || '#39ff14',
     updated_at: fst(),
   };
   const id = document.getElementById('cm-id').value;
@@ -2441,7 +2464,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=68', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=69', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

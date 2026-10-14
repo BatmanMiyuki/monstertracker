@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=68">
+<link rel="stylesheet" href="css/style.css?v=69">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -210,6 +210,15 @@
     <button class="btn-ghost" onclick="backFromCan()">&#8592; Retour</button>
   </div>
   <div id="cp-ct"></div>
+</div>
+
+<!-- TOUTES LES VARIANTES -->
+<div class="sec" id="sec-cvar">
+  <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div><h1 id="cv-title">VARIANTES</h1><p id="cv-sub"></p></div>
+    <button class="btn-ghost" onclick="goTab('can', null)">&#8592; Retour</button>
+  </div>
+  <div id="cv-ct"></div>
 </div>
 
 <!-- AMIS -->
@@ -576,14 +585,7 @@
       <div class="field"><label>Volume</label><input class="minput" type="text" id="cm-vol" placeholder="500ml, 355ml..."/></div>
     </div>
     <div class="field"><label>Ingrédients (un par ligne — sinon la composition type est affichée)</label><textarea class="minput" id="cm-ingredients" rows="4" placeholder="Eau gazéifiée&#10;Sucre&#10;Taurine (0,4 %)"></textarea></div>
-    <div class="field">
-      <label>Couleur d'accent de la carte</label>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <input type="color" id="cm-color" value="#39ff14" style="width:52px;height:42px;border:1px solid var(--br);background:var(--c1);padding:3px;cursor:pointer;flex-shrink:0;"/>
-        <div style="font-size:12px;color:var(--mu);line-height:1.5;">Couleur affichée en bas de la carte et derrière l'image.</div>
-      </div>
-    </div>
-    <div class="mdiv"></div>
+        <div class="mdiv"></div>
     <div class="mlbl">Infos</div>
     <div class="mrow">
     </div>
@@ -595,8 +597,7 @@
       <div class="img-sub">JPG, PNG, WEBP — max 5 Mo</div>
       <img id="img-prev" class="img-prev" alt=""/>
     </div>
-    <input class="minput" type="text" id="cm-img-url" placeholder="Ou colle une URL d'image..." oninput="previewUrl(this.value)" style="margin-top:6px;"/>
-    <div class="mdiv"></div>
+        <div class="mdiv"></div>
     <div class="mlbl">Images de la canette</div>
     <div style="font-size:12px;color:var(--mu);line-height:1.5;margin-bottom:8px;">Bannières, logos… elles s'affichent dans le bloc <b style="color:var(--tx);">IMAGES</b> de la page de la canette.</div>
     <div class="img-zone" id="cimg-zone">
@@ -701,6 +702,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=68"></script>
+<script type="module" src="js/app.js?v=69"></script>
 </body>
 </html>
