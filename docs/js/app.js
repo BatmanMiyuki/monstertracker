@@ -1180,8 +1180,24 @@ function renderCanPage() {
     } else if (!sibs.length) {
       varHtml = '<div class="cp-empty">Seule canette de la famille « ' + escapeHtml(can.family) + ' » pour le moment.</div>';
     } else {
+      // Les variantes restent visibles ici ; le bouton ouvre la page complète.
       varHtml = '<div class="cp-vbar"><div class="cp-vbar-t"><b>' + (sibs.length + 1) + ' variantes</b> dans la famille « ' + escapeHtml(can.family) + ' »</div>'
         + '<button class="btn-ghost cp-vbtn" onclick="openVariantsPage()">VOIR TOUTES LES VARIANTES</button></div>';
+      varHtml += '<div class="cp-vgrid">';
+      sibs.forEach((c) => {
+        const ph = c.image_url
+          ? '<img src="' + escapeHtml(c.image_url) + '" alt="" onload="mtImgFix(this)" onerror="this.style.display=\'none\'">'
+          : '<span class="cpv-no">&#129371;</span>';
+        const dif = mtDiffLabel(c);
+        const vsub = [c.country, c.volume, c.year].map((x) => mtVarClean(x)).filter(Boolean).join(' · ');
+        varHtml += '<div class="cpv' + (c.in_collection ? ' own' : '') + '" onclick="openCanPage(\'' + c.id + '\', false, true)">'
+          + '<div class="cpv-ph">' + ph + '</div>'
+          + '<div class="cpv-n">' + (c.is_main ? '<span class="cpv-star" title="Canette principale">&#9733;</span> ' : '') + escapeHtml(c.name) + '</div>'
+          + (dif ? '<div class="cpv-d">' + escapeHtml(dif) + '</div>' : '')
+          + (vsub ? '<div class="cpv-s">' + escapeHtml(vsub) + '</div>' : '')
+          + '<div class="cpv-b">' + (c.in_collection ? '&#10003; Possédée' : '+ À débloquer') + '</div></div>';
+      });
+      varHtml += '</div>';
     }
 
     // ── ingrédients ──
@@ -1667,7 +1683,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.0';
-const MT_BUILD = 'mt-v69';
+const MT_BUILD = 'mt-v70';
 const MT_BUILD_DATE = '14/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2464,7 +2480,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=69', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=70', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

@@ -885,3 +885,9 @@ body.light .icard{background:#fff;}
 /* Page « toutes les variantes » : grille qui passe à la ligne (pas de défilement) */
 #cv-ct .cp-vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;overflow:visible}
 #cv-ct .cpv{width:auto;min-width:0}
+
+/* v69.1 · cartes de variante : intérieur noir, photo fondue dans la carte */
+.cpv{background:#000;border-color:#1f1f1f;}
+.cpv:not(.own){border-color:#1f1f1f;}
+.cpv-ph img{mix-blend-mode:screen;}
+.cpv.own{border-color:var(--g);box-shadow:0 0 0 1px rgba(57,255,20,.15);}
