@@ -1565,9 +1565,12 @@ window.loadUpdates = function () {
 };
 // ── Succès (badges bêta) ──
 const MT_BADGES = [
-  { ico: '🏆', img: 'img/badges/premiere-canette.png?v=1', nom: 'Première canette', desc: 'Obtenir votre première canette', ok: (s) => s.owned >= 1 },
-  { ico: '🔟', nom: 'Collectionneur', desc: '10 canettes dans ta collection', ok: (s) => s.owned >= 10 },
-  { ico: '🏆', nom: 'Passionné', desc: '50 canettes dans ta collection', ok: (s) => s.owned >= 50 },
+  { img: 'img/badges/premiere-canette.png?v=2', ico: '🏆', nom: 'Première canette', desc: 'Obtenir votre première canette', ok: (s) => s.owned >= 1 },
+  { img: 'img/badges/canettes-5.png?v=1', ico: '🥫', nom: '5 canettes', desc: 'Avoir 5 canettes dans ta collection', ok: (s) => s.owned >= 5 },
+  { img: 'img/badges/canettes-10.png?v=1', ico: '🔟', nom: '10 canettes', desc: 'Avoir 10 canettes dans ta collection', ok: (s) => s.owned >= 10 },
+  { img: 'img/badges/canettes-25.png?v=1', ico: '🎖', nom: '25 canettes', desc: 'Avoir 25 canettes dans ta collection', ok: (s) => s.owned >= 25 },
+  { img: 'img/badges/canettes-50.png?v=1', ico: '🏅', nom: '50 canettes', desc: 'Avoir 50 canettes dans ta collection', ok: (s) => s.owned >= 50 },
+  { img: 'img/badges/canettes-100.png?v=1', ico: '👑', nom: '100 canettes', desc: 'Avoir 100 canettes dans ta collection', ok: (s) => s.owned >= 100 },
   { ico: '♥', nom: 'Envie', desc: 'Ajouter 1 canette à ta wishlist', ok: (s) => s.wish >= 1 },
   { ico: '🥤', nom: 'Dégustateur', desc: 'Marquer 1 canette comme bue', ok: (s) => s.drinks >= 1 },
   { ico: '🤝', nom: 'Social', desc: 'Avoir 1 ami', ok: (s) => s.friends >= 1 },
@@ -1589,16 +1592,19 @@ window.loadSucces = function () {
     let html = '<div style="padding:12px 14px;border:1px dashed var(--g);background:rgba(57,255,20,.06);font-size:12px;color:var(--tx);line-height:1.6;margin-bottom:16px;">'
       + '<b style="color:var(--g);">BADGES BÊTA</b> — ce sont des badges de test pour vérifier que tout fonctionne. Les vrais badges seront ajoutés plus tard.</div>';
     html += '<div style="font-size:13px;color:var(--mu);margin-bottom:14px;">' + done + ' / ' + MT_BADGES.length + ' débloqués</div>';
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">';
     MT_BADGES.forEach((b) => {
       const ok = b.ok(s);
-      html += '<div style="background:#000;border:1px solid ' + (ok ? 'var(--g)' : 'var(--br)') + ';padding:16px;opacity:' + (ok ? '1' : '.5') + ';">'
-        + (b.img
-          ? '<img src="' + b.img + '" alt="" style="display:block;width:96px;height:96px;object-fit:contain;margin-bottom:8px;' + (ok ? '' : 'filter:grayscale(1) brightness(.5);') + '"/>'
-          : '<div style="font-size:28px;margin-bottom:8px;">' + (ok ? b.ico : '🔒') + '</div>')
-        + '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;letter-spacing:1.5px;color:' + (ok ? 'var(--g)' : 'var(--tx)') + ';">' + escapeHtml(b.nom) + '</div>'
-        + '<div style="font-size:12px;color:var(--mu);line-height:1.5;margin-top:4px;">' + escapeHtml(b.desc) + '</div>'
-        + '<div style="font-size:10px;letter-spacing:2px;margin-top:10px;color:' + (ok ? 'var(--g)' : 'var(--mu)') + ';">' + (ok ? '✓ DÉBLOQUÉ' : 'VERROUILLÉ') + '</div></div>';
+      const ico = b.img
+        ? '<img src="' + b.img + '" alt="" style="width:64px;height:64px;flex:none;object-fit:contain;' + (ok ? '' : 'filter:grayscale(1) brightness(.45);') + '"/>'
+        : '<div style="width:64px;height:64px;flex:none;display:flex;align-items:center;justify-content:center;font-size:30px;' + (ok ? '' : 'filter:grayscale(1);') + '">' + (ok ? b.ico : '🔒') + '</div>';
+      html += '<div style="display:flex;align-items:center;gap:12px;background:#000;border:1px solid ' + (ok ? 'var(--g)' : 'var(--br)') + ';padding:10px 12px;opacity:' + (ok ? '1' : '.6') + ';">'
+        + ico
+        + '<div style="min-width:0;">'
+        + '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:18px;letter-spacing:1.5px;color:' + (ok ? 'var(--g)' : 'var(--tx)') + ';">' + escapeHtml(b.nom) + '</div>'
+        + '<div style="font-size:12px;color:var(--mu);line-height:1.4;">' + escapeHtml(b.desc) + '</div>'
+        + '<div style="font-size:10px;letter-spacing:2px;margin-top:4px;color:' + (ok ? 'var(--g)' : 'var(--mu)') + ';">' + (ok ? '✓ DÉBLOQUÉ' : 'VERROUILLÉ') + '</div>'
+        + '</div></div>';
     });
     html += '</div>';
     el.innerHTML = html;
@@ -1917,7 +1923,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v79';
+const MT_BUILD = 'mt-v80';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2726,7 +2732,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=79', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=80', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
