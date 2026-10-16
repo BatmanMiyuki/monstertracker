@@ -1647,7 +1647,7 @@ function mtFindEan(code) {
 
 // ── Bannière MonsterTracker en bas de chaque annonce ──
 function mtBannerHtml() {
-  return '<div style="margin-top:22px;"><img src="img/banner-mt.png" alt="MonsterTracker" style="display:block;width:100%;height:auto;border:1px solid var(--g);"/></div>';
+  return '<div style="margin-top:22px;"><img src="img/banner-mt.png?v=2" alt="MonsterTracker" style="display:block;width:100%;height:auto;border:1px solid var(--g);"/></div>';
 }
 
 window.viewUpdate = function (id) {
