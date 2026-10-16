@@ -135,7 +135,8 @@ async function main() {
     sendAll.push({ msg: { title: 'Mise à jour disponible', body: `La version ${version} est disponible. Ouvre l'app pour mettre à jour.`, tag: 'maj-' + version }, to: null });
   }
   const seenU = new Set(state.seen_updates);
-  for (const u of updates.filter((u) => !seenU.has(u.id))) {
+  // une annonce liée à une version ne notifie pas : c'est la notification « Mise à jour disponible » qui le fait
+  for (const u of updates.filter((u) => !seenU.has(u.id) && !u.app_version)) {
     sendAll.push({ msg: { title: 'Nouvelle annonce : ' + (u.title || ''), body: String(u.content || '').slice(0, 140), tag: 'ann-' + u.id }, to: null });
   }
   const seenF = new Set(state.seen_fr);
