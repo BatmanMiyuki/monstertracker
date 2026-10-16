@@ -1565,12 +1565,12 @@ window.loadUpdates = function () {
 };
 // ── Succès (badges bêta) ──
 const MT_BADGES = [
-  { img: 'img/badges/premiere-canette.png?v=2', ico: '🏆', nom: 'Première canette', desc: 'Obtenir votre première canette', ok: (s) => s.owned >= 1 },
-  { img: 'img/badges/canettes-5.png?v=1', ico: '🥫', nom: '5 canettes', desc: 'Avoir 5 canettes dans ta collection', ok: (s) => s.owned >= 5 },
-  { img: 'img/badges/canettes-10.png?v=1', ico: '🔟', nom: '10 canettes', desc: 'Avoir 10 canettes dans ta collection', ok: (s) => s.owned >= 10 },
-  { img: 'img/badges/canettes-25.png?v=1', ico: '🎖', nom: '25 canettes', desc: 'Avoir 25 canettes dans ta collection', ok: (s) => s.owned >= 25 },
-  { img: 'img/badges/canettes-50.png?v=1', ico: '🏅', nom: '50 canettes', desc: 'Avoir 50 canettes dans ta collection', ok: (s) => s.owned >= 50 },
-  { img: 'img/badges/canettes-100.png?v=1', ico: '👑', nom: '100 canettes', desc: 'Avoir 100 canettes dans ta collection', ok: (s) => s.owned >= 100 },
+  { img: 'img/badges/canettes-1.png?v=1', ico: '🥫', nom: 'Première canette', desc: 'Obtenir votre première canette', ok: (s) => s.owned >= 1 },
+  { img: 'img/badges/canettes-5.png?v=2', ico: '🥫', nom: '5 canettes', desc: 'Avoir 5 canettes dans ta collection', ok: (s) => s.owned >= 5 },
+  { img: 'img/badges/canettes-10.png?v=2', ico: '🔟', nom: '10 canettes', desc: 'Avoir 10 canettes dans ta collection', ok: (s) => s.owned >= 10 },
+  { img: 'img/badges/canettes-25.png?v=2', ico: '🎖', nom: '25 canettes', desc: 'Avoir 25 canettes dans ta collection', ok: (s) => s.owned >= 25 },
+  { img: 'img/badges/canettes-50.png?v=2', ico: '🏅', nom: '50 canettes', desc: 'Avoir 50 canettes dans ta collection', ok: (s) => s.owned >= 50 },
+  { img: 'img/badges/canettes-100.png?v=2', ico: '👑', nom: '100 canettes', desc: 'Avoir 100 canettes dans ta collection', ok: (s) => s.owned >= 100 },
   { ico: '♥', nom: 'Envie', desc: 'Ajouter 1 canette à ta wishlist', ok: (s) => s.wish >= 1 },
   { ico: '🥤', nom: 'Dégustateur', desc: 'Marquer 1 canette comme bue', ok: (s) => s.drinks >= 1 },
   { ico: '🤝', nom: 'Social', desc: 'Avoir 1 ami', ok: (s) => s.friends >= 1 },
