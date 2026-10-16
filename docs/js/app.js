@@ -1957,7 +1957,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v84';
+const MT_BUILD = 'mt-v85';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2475,7 +2475,7 @@ window.saveUpdate = function () {
   if (!t || !ct) { toast('Titre et contenu requis', 'err'); return; }
   const av = ((document.getElementById('um-ver') || {}).value || '').trim();
   if (av && !/^\d+\.\d+\.\d+$/.test(av)) { toast('Version au format 1.0.2 (ou vide)', 'err'); return; }
-  addDoc(collection(db, 'updates'), { title: t, content: ct, created_at: fst(), app_version: av || null }).then(() => { toast('Annonce publiée ✓'); closeModal('update'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err'));
+  addDoc(collection(db, 'updates'), { title: t, content: ct, created_at: fst(), app_version: av || null, notify: !!(document.getElementById('um-notify') || {}).checked }).then(() => { toast('Annonce publiée ✓'); closeModal('update'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err'));
 };
 window.delUpdate = (id) => { if (!confirm('Supprimer cette annonce ?')) return; deleteDoc(doc(db, 'updates', id)).then(() => { toast('Supprimée ✓'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err')); };
 
@@ -2766,7 +2766,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=84', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=85', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
