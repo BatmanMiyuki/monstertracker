@@ -123,7 +123,8 @@ async function main() {
   const state = {
     last_version: st.last_version || null,
     seen_updates: Array.isArray(st.seen_updates) ? st.seen_updates : [],
-    seen_fr: Array.isArray(st.seen_fr) ? st.seen_fr : [],
+    // 1er passage après cette mise à jour : les demandes déjà en attente sont mémorisées sans envoi
+    seen_fr: Array.isArray(st.seen_fr) ? st.seen_fr : frIds,
   };
 
   // Liste des envois : { msg, tokens } (tokens = appareils du destinataire)
