@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=75">
+<link rel="stylesheet" href="css/style.css?v=76">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -328,6 +328,12 @@
         <div class="appver-row"><span>Version</span><b id="set-appver">—</b></div>
         <div class="appver-row"><span>Mise en ligne</span><b id="set-appdate">—</b></div>
       </div>
+    </div>
+    <div class="scard">
+      <div class="scard-t">Notifications</div>
+      <div style="font-size:12px;color:var(--mu);line-height:1.5;margin-bottom:10px;">Reçois une notification quand une mise à jour ou une nouvelle annonce est publiée.</div>
+      <button class="btn-ghost" id="push-btn" onclick="mtPushClick()" style="width:100%;padding:10px 12px;border-color:var(--g);color:var(--g);">🔔 Activer les notifications</button>
+      <div id="push-msg" style="font-size:11px;color:var(--mu);margin-top:8px;line-height:1.5;"></div>
     </div>
   </div>
 </div>
@@ -708,6 +714,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=75"></script>
+<script type="module" src="js/app.js?v=76"></script>
 </body>
 </html>

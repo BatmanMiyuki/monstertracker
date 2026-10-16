@@ -378,7 +378,53 @@ function _setupAppUI() {
   document.querySelectorAll('.theme-btn').forEach((b) => b.classList.remove('on'));
   ['th-', 'adm-th-'].forEach((p) => { const b = document.getElementById(p + (user.theme || 'dark')); if (b) b.classList.add('on'); });
 }
+// ── Notifications push (FCM, gratuit) ──
+const MT_VAPID = 'BL8Gn-XcREiGNuqSzZPy3WrZ2U0qp1ckBf-S7bdQytAv93yHKqRoQk8ErZFNSm8nIJKj-XZii0mMW65WHC1YeG8';
+function mtIsIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function mtIsStandalone() { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; }
+function mtPushShow(txt, ok) {
+  const el = document.getElementById('push-msg'); const b = document.getElementById('push-btn');
+  if (el) { el.textContent = txt; el.style.color = ok ? 'var(--g)' : 'var(--mu)'; }
+  if (b) b.textContent = ok ? '✓ Notifications activées' : '🔔 Activer les notifications';
+}
+async function mtPushRegister(askPerm) {
+  if (!auth.currentUser) return 'nouser';
+  if (!('serviceWorker' in navigator) || !('Notification' in window) || !('PushManager' in window)) return 'unsupported';
+  if (mtIsIOS() && !mtIsStandalone()) return 'ioshome';
+  let perm = Notification.permission;
+  if (perm === 'default' && askPerm) perm = await Notification.requestPermission();
+  if (perm !== 'granted') return perm;
+  const reg = await navigator.serviceWorker.ready;
+  const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js');
+  const token = await getToken(getMessaging(app), { vapidKey: MT_VAPID, serviceWorkerRegistration: reg });
+  if (!token) return 'notoken';
+  if (localStorage.getItem('mt-push-token') !== token) {
+    await setDoc(doc(db, 'fcm_tokens', auth.currentUser.uid), { tokens: arrayUnion(token), updated_at: serverTimestamp() }, { merge: true });
+    localStorage.setItem('mt-push-token', token);
+  }
+  return 'granted';
+}
+window.mtPushClick = () => {
+  mtPushRegister(true).then((r) => {
+    const msgs = {
+      granted: ['Notifications activées sur cet appareil ✓', true],
+      denied: ['Bloquées par le navigateur. Réactive-les dans les réglages du téléphone ou du navigateur.', false],
+      default: ['Autorisation non donnée.', false],
+      ioshome: ['Sur iPhone : ajoute d\u2019abord l\u2019app à l\u2019écran d\u2019accueil (Partager → Sur l\u2019écran d\u2019accueil), puis rouvre-la depuis cet écran.', false],
+      unsupported: ['Ton navigateur ne gère pas les notifications.', false],
+    };
+    const m = msgs[r] || ['Impossible d\u2019activer pour le moment (' + r + ').', false];
+    mtPushShow(m[0], m[1]);
+  }).catch((e) => mtPushShow('Erreur : ' + e.message, false));
+};
+function mtPushSilent() {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    mtPushRegister(false).then((r) => { if (r === 'granted') mtPushShow('Notifications activées sur cet appareil ✓', true); }).catch(() => {});
+  }
+}
+
 function showApp() {
+  mtPushSilent();
   _setupAppUI();
   go('app');
   startPolling();
@@ -1781,8 +1827,8 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v75';
-const MT_BUILD_DATE = '14/10/2026';
+const MT_BUILD = 'mt-v76';
+const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
 // Champs d'identité d'une canette, dans l'ordre d'affichage
@@ -2589,7 +2635,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=75', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=76', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

@@ -119,6 +119,13 @@ service cloud.firestore {
       allow write: if estAdmin();
     }
 
+    // ─────────── APPAREILS POUR LES NOTIFICATIONS (jetons push) ───────────
+    // chacun enregistre ses propres jetons ; seul le serveur d'envoi les lit
+    match /fcm_tokens/{uid} {
+      allow read: if estAdmin();
+      allow create, update, delete: if connecte() && uid == moi();
+    }
+
     // ─────────── TOUT LE RESTE EST INTERDIT ───────────
     match /{document=**} {
       allow read, write: if false;
