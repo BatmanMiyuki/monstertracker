@@ -16,3 +16,4 @@ jobs:
       - run: node scripts/notify.mjs
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+
