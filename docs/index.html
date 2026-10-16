@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=71">
+<link rel="stylesheet" href="css/style.css?v=72">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -480,6 +480,7 @@
       <div class="field" style="margin-top:14px;"><label>Changer la version (visible par tous les utilisateurs)</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;"><input class="minput" type="text" id="adm-ver-new" placeholder="ex. 1.0.2" style="flex:1;min-width:140px;"/><button class="btn-add" onclick="saveAppVersion()">ENREGISTRER</button></div>
         <div style="font-size:12px;color:var(--mu);margin-top:6px;">Format x.y.z. La date de mise en ligne prend la date du jour.</div>
+        <label class="chk" style="margin-top:12px;"><input type="checkbox" id="adm-ver-block" onchange="this.dataset.dirty='1'"/> <span>Bloquer les anciennes versions (page « mise à jour requise » obligatoire). Décoché = simple bannière « mise à jour disponible ».</span></label>
       </div>
     </div>
     <div style="background:var(--c1);border:1px solid var(--br);padding:22px;margin-bottom:14px;">
@@ -629,6 +630,7 @@
   <div class="mbody">
     <div class="field"><label>Titre *</label><input class="minput" type="text" id="um-title" placeholder="Nouvelles canettes..."/></div>
     <div class="field"><label>Contenu *</label><textarea class="mta" id="um-content" placeholder="Décris la mise à jour..."></textarea></div>
+    <div class="field"><label>Version concernée (optionnel)</label><input class="minput" type="text" id="um-ver" placeholder="ex. 1.0.2 — vide = visible par tous"/><div style="font-size:12px;color:var(--mu);margin-top:6px;">Cette annonce n'apparaît qu'aux utilisateurs qui ont cette version (ou une plus récente).</div></div>
   </div>
   <div class="mfoot"><button class="btn-ghost" onclick="closeModal('update')">ANNULER</button><button class="btn-save" onclick="saveUpdate()">PUBLIER</button></div>
 </div>
@@ -706,6 +708,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=71"></script>
+<script type="module" src="js/app.js?v=72"></script>
 </body>
 </html>

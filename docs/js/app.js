@@ -386,12 +386,61 @@ function showApp() {
   processPendingAdd();
 }
 
+// Comparaison de versions x.y.z (1.0.10 > 1.0.9)
+function mtVerCmp(a, b) {
+  const x = String(a || '0').split('.').map(Number), y = String(b || '0').split('.').map(Number);
+  for (let i = 0; i < 3; i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0 ? 1 : -1; }
+  return 0;
+}
+// Une annonce liée à une version n'est visible que par ceux qui ont cette version (ou plus récente)
+function mtUpdVisible(u) { return !u || !u.app_version || mtVerCmp(MT_APPVER, u.app_version) >= 0; }
+window.mtUpdVisible = mtUpdVisible;
+
+// Mise à jour : on vide le cache et on recharge le code le plus récent
+window.mtUpdateNow = async function () {
+  try {
+    if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map((r) => r.unregister())); }
+    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
+  } catch (e) {}
+  location.replace(location.pathname + '?maj=' + Date.now());
+};
+window.mtDismissBanner = function (v) { try { sessionStorage.setItem('mt-banner-dismiss', v); } catch (e) {} const b = document.getElementById('mt-banner'); if (b) b.remove(); };
+
+// Affiche soit une bannière (mise à jour conseillée), soit une page bloquante (version obligatoire)
+function mtCheckVersion() {
+  const live = _appVerLive && _appVerLive.version;
+  let g = document.getElementById('mt-gate'), b = document.getElementById('mt-banner');
+  const old = !!live && mtVerCmp(MT_APPVER, live) < 0;
+  if (!old) { if (g) g.remove(); if (b) b.remove(); return; }
+  if (_appVerLive.block) {
+    if (b) b.remove();
+    if (!g) { g = document.createElement('div'); g.id = 'mt-gate'; document.body.appendChild(g); }
+    g.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:#000;color:#f0f0f0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;gap:14px;');
+    g.innerHTML = '<div style="font-size:12px;letter-spacing:3px;color:#39ff14;font-weight:900;">MISE À JOUR REQUISE</div>'
+      + '<div style="font-size:26px;font-weight:900;">Une nouvelle version de MonsterTracker est disponible</div>'
+      + '<div style="color:#888;font-size:14px;">Ta version : ' + escapeHtml(MT_APPVER) + ' → Nouvelle version : <b style="color:#39ff14;">' + escapeHtml(live) + '</b></div>'
+      + '<div style="margin-top:10px;"><button onclick="mtUpdateNow()" style="background:#39ff14;color:#000;border:0;padding:12px 22px;font-weight:900;letter-spacing:2px;cursor:pointer;font-size:14px;">METTRE À JOUR</button></div>'
+      + '<div style="color:#666;font-size:12px;max-width:340px;">L\'app ne peut pas être utilisée tant que la mise à jour n\'est pas faite.</div>';
+    return;
+  }
+  if (g) g.remove();
+  try { if (sessionStorage.getItem('mt-banner-dismiss') === live) return; } catch (e) {}
+  if (!b) { b = document.createElement('div'); b.id = 'mt-banner'; document.body.appendChild(b); }
+  b.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:9998;background:#39ff14;color:#000;padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;font-weight:900;font-size:13px;');
+  b.innerHTML = '<span>Mise à jour disponible : ' + escapeHtml(live) + '</span>'
+    + '<button onclick="mtUpdateNow()" style="background:#000;color:#39ff14;border:0;padding:7px 14px;font-weight:900;cursor:pointer;">METTRE À JOUR</button>'
+    + '<button onclick="mtDismissBanner(\'' + escapeHtml(live) + '\')" style="background:transparent;color:#000;border:1px solid #000;padding:6px 10px;cursor:pointer;">Plus tard</button>';
+}
+
 // ── Version de l'app (pilotée par l'admin, en temps réel pour tous) ──
 onSnapshot(doc(db, 'settings', 'appversion'), (snap) => {
   _appVerLive = snap.exists() ? snap.data() : null;
   if (window.showAppInfo) showAppInfo();
   const inp = document.getElementById('adm-ver-new');
   if (inp && !inp.value) inp.value = (_appVerLive && _appVerLive.version) || MT_APPVER;
+  const cb = document.getElementById('adm-ver-block');
+  if (cb && !cb.dataset.dirty) cb.checked = !!(_appVerLive && _appVerLive.block);
+  if (document.body) mtCheckVersion();
 }, () => {});
 
 // ── Maintenance ─
@@ -1407,7 +1456,7 @@ window.loadUpdates = function () {
     getDocs(query(collection(db, 'updates'), orderBy('created_at', 'desc'))),
     getDocs(query(collection(db, 'messages'), where('uid', '==', user.uid))),
   ]).then((res) => {
-    const updates = res[0].docs.map((d) => Object.assign({ id: d.id }, d.data()));
+    const updates = res[0].docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(mtUpdVisible);
     const replies = res[1].docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((m) => !!m.reply);
     _viewUpdates = updates; _viewReplies = replies;
     let html = '';
@@ -1695,7 +1744,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v71';
+const MT_BUILD = 'mt-v72';
 const MT_BUILD_DATE = '14/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2206,11 +2255,13 @@ window.loadAdmUpdates = function () {
     document.getElementById('adm-updates-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Titre</th><th>Contenu</th><th>Date</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }).catch((e) => { document.getElementById('adm-updates-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
-window.openUpdateModal = function () { document.getElementById('um-title').value = ''; document.getElementById('um-content').value = ''; document.getElementById('modal-update').classList.add('on'); };
+window.openUpdateModal = function () { document.getElementById('um-title').value = ''; document.getElementById('um-content').value = ''; const uv = document.getElementById('um-ver'); if (uv) uv.value = (_appVerLive && _appVerLive.version) || MT_APPVER; document.getElementById('modal-update').classList.add('on'); };
 window.saveUpdate = function () {
   const t = document.getElementById('um-title').value.trim(), ct = document.getElementById('um-content').value.trim();
   if (!t || !ct) { toast('Titre et contenu requis', 'err'); return; }
-  addDoc(collection(db, 'updates'), { title: t, content: ct, created_at: fst() }).then(() => { toast('Annonce publiée ✓'); closeModal('update'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err'));
+  const av = ((document.getElementById('um-ver') || {}).value || '').trim();
+  if (av && !/^\d+\.\d+\.\d+$/.test(av)) { toast('Version au format 1.0.2 (ou vide)', 'err'); return; }
+  addDoc(collection(db, 'updates'), { title: t, content: ct, created_at: fst(), app_version: av || null }).then(() => { toast('Annonce publiée ✓'); closeModal('update'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err'));
 };
 window.delUpdate = (id) => { if (!confirm('Supprimer cette annonce ?')) return; deleteDoc(doc(db, 'updates', id)).then(() => { toast('Supprimée ✓'); loadAdmUpdates(); }).catch((e) => toast(e.message, 'err')); };
 
@@ -2407,7 +2458,8 @@ window.saveAppVersion = function () {
   if (!/^\d+\.\d+\.\d+$/.test(v)) { toast('Format attendu : 1.0.2', 'err'); return; }
   const d = new Date();
   const date = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
-  setDoc(doc(db, 'settings', 'appversion'), { version: v, date: date, updated_at: fst() })
+  const block = !!(document.getElementById('adm-ver-block') || {}).checked;
+  setDoc(doc(db, 'settings', 'appversion'), { version: v, date: date, block: block, updated_at: fst() })
     .then(() => { toast('Version ' + v + ' publiée ✓'); })
     .catch((e) => toast(e.message, 'err'));
 };
@@ -2501,7 +2553,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=71', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=72', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
@@ -2546,7 +2598,7 @@ window.updateUpdatesBadge = function () {
   if (!seen) { seen = new Date().toISOString(); localStorage.setItem(updSeenKey(), seen); }
   getDocs(query(collection(db, 'updates'), orderBy('created_at', 'desc'))).then((s) => {
     let n = 0;
-    s.docs.forEach((d) => { const dt = tsToDate(d.data().created_at); if (dt && dt.toISOString() > seen) n++; });
+    s.docs.forEach((d) => { const dt = tsToDate(d.data().created_at); if (dt && dt.toISOString() > seen && mtUpdVisible(d.data())) n++; });
     setBadge('updates-badge', n);
     const bb = document.getElementById('burger-badge');
     if (bb) { bb.textContent = n; bb.style.display = n > 0 ? 'flex' : 'none'; }
