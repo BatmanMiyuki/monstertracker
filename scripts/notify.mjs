@@ -1,7 +1,7 @@
 // MonsterTracker — envoi des notifications push (gratuit, sans Cloud Functions)
 // Lancé toutes les 10 min par GitHub Actions (.github/workflows/notify.yml).
-// Regarde : la version de l'app (settings/appversion) et les annonces (updates).
-// Envoie : « Mise à jour disponible » si la version change, « Nouvelle annonce » pour chaque nouvelle.
+// Regarde : la version de l'app (settings/appversion) et les demandes d'amis en attente.
+// Envoie : « Mise à jour disponible » si la version change, « Nouvelle demande d'ami » aux destinataires.
 // Mémoire : document notif_state/main (écrit par le serveur seulement).
 // Premier passage : on mémorise l'état SANS rien envoyer (pas de spam au démarrage).
 import crypto from 'node:crypto';
@@ -133,11 +133,6 @@ async function main() {
 
   if (version && version !== state.last_version) {
     sendAll.push({ msg: { title: 'Mise à jour disponible', body: `La version ${version} est disponible. Ouvre l'app pour mettre à jour.`, tag: 'maj-' + version }, to: null });
-  }
-  const seenU = new Set(state.seen_updates);
-  // seules les annonces cochées « Envoyer une notification » sont envoyées, jamais celles liées à une version
-  for (const u of updates.filter((u) => !seenU.has(u.id) && u.notify === true && !u.app_version)) {
-    sendAll.push({ msg: { title: 'Nouvelle annonce : ' + (u.title || ''), body: String(u.content || '').slice(0, 140), tag: 'ann-' + u.id }, to: null });
   }
   const seenF = new Set(state.seen_fr);
   for (const r of frs.filter((r) => !seenF.has(r.id))) {

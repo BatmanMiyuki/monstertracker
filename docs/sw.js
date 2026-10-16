@@ -18,9 +18,9 @@ self.addEventListener('notificationclick', (e) => {
 
 // MonsterTracker statique — Service Worker
 // Cache d'abord (network-first en ligne, cache en secours) → fonctionne hors-ligne une fois visité.
-const CACHE = 'mt-v85';
-const IMGS = 'mt-img-v85';
-const SHELL = ['./', './index.html', './support.html', './css/style.css?v=85', './js/app.js?v=85', './js/support.js', './js/qrcode.min.js', './icon.png', './img/logo-wordmark.png', './manifest.json'];
+const CACHE = 'mt-v86';
+const IMGS = 'mt-img-v86';
+const SHELL = ['./', './index.html', './support.html', './css/style.css?v=86', './js/app.js?v=86', './js/support.js', './js/qrcode.min.js', './icon.png', './img/logo-wordmark.png', './manifest.json'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

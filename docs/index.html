@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=85">
+<link rel="stylesheet" href="css/style.css?v=86">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -654,8 +654,7 @@
   <div class="mbody">
     <div class="field"><label>Titre *</label><input class="minput" type="text" id="um-title" placeholder="Nouvelles canettes..."/></div>
     <div class="field"><label>Contenu *</label><textarea class="mta" id="um-content" placeholder="Décris la mise à jour..."></textarea></div>
-    <div class="field" style="display:flex;align-items:center;gap:10px;"><input type="checkbox" id="um-notify" style="width:18px;height:18px;"/><label for="um-notify" style="margin:0;">Envoyer une notification aux utilisateurs</label></div>
-    <div class="field"><label>Version concernée (optionnel)</label><input class="minput" type="text" id="um-ver" placeholder="ex. 1.0.2 — vide = visible par tous"/><div style="font-size:12px;color:var(--mu);margin-top:6px;">Cette annonce n'apparaît qu'aux utilisateurs qui ont cette version (ou une plus récente).</div></div>
+        <div class="field"><label>Version concernée (optionnel)</label><input class="minput" type="text" id="um-ver" placeholder="ex. 1.0.2 — vide = visible par tous"/><div style="font-size:12px;color:var(--mu);margin-top:6px;">Cette annonce n'apparaît qu'aux utilisateurs qui ont cette version (ou une plus récente).</div></div>
   </div>
   <div class="mfoot"><button class="btn-ghost" onclick="closeModal('update')">ANNULER</button><button class="btn-save" onclick="saveUpdate()">PUBLIER</button></div>
 </div>
@@ -733,6 +732,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=85"></script>
+<script type="module" src="js/app.js?v=86"></script>
 </body>
 </html>
