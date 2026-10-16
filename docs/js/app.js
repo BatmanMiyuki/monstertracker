@@ -1571,7 +1571,40 @@ const MT_BADGES = [
   { img: 'img/badges/canettes-25.png?v=3', ico: '🎖', nom: '25 canettes', desc: 'Avoir 25 canettes dans ta collection', ok: (s) => s.owned >= 25 },
   { img: 'img/badges/canettes-50.png?v=3', ico: '🏅', nom: '50 canettes', desc: 'Avoir 50 canettes dans ta collection', ok: (s) => s.owned >= 50 },
   { img: 'img/badges/canettes-100.png?v=3', ico: '👑', nom: '100 canettes', desc: 'Avoir 100 canettes dans ta collection', ok: (s) => s.owned >= 100 },
+  { img: 'img/badges/ultra-master.png?v=1', ico: '⚡', nom: 'Ultra Master', desc: 'Posséder toutes les Ultra (hors variantes)', ok: (s) => s.ultraTotal > 0 && s.ultraOwned >= s.ultraTotal },
+  { img: 'img/badges/toutes-series.png?v=1', ico: '🌍', nom: 'Tour des séries', desc: 'Posséder au moins une canette de chaque série', ok: (s) => s.seriesTotal > 0 && s.seriesOwned >= s.seriesTotal },
 ];
+// ── Calcul des succès « Ultra » et « toutes les séries » ──
+// Une famille compte comme possédée si tu as sa canette principale (pas seulement une variante).
+function mtSuccesCalc(col, cansSnap) {
+  const norm = (x) => (x || '').trim().toLowerCase();
+  const famKey = (c) => norm(c.family) || norm(c.name);
+  const isVariant = (c) => { const v = norm(c.variant); return v !== '' && v !== '-'; };
+  const cans = {};
+  cansSnap.docs.forEach((d) => { cans[d.id] = d.data(); });
+  // familles Ultra et leur canette principale
+  const ultraFams = new Set(), famWithMain = new Set();
+  Object.values(cans).forEach((c) => {
+    if (norm(c.series) !== 'ultra') return;
+    ultraFams.add(famKey(c));
+    if (c.is_main === true) famWithMain.add(famKey(c));
+  });
+  const isPrincipal = (c) => c.is_main === true || (!famWithMain.has(famKey(c)) && !isVariant(c));
+  const ownedUltra = new Set(), ownedSeries = new Set(), allSeries = new Set();
+  Object.values(cans).forEach((c) => { if (norm(c.series)) allSeries.add(norm(c.series)); });
+  col.docs.forEach((d) => {
+    const c = cans[d.data().can_id];
+    if (!c) return;
+    if (norm(c.series)) ownedSeries.add(norm(c.series));
+    if (norm(c.series) === 'ultra' && isPrincipal(c)) ownedUltra.add(famKey(c));
+  });
+  return {
+    ultraTotal: ultraFams.size,
+    ultraOwned: [...ultraFams].filter((k) => ownedUltra.has(k)).length,
+    seriesTotal: allSeries.size,
+    seriesOwned: [...allSeries].filter((k) => ownedSeries.has(k)).length,
+  };
+}
 window.loadSucces = function () {
   const el = document.getElementById('succes-ct');
   if (!el || !auth.currentUser) return;
@@ -1582,8 +1615,9 @@ window.loadSucces = function () {
     getDocs(query(collection(db, 'wishlist'), where('uid', '==', uid))),
     getDocs(query(collection(db, 'drinks'), where('uid', '==', uid))),
     getDocs(query(collection(db, 'friends'), where('uid', '==', uid), where('status', '==', 'accepted'))),
-  ]).then(([col, wl, dr, fr]) => {
-    const s = { owned: col.size, wish: wl.size, drinks: dr.size, friends: fr.size };
+    getDocs(query(collection(db, 'cans'), where('is_published', '==', true))),
+  ]).then(([col, wl, dr, fr, cansSnap]) => {
+    const s = Object.assign({ owned: col.size, wish: wl.size, drinks: dr.size, friends: fr.size }, mtSuccesCalc(col, cansSnap));
     const done = MT_BADGES.filter((b) => b.ok(s)).length;
     let html = '<div style="padding:12px 14px;border:1px dashed var(--g);background:rgba(57,255,20,.06);font-size:12px;color:var(--tx);line-height:1.6;margin-bottom:16px;">'
       + '<b style="color:var(--g);">BADGES BÊTA</b> — ce sont des badges de test pour vérifier que tout fonctionne. Les vrais badges seront ajoutés plus tard.</div>';
@@ -1919,7 +1953,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v81';
+const MT_BUILD = 'mt-v82';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2728,7 +2762,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=81', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=82', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
