@@ -280,16 +280,18 @@ onAuthStateChanged(auth, (fbUser) => {
       if (snap.exists()) {
         user = Object.assign({ uid: fbUser.uid, email: fbUser.email }, snap.data());
         showApp();
+        mtCheckVersion();
       } else {
         const username = fbUser.email.split('@')[0];
         const code = Math.random().toString(36).substr(2, 8).toUpperCase();
         return setDoc(doc(db, 'users', fbUser.uid), { username, email: fbUser.email, role: 'user', theme: 'dark', avatar_url: null, user_code: code, created_at: fst() })
           .then(() => getDoc(doc(db, 'users', fbUser.uid)))
-          .then((s2) => { user = Object.assign({ uid: fbUser.uid, email: fbUser.email }, s2.data()); showApp(); });
+          .then((s2) => { user = Object.assign({ uid: fbUser.uid, email: fbUser.email }, s2.data()); showApp(); mtCheckVersion(); });
       }
     }).catch((e) => { toast('Erreur profil : ' + e.message, 'err'); });
   } else {
     user = null;
+    mtCheckVersion();
     document.body.classList.remove('adminwall');
     stopMaintListen(); stopChatPoll(); stopPolling();
     const ap = document.getElementById('page-app');
@@ -436,38 +438,29 @@ window.mtUpdateNow = async function () {
       + '<button onclick="mtUpdateNow()" style="background:#39ff14;color:#000;border:0;padding:12px 22px;font-weight:900;letter-spacing:2px;cursor:pointer;">RÉESSAYER</button>';
   }
 };
-window.mtDismissBanner = function (v) { try { sessionStorage.setItem('mt-banner-dismiss', v); } catch (e) {} const b = document.getElementById('mt-banner'); if (b) b.remove(); };
 
-// Affiche soit une bannière (mise à jour conseillée), soit une page bloquante (version obligatoire)
+// Page plein écran obligatoire pour tout utilisateur qui n'est pas sur la dernière version.
+// L'admin n'est jamais bloqué (il ne se met pas à jour, c'est le déploiement qui change).
 function mtCheckVersion() {
   if (window._mtUpdating) return;
   const live = _appVerLive && _appVerLive.version;
-  let g = document.getElementById('mt-gate'), b = document.getElementById('mt-banner');
-  const old = !!live && mtVerCmp(MT_APPVER, live) < 0;
+  const bn = document.getElementById('mt-banner'); if (bn) bn.remove();
+  let g = document.getElementById('mt-gate');
+  const admin = !!(user && user.role === 'admin');
+  const old = !!live && mtVerCmp(MT_APPVER, live) < 0 && !admin;
   if (!old) {
-    if (g) g.remove(); if (b) b.remove();
+    if (g) g.remove();
     let fresh = null; try { fresh = sessionStorage.getItem('mt-updated'); sessionStorage.removeItem('mt-updated'); } catch (e) {}
     if (fresh) setTimeout(() => toast('L\'App est à jour ✓ — version ' + MT_APPVER), 600);
     return;
   }
-  if (_appVerLive.block) {
-    if (b) b.remove();
-    if (!g) { g = document.createElement('div'); g.id = 'mt-gate'; document.body.appendChild(g); }
-    g.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:#000;color:#f0f0f0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;gap:14px;');
-    g.innerHTML = '<div style="font-size:12px;letter-spacing:3px;color:#39ff14;font-weight:900;">MISE À JOUR REQUISE</div>'
-      + '<div style="font-size:26px;font-weight:900;">Une nouvelle version de MonsterTracker est disponible</div>'
-      + '<div style="color:#888;font-size:14px;">Ta version : ' + escapeHtml(MT_APPVER) + ' → Nouvelle version : <b style="color:#39ff14;">' + escapeHtml(live) + '</b></div>'
-      + '<div style="margin-top:10px;"><button onclick="mtUpdateNow()" style="background:#39ff14;color:#000;border:0;padding:12px 22px;font-weight:900;letter-spacing:2px;cursor:pointer;font-size:14px;">METTRE À JOUR</button></div>'
-      + '<div style="color:#666;font-size:12px;max-width:340px;">L\'app ne peut pas être utilisée tant que la mise à jour n\'est pas faite.</div>';
-    return;
-  }
-  if (g) g.remove();
-  try { if (sessionStorage.getItem('mt-banner-dismiss') === live) return; } catch (e) {}
-  if (!b) { b = document.createElement('div'); b.id = 'mt-banner'; document.body.appendChild(b); }
-  b.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:9998;background:#39ff14;color:#000;padding:10px 14px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;font-weight:900;font-size:13px;');
-  b.innerHTML = '<span>Mise à jour disponible : ' + escapeHtml(live) + '</span>'
-    + '<button onclick="mtUpdateNow()" style="background:#000;color:#39ff14;border:0;padding:7px 14px;font-weight:900;cursor:pointer;">METTRE À JOUR</button>'
-    + '<button onclick="mtDismissBanner(\'' + escapeHtml(live) + '\')" style="background:transparent;color:#000;border:1px solid #000;padding:6px 10px;cursor:pointer;">Plus tard</button>';
+  if (!g) { g = document.createElement('div'); g.id = 'mt-gate'; document.body.appendChild(g); }
+  g.setAttribute('style', 'position:fixed;inset:0;z-index:99999;background:#000;color:#f0f0f0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;gap:14px;');
+  g.innerHTML = '<div style="font-size:12px;letter-spacing:3px;color:#39ff14;font-weight:900;">MISE À JOUR REQUISE</div>'
+    + '<div style="font-size:26px;font-weight:900;">Une nouvelle version de MonsterTracker est disponible</div>'
+    + '<div style="color:#888;font-size:14px;">Ta version : ' + escapeHtml(MT_APPVER) + ' → Nouvelle version : <b style="color:#39ff14;">' + escapeHtml(live) + '</b></div>'
+    + '<div style="margin-top:10px;"><button onclick="mtUpdateNow()" style="background:#39ff14;color:#000;border:0;padding:12px 22px;font-weight:900;letter-spacing:2px;cursor:pointer;font-size:14px;">METTRE À JOUR</button></div>'
+    + '<div style="color:#666;font-size:12px;max-width:340px;">L\'application ne peut pas être utilisée tant que la mise à jour n\'est pas faite.</div>';
 }
 
 // ── Version de l'app (pilotée par l'admin, en temps réel pour tous) ──
@@ -476,8 +469,6 @@ onSnapshot(doc(db, 'settings', 'appversion'), (snap) => {
   if (window.showAppInfo) showAppInfo();
   const inp = document.getElementById('adm-ver-new');
   if (inp && !inp.value) inp.value = (_appVerLive && _appVerLive.version) || MT_APPVER;
-  const cb = document.getElementById('adm-ver-block');
-  if (cb && !cb.dataset.dirty) cb.checked = !!(_appVerLive && _appVerLive.block);
   if (document.body) mtCheckVersion();
 }, () => {});
 
@@ -1782,7 +1773,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v73';
+const MT_BUILD = 'mt-v74';
 const MT_BUILD_DATE = '14/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2496,8 +2487,7 @@ window.saveAppVersion = function () {
   if (!/^\d+\.\d+\.\d+$/.test(v)) { toast('Format attendu : 1.0.2', 'err'); return; }
   const d = new Date();
   const date = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
-  const block = !!(document.getElementById('adm-ver-block') || {}).checked;
-  setDoc(doc(db, 'settings', 'appversion'), { version: v, date: date, block: block, updated_at: fst() })
+  setDoc(doc(db, 'settings', 'appversion'), { version: v, date: date, updated_at: fst() })
     .then(() => { toast('Version ' + v + ' publiée ✓'); })
     .catch((e) => toast(e.message, 'err'));
 };
@@ -2591,7 +2581,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=73', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=74', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
