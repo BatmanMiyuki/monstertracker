@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=77">
+<link rel="stylesheet" href="css/style.css?v=78">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -196,7 +196,7 @@
       <div class="crow"><div class="cbar"><i id="c-prog" style="width:0%"></i></div><b class="cpct" id="c-pct">0%</b></div>
     </div>
   </div>
-  <div style="margin-bottom:12px;"><button class="btn-ghost" onclick="openScan()" style="padding:10px 14px;border-color:var(--g);color:var(--g);">📷 Ajouter par code-barres <span style="font-size:10px;color:#000;background:var(--g);padding:2px 6px;letter-spacing:1px;margin-left:6px;">BÊTA</span></button></div>
+  <div style="margin-bottom:12px;"><button class="btn-ghost" disabled style="padding:10px 14px;opacity:.6;cursor:not-allowed;">📷 Ajouter par code-barres <span style="font-size:10px;color:var(--g);border:1px solid var(--g);padding:2px 6px;letter-spacing:1px;margin-left:6px;">À VENIR</span></button></div>
   <div class="catbar">
     <input class="sinput" id="col-search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
   </div>
@@ -732,6 +732,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=77"></script>
+<script type="module" src="js/app.js?v=78"></script>
 </body>
 </html>

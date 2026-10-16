@@ -1428,6 +1428,7 @@ function doFriendSearch() {
   }).catch((e) => setErr('friend-err', e.message));
 }
 function _friendResult(snap) {
+    const ok = document.getElementById('friend-ok');
     if (snap.empty) { setErr('friend-err', 'Aucun utilisateur trouvé avec ce pseudo ou ce code ami.'); return; }
     const uDoc = snap.docs[0];
     const u = Object.assign({ uid: uDoc.id }, uDoc.data());
@@ -1646,9 +1647,7 @@ function mtFindEan(code) {
 
 // ── Bannière MonsterTracker en bas de chaque annonce ──
 function mtBannerHtml() {
-  return '<div style="margin-top:22px;padding:16px;background:#000;border:1px solid var(--g);display:flex;align-items:center;gap:14px;">'
-    + '<img src="img/logo-wordmark.png" alt="MonsterTracker" style="height:34px;max-width:55%;object-fit:contain;"/>'
-    + '<div style="font-size:11px;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;line-height:1.5;">Collection Monster Energy<br/><span style="color:var(--g);">MonsterTracker</span></div></div>';
+  return '<div style="margin-top:22px;"><img src="img/banner-mt.png" alt="MonsterTracker" style="display:block;width:100%;height:auto;border:1px solid var(--g);"/></div>';
 }
 
 window.viewUpdate = function (id) {
@@ -1916,7 +1915,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v77';
+const MT_BUILD = 'mt-v78';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2725,7 +2724,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=77', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=78', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
