@@ -1565,16 +1565,12 @@ window.loadUpdates = function () {
 };
 // ── Succès (badges bêta) ──
 const MT_BADGES = [
-  { img: 'img/badges/canettes-1.png?v=1', ico: '🥫', nom: 'Première canette', desc: 'Obtenir votre première canette', ok: (s) => s.owned >= 1 },
-  { img: 'img/badges/canettes-5.png?v=2', ico: '🥫', nom: '5 canettes', desc: 'Avoir 5 canettes dans ta collection', ok: (s) => s.owned >= 5 },
-  { img: 'img/badges/canettes-10.png?v=2', ico: '🔟', nom: '10 canettes', desc: 'Avoir 10 canettes dans ta collection', ok: (s) => s.owned >= 10 },
-  { img: 'img/badges/canettes-25.png?v=2', ico: '🎖', nom: '25 canettes', desc: 'Avoir 25 canettes dans ta collection', ok: (s) => s.owned >= 25 },
-  { img: 'img/badges/canettes-50.png?v=2', ico: '🏅', nom: '50 canettes', desc: 'Avoir 50 canettes dans ta collection', ok: (s) => s.owned >= 50 },
-  { img: 'img/badges/canettes-100.png?v=2', ico: '👑', nom: '100 canettes', desc: 'Avoir 100 canettes dans ta collection', ok: (s) => s.owned >= 100 },
-  { ico: '♥', nom: 'Envie', desc: 'Ajouter 1 canette à ta wishlist', ok: (s) => s.wish >= 1 },
-  { ico: '🥤', nom: 'Dégustateur', desc: 'Marquer 1 canette comme bue', ok: (s) => s.drinks >= 1 },
-  { ico: '🤝', nom: 'Social', desc: 'Avoir 1 ami', ok: (s) => s.friends >= 1 },
-  { ico: '👥', nom: 'Bande de potes', desc: 'Avoir 5 amis', ok: (s) => s.friends >= 5 },
+  { img: 'img/badges/canettes-1.png?v=3', ico: '🥫', nom: 'Première canette', desc: 'Obtenir votre première canette', ok: (s) => s.owned >= 1 },
+  { img: 'img/badges/canettes-5.png?v=3', ico: '🥫', nom: '5 canettes', desc: 'Avoir 5 canettes dans ta collection', ok: (s) => s.owned >= 5 },
+  { img: 'img/badges/canettes-10.png?v=3', ico: '🔟', nom: '10 canettes', desc: 'Avoir 10 canettes dans ta collection', ok: (s) => s.owned >= 10 },
+  { img: 'img/badges/canettes-25.png?v=3', ico: '🎖', nom: '25 canettes', desc: 'Avoir 25 canettes dans ta collection', ok: (s) => s.owned >= 25 },
+  { img: 'img/badges/canettes-50.png?v=3', ico: '🏅', nom: '50 canettes', desc: 'Avoir 50 canettes dans ta collection', ok: (s) => s.owned >= 50 },
+  { img: 'img/badges/canettes-100.png?v=3', ico: '👑', nom: '100 canettes', desc: 'Avoir 100 canettes dans ta collection', ok: (s) => s.owned >= 100 },
 ];
 window.loadSucces = function () {
   const el = document.getElementById('succes-ct');
@@ -1923,7 +1919,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v80';
+const MT_BUILD = 'mt-v81';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2732,7 +2728,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=80', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=81', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
