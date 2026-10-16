@@ -223,7 +223,7 @@ window.goTab = (s, btn) => {
   document.querySelectorAll('.ntab').forEach((x) => x.classList.remove('on'));
   document.getElementById('sec-' + s).classList.add('on');
   if (btn) btn.classList.add('on');
-  const m = { home: loadHome, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings, 'adm-fams': loadAdmFams };
+  const m = { succes: loadSucces, home: loadHome, collection: loadCollection, friends: loadFriends, updates: loadUpdates, settings: loadSettings, 'adm-cans': loadAdmCans, 'adm-updates': loadAdmUpdates, 'adm-users': loadAdmUsers, 'adm-inbox': loadAdmInbox, 'adm-settings': loadAdmSettings, 'adm-fams': loadAdmFams };
   if (s === 'can') renderCanPage();
   if (s === 'cvar') renderVariantsPage();
   if (s === 'collection') loadCollection();
@@ -1562,11 +1562,100 @@ window.loadUpdates = function () {
     document.getElementById('updates-ct').innerHTML = html;
   }).catch((e) => { document.getElementById('updates-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
 };
+// ── Succès (badges bêta) ──
+const MT_BADGES = [
+  { ico: '🥫', nom: 'Premier pas', desc: 'Ajouter 1 canette à ta collection', ok: (s) => s.owned >= 1 },
+  { ico: '🔟', nom: 'Collectionneur', desc: '10 canettes dans ta collection', ok: (s) => s.owned >= 10 },
+  { ico: '🏆', nom: 'Passionné', desc: '50 canettes dans ta collection', ok: (s) => s.owned >= 50 },
+  { ico: '♥', nom: 'Envie', desc: 'Ajouter 1 canette à ta wishlist', ok: (s) => s.wish >= 1 },
+  { ico: '🥤', nom: 'Dégustateur', desc: 'Marquer 1 canette comme bue', ok: (s) => s.drinks >= 1 },
+  { ico: '🤝', nom: 'Social', desc: 'Avoir 1 ami', ok: (s) => s.friends >= 1 },
+  { ico: '👥', nom: 'Bande de potes', desc: 'Avoir 5 amis', ok: (s) => s.friends >= 5 },
+];
+window.loadSucces = function () {
+  const el = document.getElementById('succes-ct');
+  if (!el || !auth.currentUser) return;
+  el.innerHTML = lHtml();
+  const uid = auth.currentUser.uid;
+  Promise.all([
+    getDocs(query(collection(db, 'collection'), where('uid', '==', uid))),
+    getDocs(query(collection(db, 'wishlist'), where('uid', '==', uid))),
+    getDocs(query(collection(db, 'drinks'), where('uid', '==', uid))),
+    getDocs(query(collection(db, 'friends'), where('uid', '==', uid), where('status', '==', 'accepted'))),
+  ]).then(([col, wl, dr, fr]) => {
+    const s = { owned: col.size, wish: wl.size, drinks: dr.size, friends: fr.size };
+    const done = MT_BADGES.filter((b) => b.ok(s)).length;
+    let html = '<div style="padding:12px 14px;border:1px dashed var(--g);background:rgba(57,255,20,.06);font-size:12px;color:var(--tx);line-height:1.6;margin-bottom:16px;">'
+      + '<b style="color:var(--g);">BADGES BÊTA</b> — ce sont des badges de test pour vérifier que tout fonctionne. Les vrais badges seront ajoutés plus tard.</div>';
+    html += '<div style="font-size:13px;color:var(--mu);margin-bottom:14px;">' + done + ' / ' + MT_BADGES.length + ' débloqués</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">';
+    MT_BADGES.forEach((b) => {
+      const ok = b.ok(s);
+      html += '<div style="background:#000;border:1px solid ' + (ok ? 'var(--g)' : 'var(--br)') + ';padding:16px;opacity:' + (ok ? '1' : '.5') + ';">'
+        + '<div style="font-size:28px;margin-bottom:8px;">' + (ok ? b.ico : '🔒') + '</div>'
+        + '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:20px;letter-spacing:1.5px;color:' + (ok ? 'var(--g)' : 'var(--tx)') + ';">' + escapeHtml(b.nom) + '</div>'
+        + '<div style="font-size:12px;color:var(--mu);line-height:1.5;margin-top:4px;">' + escapeHtml(b.desc) + '</div>'
+        + '<div style="font-size:10px;letter-spacing:2px;margin-top:10px;color:' + (ok ? 'var(--g)' : 'var(--mu)') + ';">' + (ok ? '✓ DÉBLOQUÉ' : 'VERROUILLÉ') + '</div></div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  }).catch((e) => { el.innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
+};
+
+// ── Ajout par code-barres (bêta) ──
+let _scanStream = null, _scanTimer = null;
+function mtStopScan() {
+  if (_scanTimer) clearInterval(_scanTimer);
+  _scanTimer = null;
+  if (_scanStream) _scanStream.getTracks().forEach((t) => t.stop());
+  _scanStream = null;
+}
+window.openScan = function () {
+  document.getElementById('modal-scan').classList.add('on');
+  document.getElementById('scan-msg').textContent = '';
+  document.getElementById('scan-manual').value = '';
+  const video = document.getElementById('scan-video');
+  if (!('BarcodeDetector' in window) || !navigator.mediaDevices) {
+    document.getElementById('scan-msg').textContent = 'Scan caméra non disponible sur ce navigateur (sur iPhone, utilise la saisie manuelle ci-dessous).';
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then((st) => {
+    _scanStream = st; video.srcObject = st; video.play();
+    const det = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] });
+    _scanTimer = setInterval(() => {
+      det.detect(video).then((codes) => { if (codes.length) mtFindEan(codes[0].rawValue); }).catch(() => {});
+    }, 400);
+  }).catch((e) => { document.getElementById('scan-msg').textContent = 'Caméra indisponible (' + e.message + '). Saisis le code à la main.'; });
+};
+window.closeScan = function () { mtStopScan(); closeModal('scan'); };
+window.scanManual = function () {
+  const v = document.getElementById('scan-manual').value.replace(/\D/g, '');
+  if (!v) { toast('Saisis un code', 'err'); return; }
+  mtFindEan(v);
+};
+function mtFindEan(code) {
+  mtStopScan();
+  const msg = document.getElementById('scan-msg');
+  msg.textContent = 'Recherche du code ' + code + '…';
+  getDocs(query(collection(db, 'cans'), where('ean', '==', code), where('is_published', '==', true))).then((snap) => {
+    if (snap.empty) { msg.textContent = 'Aucune canette publiée avec le code ' + code + ' pour le moment.'; return; }
+    closeModal('scan');
+    openCanPage(snap.docs[0].id);
+  }).catch((e) => { msg.textContent = 'Erreur : ' + e.message; });
+}
+
+// ── Bannière MonsterTracker en bas de chaque annonce ──
+function mtBannerHtml() {
+  return '<div style="margin-top:22px;padding:16px;background:#000;border:1px solid var(--g);display:flex;align-items:center;gap:14px;">'
+    + '<img src="img/logo-wordmark.png" alt="MonsterTracker" style="height:34px;max-width:55%;object-fit:contain;"/>'
+    + '<div style="font-size:11px;color:var(--mu);letter-spacing:1.5px;text-transform:uppercase;line-height:1.5;">Collection Monster Energy<br/><span style="color:var(--g);">MonsterTracker</span></div></div>';
+}
+
 window.viewUpdate = function (id) {
   const u = _viewUpdates.find((x) => x.id === id); if (!u) return;
   document.getElementById('mview-title').textContent = u.title || 'ANNONCE';
   document.getElementById('mview-body').innerHTML = '<div style="font-size:11px;color:var(--mu);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Annonce · ' + fmtDate(u.created_at) + '</div>'
-    + '<div style="font-size:14px;line-height:1.75;color:var(--tx);white-space:pre-wrap;word-break:break-word;">' + escapeHtml(u.content) + '</div>';
+    + '<div style="font-size:14px;line-height:1.75;color:var(--tx);white-space:pre-wrap;word-break:break-word;">' + escapeHtml(u.content) + '</div>' + mtBannerHtml();
   document.getElementById('modal-view').classList.add('on');
 };
 window.viewReply = function (id) {
@@ -1827,7 +1916,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v76';
+const MT_BUILD = 'mt-v77';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2188,7 +2277,7 @@ window.openCanModal = function (canId) {
   const setup = (c) => {
     document.getElementById('can-modal-title').textContent = c ? 'MODIFIER LA CANETTE' : 'AJOUTER UNE CANETTE';
     document.getElementById('cm-id').value = (c && c.id) || '';
-    const map = { name: 'name', series: 'series', variant: 'variant', diff: 'variant_diff', cap: 'cap_color', fc: 'full_color', vol: 'volume' };
+    const map = { name: 'name', series: 'series', variant: 'variant', diff: 'variant_diff', cap: 'cap_color', fc: 'full_color', vol: 'volume', ean: 'ean' };
     Object.keys(map).forEach((f) => { document.getElementById('cm-' + f).value = (c && c[map[f]]) || ''; });
     document.getElementById('cm-limited').checked = !!(c && c.is_limited);
     document.getElementById('cm-edition').value = (c && c.edition) || '';
@@ -2222,6 +2311,7 @@ window.saveCan = function () {
   const fi = document.getElementById('cm-img-file');
   const imageUrl = (fi.dataset && fi.dataset.compressed) || null;
   const body = {
+    ean: (document.getElementById('cm-ean').value || '').replace(/\D/g, '') || null,
     name, series: document.getElementById('cm-series').value || null, variant: document.getElementById('cm-variant').value || null,
     variant_diff: document.getElementById('cm-diff').value.trim() || null,
     cap_color: document.getElementById('cm-cap').value || null,
@@ -2635,7 +2725,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=76', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=77', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

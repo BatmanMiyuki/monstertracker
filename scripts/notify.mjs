@@ -67,10 +67,12 @@ async function listAll(coll, tok) {
 }
 
 async function saveState(state, tok) {
+  const arr = (a) => ({ arrayValue: { values: (a || []).map((x) => ({ stringValue: x })) } });
   const body = {
     fields: {
       last_version: state.last_version ? { stringValue: state.last_version } : { nullValue: null },
-      seen_updates: { arrayValue: { values: state.seen_updates.map((s) => ({ stringValue: s })) } },
+      seen_updates: arr(state.seen_updates),
+      seen_fr: arr(state.seen_fr),
     },
   };
   const r = await fetch(`${DB}/notif_state/main`, {
@@ -106,41 +108,72 @@ async function main() {
   const updates = (await listAll('updates', tok)).map((d) => ({ id: idOf(d), ...plain(d) }));
   const updateIds = updates.map((u) => u.id);
 
+  // demandes d'amis en attente (envoyées à quelqu'un)
+  const frs = (await listAll('friend_requests', tok)).map((d) => ({ id: idOf(d), ...plain(d) }))
+    .filter((r) => r.status === 'pending' && r.to_uid);
+  const frIds = frs.map((r) => r.id);
+
   const stateDoc = await getDocument('notif_state/main', tok);
   if (!stateDoc) {
-    await saveState({ last_version: version, seen_updates: updateIds }, tok);
+    await saveState({ last_version: version, seen_updates: updateIds, seen_fr: frIds }, tok);
     console.log('Premier passage : état mémorisé, aucune notification envoyée.');
     return;
   }
   const st = plain(stateDoc);
-  const state = { last_version: st.last_version || null, seen_updates: Array.isArray(st.seen_updates) ? st.seen_updates : [] };
+  const state = {
+    last_version: st.last_version || null,
+    seen_updates: Array.isArray(st.seen_updates) ? st.seen_updates : [],
+    seen_fr: Array.isArray(st.seen_fr) ? st.seen_fr : [],
+  };
 
-  const msgs = [];
+  // Liste des envois : { msg, tokens } (tokens = appareils du destinataire)
+  const sendAll = [];
+  const allTokens = async () => [...new Set((await listAll('fcm_tokens', tok)).flatMap((d) => plain(d).tokens || []))];
+
   if (version && version !== state.last_version) {
-    msgs.push({ title: 'Mise à jour disponible', body: `La version ${version} est disponible. Ouvre l'app pour mettre à jour.`, tag: 'maj-' + version });
+    sendAll.push({ msg: { title: 'Mise à jour disponible', body: `La version ${version} est disponible. Ouvre l'app pour mettre à jour.`, tag: 'maj-' + version }, to: null });
   }
-  const seen = new Set(state.seen_updates);
-  for (const u of updates.filter((u) => !seen.has(u.id))) {
-    msgs.push({ title: 'Nouvelle annonce : ' + (u.title || ''), body: String(u.content || '').slice(0, 140), tag: 'ann-' + u.id });
+  const seenU = new Set(state.seen_updates);
+  for (const u of updates.filter((u) => !seenU.has(u.id))) {
+    sendAll.push({ msg: { title: 'Nouvelle annonce : ' + (u.title || ''), body: String(u.content || '').slice(0, 140), tag: 'ann-' + u.id }, to: null });
+  }
+  const seenF = new Set(state.seen_fr);
+  for (const r of frs.filter((r) => !seenF.has(r.id))) {
+    const from = await getDocument('users/' + r.from_uid, tok);
+    const name = from ? (plain(from).username || 'Quelqu\'un') : 'Quelqu\'un';
+    sendAll.push({ msg: { title: 'Nouvelle demande d\'ami', body: `${name} veut t'ajouter en ami.`, tag: 'fr-' + r.id }, to: r.to_uid });
   }
 
-  if (msgs.length === 0) { console.log('Rien de nouveau.'); return; }
+  if (sendAll.length === 0) {
+    console.log('Rien de nouveau.');
+    // on garde l'état à jour même sans envoi (ex : demandes traitées entre-temps)
+    await saveState({ last_version: version || state.last_version, seen_updates: [...new Set([...state.seen_updates, ...updateIds])], seen_fr: [...new Set([...state.seen_fr, ...frIds])] }, tok);
+    return;
+  }
 
-  const tokenDocs = await listAll('fcm_tokens', tok);
-  const tokens = [...new Set(tokenDocs.flatMap((d) => plain(d).tokens || []))];
-  console.log(`${msgs.length} notification(s) à envoyer à ${tokens.length} appareil(s).`);
+  const everyone = sendAll.some((x) => x.to === null) ? await allTokens() : [];
+  console.log(`${sendAll.length} notification(s) à envoyer.`);
 
   let ok = 0, ko = 0;
-  for (const m of msgs) {
-    for (const t of tokens) {
-      const res = await send(t, m, tok);
+  for (const item of sendAll) {
+    let targets = everyone;
+    if (item.to) {
+      const td = await getDocument('fcm_tokens/' + item.to, tok);
+      targets = td ? (plain(td).tokens || []) : [];
+    }
+    for (const t of targets) {
+      const res = await send(t, item.msg, tok);
       if (res.ok) ok++; else { ko++; console.warn('Échec envoi :', res.status, res.text.slice(0, 200)); }
     }
   }
   console.log(`Envoyés : ${ok} — échecs : ${ko}`);
 
   // On mémorise même en cas d'échecs partiels, pour ne pas renvoyer en boucle
-  await saveState({ last_version: version || state.last_version, seen_updates: [...new Set([...state.seen_updates, ...updateIds])] }, tok);
+  await saveState({
+    last_version: version || state.last_version,
+    seen_updates: [...new Set([...state.seen_updates, ...updateIds])],
+    seen_fr: [...new Set([...state.seen_fr, ...frIds])],
+  }, tok);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

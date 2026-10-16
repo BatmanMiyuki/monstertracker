@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=76">
+<link rel="stylesheet" href="css/style.css?v=77">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -133,6 +133,7 @@
   <div class="ntabs" id="user-tabs">
     <button class="ntab on" id="tab-home"       onclick="goTab('home',this)">Accueil</button>
     <button class="ntab"    id="tab-collection" onclick="goTab('collection',this)">Ma Collection</button>
+    <button class="ntab"    id="tab-succes"     onclick="goTab('succes',this)">Succès</button>
     <button class="ntab"    id="tab-friends"    onclick="goTab('friends',this)">Amis<span class="badge" id="friends-badge" style="display:none;background:#ff9600;">0</span><span class="badge" id="chat-badge" style="display:none;">0</span></button>
     <button class="ntab"    id="tab-updates"    onclick="goTab('updates',this)">Notifications<span class="badge" id="updates-badge" style="display:none;">0</span></button>
     <button class="ntab"    id="tab-settings"   onclick="goTab('settings',this)">Paramètres</button>
@@ -195,6 +196,7 @@
       <div class="crow"><div class="cbar"><i id="c-prog" style="width:0%"></i></div><b class="cpct" id="c-pct">0%</b></div>
     </div>
   </div>
+  <div style="margin-bottom:12px;"><button class="btn-ghost" onclick="openScan()" style="padding:10px 14px;border-color:var(--g);color:var(--g);">📷 Ajouter par code-barres <span style="font-size:10px;color:#000;background:var(--g);padding:2px 6px;letter-spacing:1px;margin-left:6px;">BÊTA</span></button></div>
   <div class="catbar">
     <input class="sinput" id="col-search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
   </div>
@@ -261,6 +263,11 @@
 </div>
 
 <!-- PARAMÈTRES -->
+<div class="sec" id="sec-succes">
+  <div class="sec-hd"><h1>SUCCÈS</h1><p>Débloque des badges en jouant avec l'app</p></div>
+  <div id="succes-ct"></div>
+</div>
+
 <div class="sec" id="sec-settings">
   <div class="sec-hd" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:4px;">
     <div><h1>PARAMÈTRES</h1><p>Personnalise ton compte</p></div>
@@ -555,6 +562,16 @@
 </div>
 
 <!-- Ajout à la collection -->
+<div class="moverlay" id="modal-scan">
+<div class="modal" style="max-width:420px;">
+  <div class="mhdr"><h3>AJOUTER PAR CODE-BARRES <span style="font-size:10px;color:#000;background:var(--g);padding:2px 6px;letter-spacing:1px;margin-left:6px;">BÊTA</span></h3><button class="mclose" onclick="closeScan()">&#x2715;</button></div>
+  <div class="mbody">
+    <video id="scan-video" playsinline muted style="width:100%;background:#000;border:1px solid var(--br);"></video>
+    <div id="scan-msg" style="font-size:12px;color:var(--mu);margin:10px 0;line-height:1.5;"></div>
+    <div class="field"><label>Ou saisis le code (EAN)</label><div style="display:flex;gap:8px;"><input class="minput" type="text" id="scan-manual" inputmode="numeric" placeholder="ex : 5060..." style="flex:1;"/><button class="btn-ghost" onclick="scanManual()">OK</button></div></div>
+  </div>
+</div>
+</div>
 <div class="moverlay" id="modal-add-col">
 <div class="modal" style="max-width:400px;">
   <div class="mhdr"><h3>AJOUTER À MA COLLECTION</h3><button class="mclose" onclick="closeModal('add-col')">&#x2715;</button></div>
@@ -580,6 +597,7 @@
     </div>
     <div class="mrow">
       <div class="field"><label>Variante / modèle</label><input class="minput" type="text" id="cm-variant" placeholder="ex : White, Red, Mean Bean"/></div>
+      <div class="field"><label>Code-barres (EAN, pour le scan)</label><input class="minput" type="text" id="cm-ean" inputmode="numeric" placeholder="ex : 5060123456789"/></div>
       <div class="field"><label>Édition (bande auto)</label><select class="minput" id="cm-edition"><option value="">Aucune</option><option value="modernwarfare4">Modern Warfare 4 (2026)</option><option value="blackops7">Black Ops 7</option><option value="blackops6">Black Ops 6</option><option value="apex">Apex</option></select></div>
     </div>
     <div class="field">
@@ -714,6 +732,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=76"></script>
+<script type="module" src="js/app.js?v=77"></script>
 </body>
 </html>
