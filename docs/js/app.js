@@ -386,6 +386,14 @@ function showApp() {
   processPendingAdd();
 }
 
+// ── Version de l'app (pilotée par l'admin, en temps réel pour tous) ──
+onSnapshot(doc(db, 'settings', 'appversion'), (snap) => {
+  _appVerLive = snap.exists() ? snap.data() : null;
+  if (window.showAppInfo) showAppInfo();
+  const inp = document.getElementById('adm-ver-new');
+  if (inp && !inp.value) inp.value = (_appVerLive && _appVerLive.version) || MT_APPVER;
+}, () => {});
+
 // ── Maintenance ─
 function startMaintListen() {
   stopMaintListen();
@@ -1441,10 +1449,14 @@ window.viewReply = function (id) {
 };
 
 // ════════════════════ PARAMÈTRES ════════════════════
+// Version pilotée par l'admin (settings/appversion) ; sans document, on garde la constante du code.
+let _appVerLive = null;
 window.showAppInfo = function () {
-  const txt = MT_APPVER + ' — build ' + MT_BUILD;
+  const ver = (_appVerLive && _appVerLive.version) || MT_APPVER;
+  const dt = (_appVerLive && _appVerLive.date) || MT_BUILD_DATE;
+  const txt = ver + ' — build ' + MT_BUILD;
   ['set-appver', 'adm-appver'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = txt; });
-  ['set-appdate', 'adm-appdate'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = MT_BUILD_DATE; });
+  ['set-appdate', 'adm-appdate'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = dt; });
 };
 window.loadSettings = function () {
   document.getElementById('set-name').textContent = (user && user.username) || '';
@@ -2390,6 +2402,15 @@ window.sendReply = function () {
 window.delMsg = (id) => { if (!confirm('Supprimer ce message ?')) return; deleteDoc(doc(db, 'messages', id)).then(() => { toast('Message supprimé ✓'); loadAdmInbox(); updateBadges(); }).catch((e) => toast(e.message, 'err')); };
 
 // ════════════════════ ADMIN : RÉGLAGES ════════════════════
+window.saveAppVersion = function () {
+  const v = (document.getElementById('adm-ver-new').value || '').trim();
+  if (!/^\d+\.\d+\.\d+$/.test(v)) { toast('Format attendu : 1.0.2', 'err'); return; }
+  const d = new Date();
+  const date = String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+  setDoc(doc(db, 'settings', 'appversion'), { version: v, date: date, updated_at: fst() })
+    .then(() => { toast('Version ' + v + ' publiée ✓'); })
+    .catch((e) => toast(e.message, 'err'));
+};
 window.loadAdmSettings = function () {
   document.getElementById('adm-set-user').value = (user && user.username) || '';
   document.getElementById('adm-set-email').value = (user && user.email) || '';
