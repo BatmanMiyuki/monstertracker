@@ -396,22 +396,60 @@ function mtVerCmp(a, b) {
 function mtUpdVisible(u) { return !u || !u.app_version || mtVerCmp(MT_APPVER, u.app_version) >= 0; }
 window.mtUpdVisible = mtUpdVisible;
 
-// Mise à jour : on vide le cache et on recharge le code le plus récent
+// Mise à jour : bannière retirée, téléchargement 0→100 %, installation, relancement
 window.mtUpdateNow = async function () {
+  if (window._mtUpdating) return;
+  window._mtUpdating = true;
+  const bn = document.getElementById('mt-banner'); if (bn) bn.remove();
+  let ov = document.getElementById('mt-upd');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'mt-upd'; document.body.appendChild(ov); }
+  ov.setAttribute('style', 'position:fixed;inset:0;z-index:100000;background:#000;color:#f0f0f0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:28px;text-align:center;');
+  const titre = (t) => '<div style="font-size:12px;letter-spacing:3px;color:#39ff14;font-weight:900;">MISE À JOUR</div><div style="font-size:22px;font-weight:900;">' + t + '</div>';
+  const draw = (pct, t) => {
+    ov.innerHTML = titre(t)
+      + '<div style="width:min(340px,80vw);height:12px;background:#1a1a1a;border:1px solid #333;"><div style="height:100%;width:' + pct + '%;background:#39ff14;transition:width .25s;"></div></div>'
+      + '<div style="font-size:14px;color:#888;">' + pct + ' %</div>';
+  };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  draw(0, 'Téléchargement de la mise à jour…');
+  const files = ['index.html', 'css/style.css', 'js/app.js', 'js/support.js', 'support.html', 'sw.js'];
   try {
-    if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map((r) => r.unregister())); }
+    for (let i = 0; i < files.length; i++) {
+      const r = await fetch(files[i] + '?maj=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw new Error('Fichier introuvable : ' + files[i]);
+      await r.arrayBuffer();
+      draw(Math.round(((i + 1) / files.length) * 100), 'Téléchargement de la mise à jour…');
+      await wait(120);
+    }
+    draw(100, 'Installation…');
+    try { sessionStorage.setItem('mt-updated', (_appVerLive && _appVerLive.version) || MT_APPVER); } catch (e) {}
+    if ('serviceWorker' in navigator) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map((x) => x.unregister())); }
     if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); }
-  } catch (e) {}
-  location.replace(location.pathname + '?maj=' + Date.now());
+    ov.innerHTML = titre('Mise à jour finie ✓') + '<div style="font-size:14px;color:#888;">Version ' + escapeHtml((_appVerLive && _appVerLive.version) || MT_APPVER) + '</div>';
+    await wait(1400);
+    ov.innerHTML = titre('Relancement de MonsterTracker…');
+    await wait(900);
+    location.replace(location.pathname + '?maj=' + Date.now());
+  } catch (e) {
+    window._mtUpdating = false;
+    ov.innerHTML = titre('La mise à jour a échoué') + '<div style="font-size:14px;color:#888;max-width:340px;">' + escapeHtml(e.message || 'Erreur réseau') + '</div>'
+      + '<button onclick="mtUpdateNow()" style="background:#39ff14;color:#000;border:0;padding:12px 22px;font-weight:900;letter-spacing:2px;cursor:pointer;">RÉESSAYER</button>';
+  }
 };
 window.mtDismissBanner = function (v) { try { sessionStorage.setItem('mt-banner-dismiss', v); } catch (e) {} const b = document.getElementById('mt-banner'); if (b) b.remove(); };
 
 // Affiche soit une bannière (mise à jour conseillée), soit une page bloquante (version obligatoire)
 function mtCheckVersion() {
+  if (window._mtUpdating) return;
   const live = _appVerLive && _appVerLive.version;
   let g = document.getElementById('mt-gate'), b = document.getElementById('mt-banner');
   const old = !!live && mtVerCmp(MT_APPVER, live) < 0;
-  if (!old) { if (g) g.remove(); if (b) b.remove(); return; }
+  if (!old) {
+    if (g) g.remove(); if (b) b.remove();
+    let fresh = null; try { fresh = sessionStorage.getItem('mt-updated'); sessionStorage.removeItem('mt-updated'); } catch (e) {}
+    if (fresh) setTimeout(() => toast('L\'App est à jour ✓ — version ' + MT_APPVER), 600);
+    return;
+  }
   if (_appVerLive.block) {
     if (b) b.remove();
     if (!g) { g = document.createElement('div'); g.id = 'mt-gate'; document.body.appendChild(g); }
@@ -1744,7 +1782,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v72';
+const MT_BUILD = 'mt-v73';
 const MT_BUILD_DATE = '14/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2553,7 +2591,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=72', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=73', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
