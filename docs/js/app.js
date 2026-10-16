@@ -1624,8 +1624,7 @@ window.loadSucces = function () {
   ]).then(([col, wl, dr, fr, cansSnap]) => {
     const s = Object.assign({ owned: col.size, wish: wl.size, drinks: dr.size, friends: fr.size }, mtSuccesCalc(col, cansSnap));
     const done = MT_BADGES.filter((b) => b.ok(s)).length;
-    let html = '<div style="padding:12px 14px;border:1px dashed var(--g);background:rgba(57,255,20,.06);font-size:12px;color:var(--tx);line-height:1.6;margin-bottom:16px;">'
-      + '<b style="color:var(--g);">BADGES BÊTA</b> — ce sont des badges de test pour vérifier que tout fonctionne. Les vrais badges seront ajoutés plus tard.</div>';
+    let html = '';
     html += '<div style="font-size:13px;color:var(--mu);margin-bottom:14px;">' + done + ' / ' + MT_BADGES.length + ' débloqués</div>';
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">';
     MT_BADGES.forEach((b) => {
@@ -1958,7 +1957,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v83';
+const MT_BUILD = 'mt-v84';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2767,7 +2766,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=83', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=84', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
