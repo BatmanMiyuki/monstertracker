@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=86">
+<link rel="stylesheet" href="css/style.css?v=87">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -165,14 +165,16 @@
 <div class="sec on" id="sec-home">
   <div class="sec-hd"><h1>TABLEAU DE BORD</h1><p>Ta progression Monster Energy</p></div>
   <div class="srow">
-    <div class="sbox"><div class="sval" id="h-owned">-</div><div class="slbl2">Possédées</div></div>
-    <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total dispo.</div></div>
+    <div class="sbox"><div class="sval" id="h-owned">-</div><div class="slbl2">Possédées</div><button class="btn-ghost" id="h-adv-1" onclick="toggleHomeAdv()" style="margin-top:8px;padding:3px 10px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;border-color:var(--g);color:var(--g);">avancé</button></div>
+    <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total dispo.</div><button class="btn-ghost" id="h-adv-2" onclick="toggleHomeAdv()" style="margin-top:8px;padding:3px 10px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;border-color:var(--g);color:var(--g);">avancé</button></div>
     <div class="sbox"><div class="sval" id="h-drinks">-</div><div class="slbl2">Canettes bues</div></div>
     <div class="sbox"><div class="sval" id="h-spent">-</div><div class="slbl2">Argent dépensé</div></div>
   </div>
   <div class="prog-wrap">
-    <div class="prog-lbl"><span>Complétion</span><b id="h-pct">0%</b></div>
+    <div class="prog-lbl"><span>Complétion (canettes différentes)</span><b id="h-pct">0%</b></div>
     <div class="prog-bar"><div class="prog-fill" id="h-prog" style="width:0%"></div></div>
+    <div class="prog-lbl" style="margin-top:14px;"><span>Complétion (variantes comprises)</span><b id="h-pct2">0%</b></div>
+    <div class="prog-bar"><div class="prog-fill" id="h-prog2" style="width:0%"></div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;" id="home-charts">
     <div class="chart-wrap" style="margin-bottom:0;"><div class="chart-hd">Par série</div><div id="chart-series"></div></div>
@@ -197,6 +199,7 @@
     </div>
   </div>
   <div style="margin-bottom:12px;"><button class="btn-ghost" disabled style="padding:10px 14px;opacity:.6;cursor:not-allowed;">📷 Ajouter par code-barres <span style="font-size:10px;color:var(--g);border:1px solid var(--g);padding:2px 6px;letter-spacing:1px;margin-left:6px;">À VENIR</span></button></div>
+  <div style="margin-bottom:12px;"><button class="btn-ghost" id="col-adv-btn" onclick="toggleColAdv()" style="padding:10px 14px;">AVANCÉ</button> <span style="font-size:11px;color:var(--mu);">affiche aussi toutes les variantes</span></div>
   <div class="catbar">
     <input class="sinput" id="col-search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
   </div>
@@ -732,6 +735,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=86"></script>
+<script type="module" src="js/app.js?v=87"></script>
 </body>
 </html>

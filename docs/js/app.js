@@ -703,6 +703,52 @@ function canCardHtml(can, btnsHtml) {
 }
 
 // ════════════════════ ACCUEIL ════════════════════
+// ── Compteurs « avancé » : base = canettes différentes (une par famille), avancé = toutes les variantes ──
+let _colAdv = false, _homeAdv = false, _homeCans = null;
+function mtStatsBase(cans) { const u = mtUniqueNames(cans); return { owned: u.owned, total: u.total }; }
+function mtStatsAll(cans) { return { owned: cans.filter((c) => c.in_collection).length, total: cans.length }; }
+function mtPctOf(st) { return st.total > 0 ? Math.round((st.owned / st.total) * 100) : 0; }
+
+// Tableau de bord
+function mtHomeStats() {
+  if (!_homeCans) return;
+  const base = mtStatsBase(_homeCans), all = mtStatsAll(_homeCans);
+  const st = _homeAdv ? all : base;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const bar = (id, pct) => { const el = document.getElementById(id); if (el) el.style.width = pct + '%'; };
+  set('h-owned', st.owned); set('h-total', st.total);
+  set('h-pct', mtPctOf(base) + '%'); bar('h-prog', mtPctOf(base));
+  set('h-pct2', mtPctOf(all) + '%'); bar('h-prog2', mtPctOf(all));
+  set('h-adv-1', _homeAdv ? 'base' : 'avancé'); set('h-adv-2', _homeAdv ? 'base' : 'avancé');
+}
+window.toggleHomeAdv = function () { _homeAdv = !_homeAdv; mtHomeStats(); };
+
+// Collection
+function mtColStats() {
+  const st = _colAdv ? mtStatsAll(allCans) : mtStatsBase(allCans);
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const pct = mtPctOf(st);
+  set('c-owned', st.owned); set('c-total', st.total); set('c-pct', pct + '%');
+  const bar = document.getElementById('c-prog'); if (bar) bar.style.width = pct + '%';
+}
+window.toggleColAdv = function () {
+  _colAdv = !_colAdv;
+  const b = document.getElementById('col-adv-btn');
+  if (b) { b.textContent = _colAdv ? 'AVANCÉ ✓' : 'AVANCÉ'; b.style.borderColor = _colAdv ? 'var(--g)' : ''; b.style.color = _colAdv ? 'var(--g)' : ''; }
+  mtColStats();
+  window.filterCans();
+};
+// Affichage avancé : toutes les canettes et variantes, sans regroupement par famille
+function renderColAdv(cans) {
+  const el = document.getElementById('col-ct');
+  if (!el) return;
+  if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Aucune canette ne correspond à ta recherche.'); return; }
+  const list = cans.slice().sort((x, y) => (x.name || '').localeCompare(y.name || '', 'fr') || (x.variant || '').localeCompare(y.variant || '', 'fr'));
+  let html = '<div class="imgrid">';
+  list.forEach((c) => { html += mtCanImgHtml(c, 1, c.in_collection ? 1 : 0); });
+  el.innerHTML = html + '</div>';
+}
+
 window.loadHome = function () {
   ['h-owned', 'h-total', 'h-drinks', 'h-spent'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = '...'; });
   ['chart-series', 'chart-vol', 'h-recent', 'h-top'].forEach((id) => { const el = document.getElementById(id); if (el) el.innerHTML = lHtml(); });
@@ -724,12 +770,7 @@ window.loadHome = function () {
   });
   mtFetchCans().then((cans) => {
     const colItems = cans.filter((c) => c.in_collection);
-    const _uq = mtUniqueNames(cans);
-    const pct = _uq.total > 0 ? Math.round((_uq.owned / _uq.total) * 100) : 0;
-    document.getElementById('h-owned').textContent = colItems.length;
-    document.getElementById('h-total').textContent = _uq.total;
-    document.getElementById('h-pct').textContent = pct + '%';
-    document.getElementById('h-prog').style.width = pct + '%';
+    _homeCans = cans; mtHomeStats();
     const recent = colItems.slice().sort((a, b) => (tsToDate(b.added_at) || 0) - (tsToDate(a.added_at) || 0)).slice(0, 5);
     const elRec = document.getElementById('h-recent');
     if (recent.length) {
@@ -982,10 +1023,7 @@ window.loadCollection = function () {
     const owned = allCans.filter((c) => c.in_collection);
     const uq = mtUniqueNames(allCans);
     const pct = uq.total ? Math.round((uq.owned / uq.total) * 100) : 0;
-    const so = document.getElementById('c-owned'); if (so) so.textContent = owned.length;
-    const st = document.getElementById('c-total'); if (st) st.textContent = uq.total;
-    const sp = document.getElementById('c-pct'); if (sp) sp.textContent = pct + '%';
-    const sbar = document.getElementById('c-prog'); if (sbar) sbar.style.width = pct + '%';
+    mtColStats();
     renderSerieChips();
     renderCol(allCans);
     mtCatDraftNote();
@@ -1027,6 +1065,7 @@ function mtUniqueNames(cans) {
 function renderCol(cans) {
   const el = document.getElementById('col-ct');
   if (!el) return;
+  if (_colAdv) { renderColAdv(cans); return; }
   if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Aucune canette ne correspond à ta recherche.'); return; }
   const groups = mtSerGroups(cans);
   let html = '';
@@ -1957,7 +1996,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v86';
+const MT_BUILD = 'mt-v87';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2766,7 +2805,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=86', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=87', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });
