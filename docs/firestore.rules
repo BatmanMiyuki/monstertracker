@@ -33,8 +33,9 @@ service cloud.firestore {
       // lecture publique : vérifier que le pseudo / l'email ne sont pas déjà pris
       // à l'inscription, et chercher un ami par pseudo ou par code ami
       allow read: if true;
-      allow create: if connecte() && uid == moi();
-      allow update: if connecte() && (uid == moi() || estAdmin());
+      // le rôle (user / testeur / admin) ne peut être donné ou changé que par l'admin
+      allow create: if connecte() && uid == moi() && (request.resource.data.role == 'user' || estAdmin());
+      allow update: if connecte() && (estAdmin() || (uid == moi() && request.resource.data.role == resource.data.role));
       // suppression de son propre compte depuis les Paramètres, ou par l'admin
       allow delete: if connecte() && (uid == moi() || estAdmin());
     }

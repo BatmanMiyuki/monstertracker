@@ -425,6 +425,7 @@ function mtPushSilent() {
 
 function showApp() {
   mtPushSilent();
+  mtApplyBeta();
   _setupAppUI();
   go('app');
   startPolling();
@@ -524,6 +525,15 @@ onSnapshot(doc(db, 'settings', 'appversion'), (snap) => {
   const inp = document.getElementById('adm-ver-new');
   if (inp && !inp.value) inp.value = (_appVerLive && _appVerLive.version) || MT_APPVER;
   if (document.body) mtCheckVersion();
+}, () => {});
+
+onSnapshot(doc(db, 'settings', 'release'), (snap) => {
+  window._release = snap.exists() ? snap.data() : null;
+  const inp = document.getElementById('adm-open-ver');
+  if (inp && document.activeElement !== inp) inp.value = (window._release && window._release.open_version) || '';
+  mtApplyBeta();
+  if (_homeCans) mtHomeStats();
+  if (allCans && allCans.length && document.getElementById('col-ct')) mtColStats();
 }, () => {});
 
 // ── Maintenance ─
@@ -705,6 +715,19 @@ function canCardHtml(can, btnsHtml) {
 // ════════════════════ ACCUEIL ════════════════════
 // ── Compteurs « avancé » : base = canettes différentes (une par famille), avancé = toutes les variantes ──
 let _colAdv = false, _homeAdv = false, _homeCans = null;
+window._release = null;
+// Testeur : rôle donné uniquement par l'admin. Les nouveautés sont visibles pour les testeurs et l'admin,
+// et pour les users seulement quand l'admin ouvre à partir d'une version (settings/release.open_version).
+function mtIsTester() { return !!(user && (user.role === 'admin' || user.role === 'testeur')); }
+function mtBetaOpen() {
+  if (mtIsTester()) return true;
+  const ov = window._release && window._release.open_version;
+  return !!ov && mtVerCmp(mtEffVer(), ov) >= 0;
+}
+function mtApplyBeta() {
+  const on = mtBetaOpen();
+  document.querySelectorAll('[data-beta]').forEach((el) => { el.style.display = on ? '' : 'none'; });
+}
 function mtStatsBase(cans) { const u = mtUniqueNames(cans); return { owned: u.owned, total: u.total }; }
 function mtStatsAll(cans) { return { owned: cans.filter((c) => c.in_collection).length, total: cans.length }; }
 function mtPctOf(st) { return st.total > 0 ? Math.round((st.owned / st.total) * 100) : 0; }
@@ -713,28 +736,31 @@ function mtPctOf(st) { return st.total > 0 ? Math.round((st.owned / st.total) * 
 function mtHomeStats() {
   if (!_homeCans) return;
   const base = mtStatsBase(_homeCans), all = mtStatsAll(_homeCans);
-  const st = _homeAdv ? all : base;
+  const st = (_homeAdv && mtBetaOpen()) ? all : base;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const bar = (id, pct) => { const el = document.getElementById(id); if (el) el.style.width = pct + '%'; };
   set('h-owned', st.owned); set('h-total', st.total);
   set('h-pct', mtPctOf(base) + '%'); bar('h-prog', mtPctOf(base));
   set('h-pct2', mtPctOf(all) + '%'); bar('h-prog2', mtPctOf(all));
-  set('h-adv-1', _homeAdv ? 'base' : 'avancé'); set('h-adv-2', _homeAdv ? 'base' : 'avancé');
+  set('h-adv-1', (_homeAdv && mtBetaOpen()) ? 'base' : 'avancé'); set('h-adv-2', (_homeAdv && mtBetaOpen()) ? 'base' : 'avancé');
+  mtApplyBeta();
 }
-window.toggleHomeAdv = function () { _homeAdv = !_homeAdv; mtHomeStats(); };
+window.toggleHomeAdv = function () { if (!mtBetaOpen()) return; _homeAdv = !_homeAdv; mtHomeStats(); };
 
 // Collection
 function mtColStats() {
-  const st = _colAdv ? mtStatsAll(allCans) : mtStatsBase(allCans);
+  const st = (_colAdv && mtBetaOpen()) ? mtStatsAll(allCans) : mtStatsBase(allCans);
+  mtApplyBeta();
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const pct = mtPctOf(st);
   set('c-owned', st.owned); set('c-total', st.total); set('c-pct', pct + '%');
   const bar = document.getElementById('c-prog'); if (bar) bar.style.width = pct + '%';
 }
 window.toggleColAdv = function () {
+  if (!mtBetaOpen()) return;
   _colAdv = !_colAdv;
   const b = document.getElementById('col-adv-btn');
-  if (b) { b.textContent = _colAdv ? 'AVANCÉ ✓' : 'AVANCÉ'; b.style.borderColor = _colAdv ? 'var(--g)' : ''; b.style.color = _colAdv ? 'var(--g)' : ''; }
+  if (b) { b.textContent = (_colAdv && mtBetaOpen()) ? 'AVANCÉ ✓' : 'AVANCÉ'; b.style.borderColor = _colAdv ? 'var(--g)' : ''; b.style.color = _colAdv ? 'var(--g)' : ''; }
   mtColStats();
   window.filterCans();
 };
@@ -1065,7 +1091,7 @@ function mtUniqueNames(cans) {
 function renderCol(cans) {
   const el = document.getElementById('col-ct');
   if (!el) return;
-  if (_colAdv) { renderColAdv(cans); return; }
+  if (_colAdv && mtBetaOpen()) { renderColAdv(cans); return; }
   if (!cans.length) { el.innerHTML = eHtml('&#129371;', 'AUCUNE CANETTE', 'Aucune canette ne correspond à ta recherche.'); return; }
   const groups = mtSerGroups(cans);
   let html = '';
@@ -1755,7 +1781,7 @@ let _appVerLive = null;
 window.showAppInfo = function () {
   const ver = (_appVerLive && _appVerLive.version) || MT_APPVER;
   const dt = (_appVerLive && _appVerLive.date) || MT_BUILD_DATE;
-  const txt = ver + ' — build ' + MT_BUILD;
+  const txt = (user && user.role === 'admin') ? ver + ' — build ' + MT_BUILD : ver;
   ['set-appver', 'adm-appver'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = txt; });
   ['set-appdate', 'adm-appdate'].forEach((id) => { const el = document.getElementById(id); if (el) el.textContent = dt; });
 };
@@ -1996,7 +2022,7 @@ function mtFamThumb(c, w) {
 }
 const MT_EDLBL = { modernwarfare4: 'Modern Warfare 4', blackops7: 'Black Ops 7', blackops6: 'Black Ops 6', apex: 'Apex' };
 const MT_APPVER = '1.0.1';
-const MT_BUILD = 'mt-v87';
+const MT_BUILD = 'mt-v88';
 const MT_BUILD_DATE = '16/10/2026';
 window.MT_BUILD = MT_BUILD;
 window.MT_APPVER = MT_APPVER;
@@ -2568,11 +2594,12 @@ window.loadAdmUsers = function () {
     users.forEach((u) => {
       const rstBtn = u.role !== 'admin' ? '<button class="tdel" style="border-color:#ff9600;color:#ff9600;margin-left:6px;" title="Remettre ce compte à zéro (collection, canettes bues, statistiques, amis)" onclick="resetUserAccount(\'' + u.uid + '\',\'' + escapeHtml(u.user_code || '') + '\',\'' + escapeHtml(u.username).replace(/'/g, '&#39;') + '\')">Réinit.</button>' : '';
       const delBtn = u.role !== 'admin' ? '<button class="tdel" onclick="delUser(\'' + u.uid + '\',\'' + escapeHtml(u.username).replace(/'/g, '&#39;') + '\')">Suppr.</button>' + rstBtn : '—';
+      const testBtn = u.role === 'admin' ? '' : '<button class="tdel" style="border-color:var(--g);color:var(--g);margin-right:6px;" onclick="setTester(\'' + u.uid + '\',' + (u.role !== 'testeur') + ')">' + (u.role === 'testeur' ? 'Retirer testeur' : 'Testeur') + '</button>';
       rows += '<tr><td><div style="display:flex;align-items:center;gap:9px;">' + avatarHtml(u, 30) + '<div class="tname">' + escapeHtml(u.username) + '</div></div></td>'
         + '<td style="font-family:monospace;font-size:11px;color:var(--mu);">' + escapeHtml(u.user_code || '—') + '</td>'
         + '<td><span class="tbadge ' + (u.role === 'admin' ? 'lim' : 'std') + '">' + escapeHtml(u.role) + '</span></td>'
         + '<td><span class="tstat">' + u.col_count + '</span></td>'
-        + '<td style="color:var(--mu);font-size:11px;">' + fmtDate(u.created_at) + '</td><td>' + delBtn + '</td></tr>';
+        + '<td style="color:var(--mu);font-size:11px;">' + fmtDate(u.created_at) + '</td><td>' + testBtn + delBtn + '</td></tr>';
     });
     document.getElementById('adm-users-ct').innerHTML = '<div class="atbl-w"><table class="atbl"><thead><tr><th>Utilisateur</th><th>Code</th><th>Rôle</th><th>Canettes</th><th>Inscrit le</th><th>Action</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }).catch((e) => { document.getElementById('adm-users-ct').innerHTML = eHtml('⚠️', 'ERREUR', e.message); });
@@ -2715,6 +2742,20 @@ window.saveAppVersion = function () {
     .then(() => { toast('Version ' + v + ' publiée ✓'); })
     .catch((e) => toast(e.message, 'err'));
 };
+window.saveOpenVersion = function () {
+  if (!user || user.role !== 'admin') return;
+  const v = (document.getElementById('adm-open-ver').value || '').trim();
+  if (v && !/^\d+\.\d+\.\d+$/.test(v)) { toast('Format attendu : 1.4.0 (ou vide pour fermer)', 'err'); return; }
+  setDoc(doc(db, 'settings', 'release'), { open_version: v || null, updated_at: fst() }, { merge: true })
+    .then(() => toast(v ? 'Nouveautés ouvertes à partir de ' + v + ' ✓' : 'Nouveautés fermées aux users ✓'))
+    .catch((e) => toast(e.message, 'err'));
+};
+window.setTester = function (uid, on) {
+  if (!user || user.role !== 'admin') return;
+  updateDoc(doc(db, 'users', uid), { role: on ? 'testeur' : 'user' })
+    .then(() => { toast(on ? 'Testeur ajouté ✓' : 'Testeur retiré ✓'); loadAdmUsers(); })
+    .catch((e) => toast(e.message, 'err'));
+};
 window.loadAdmSettings = function () {
   document.getElementById('adm-set-user').value = (user && user.username) || '';
   document.getElementById('adm-set-email').value = (user && user.email) || '';
@@ -2805,7 +2846,7 @@ function loadMaintStatus() {
 
 // ── PWA ──
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=87', { updateViaCache: 'none' })
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js?v=88', { updateViaCache: 'none' })
     .then((r) => { if (r && r.update) r.update(); }).catch(() => {}));
 }
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _installPrompt = e; const btn = document.getElementById('pwa-install-btn'); if (btn && user) btn.style.display = 'block'; });

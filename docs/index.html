@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=87">
+<link rel="stylesheet" href="css/style.css?v=88">
 </head>
 <body>
 <div id="sim-banner"><span>&#128065; SIMULATION VUE USER</span><button onclick="toggleSimUser()">RETOUR ADMIN</button></div>
@@ -165,16 +165,16 @@
 <div class="sec on" id="sec-home">
   <div class="sec-hd"><h1>TABLEAU DE BORD</h1><p>Ta progression Monster Energy</p></div>
   <div class="srow">
-    <div class="sbox"><div class="sval" id="h-owned">-</div><div class="slbl2">Possédées</div><button class="btn-ghost" id="h-adv-1" onclick="toggleHomeAdv()" style="margin-top:8px;padding:3px 10px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;border-color:var(--g);color:var(--g);">avancé</button></div>
-    <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total dispo.</div><button class="btn-ghost" id="h-adv-2" onclick="toggleHomeAdv()" style="margin-top:8px;padding:3px 10px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;border-color:var(--g);color:var(--g);">avancé</button></div>
+    <div class="sbox"><div class="sval" id="h-owned">-</div><div class="slbl2">Possédées</div><button class="btn-ghost" id="h-adv-1" data-beta onclick="toggleHomeAdv()" style="margin-top:8px;padding:3px 10px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;border-color:var(--g);color:var(--g);">avancé</button></div>
+    <div class="sbox"><div class="sval" id="h-total">-</div><div class="slbl2">Total dispo.</div><button class="btn-ghost" id="h-adv-2" data-beta onclick="toggleHomeAdv()" style="margin-top:8px;padding:3px 10px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;border-color:var(--g);color:var(--g);">avancé</button></div>
     <div class="sbox"><div class="sval" id="h-drinks">-</div><div class="slbl2">Canettes bues</div></div>
     <div class="sbox"><div class="sval" id="h-spent">-</div><div class="slbl2">Argent dépensé</div></div>
   </div>
   <div class="prog-wrap">
     <div class="prog-lbl"><span>Complétion (canettes différentes)</span><b id="h-pct">0%</b></div>
     <div class="prog-bar"><div class="prog-fill" id="h-prog" style="width:0%"></div></div>
-    <div class="prog-lbl" style="margin-top:14px;"><span>Complétion (variantes comprises)</span><b id="h-pct2">0%</b></div>
-    <div class="prog-bar"><div class="prog-fill" id="h-prog2" style="width:0%"></div></div>
+    <div class="prog-lbl" data-beta style="margin-top:14px;"><span>Complétion (variantes comprises)</span><b id="h-pct2">0%</b></div>
+    <div class="prog-bar" data-beta><div class="prog-fill" id="h-prog2" style="width:0%"></div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;" id="home-charts">
     <div class="chart-wrap" style="margin-bottom:0;"><div class="chart-hd">Par série</div><div id="chart-series"></div></div>
@@ -189,7 +189,7 @@
 
 <!-- MA COLLECTION -->
 <div class="sec" id="sec-collection">
-  <div class="sec-hd"><h1>MA COLLECTION</h1><p>Toutes les canettes — clique sur une canette pour ouvrir sa fiche</p></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;"><div class="sec-hd" style="margin:0;"><h1>MA COLLECTION</h1><p>Toutes les canettes — clique sur une canette pour ouvrir sa fiche</p></div><button class="btn-ghost" id="col-adv-btn" data-beta onclick="toggleColAdv()" style="padding:10px 14px;display:none;white-space:nowrap;">AVANCÉ</button></div>
   <div class="srow">
     <div class="sbox"><div class="sval" id="c-owned">-</div><div class="slbl2">Possédées</div></div>
     <div class="sbox"><div class="sval" id="c-total">-</div><div class="slbl2">Total</div></div>
@@ -199,7 +199,6 @@
     </div>
   </div>
   <div style="margin-bottom:12px;"><button class="btn-ghost" disabled style="padding:10px 14px;opacity:.6;cursor:not-allowed;">📷 Ajouter par code-barres <span style="font-size:10px;color:var(--g);border:1px solid var(--g);padding:2px 6px;letter-spacing:1px;margin-left:6px;">À VENIR</span></button></div>
-  <div style="margin-bottom:12px;"><button class="btn-ghost" id="col-adv-btn" onclick="toggleColAdv()" style="padding:10px 14px;">AVANCÉ</button> <span style="font-size:11px;color:var(--mu);">affiche aussi toutes les variantes</span></div>
   <div class="catbar">
     <input class="sinput" id="col-search" type="text" placeholder="Rechercher par nom, série, variante..." oninput="filterCans()"/>
   </div>
@@ -496,6 +495,10 @@
       <div class="field" style="margin-top:14px;"><label>Changer la version (visible par tous les utilisateurs)</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;"><input class="minput" type="text" id="adm-ver-new" placeholder="ex. 1.0.2" style="flex:1;min-width:140px;"/><button class="btn-add" onclick="saveAppVersion()">ENREGISTRER</button></div>
         <div style="font-size:12px;color:var(--mu);margin-top:6px;">Format x.y.z. La date de mise en ligne prend la date du jour.</div>
+      <div class="field" style="margin-top:18px;"><label>Nouveautés ouvertes à tous à partir de la version</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><input class="minput" type="text" id="adm-open-ver" placeholder="ex. 1.4.0 — vide = fermé aux users" style="flex:1;min-width:140px;"/><button class="btn-add" onclick="saveOpenVersion()">OUVRIR</button></div>
+        <div style="font-size:12px;color:var(--mu);margin-top:6px;line-height:1.5;">Les testeurs et l'admin voient les nouveautés en avance. Les users ne les voient qu'après avoir fait la mise à jour vers cette version.</div>
+      </div>
         
       </div>
     </div>
@@ -735,6 +738,6 @@
 </div>
 
 <script src="js/qrcode.min.js"></script>
-<script type="module" src="js/app.js?v=87"></script>
+<script type="module" src="js/app.js?v=88"></script>
 </body>
 </html>
